@@ -16,11 +16,6 @@
 <script src="renderer.js"></script>
 <script>
   // Electron starts this timer only after the BrowserWindow is actually shown.
-  window.startOfficialSplashTimer=()=>{
-    if(window.__schoologySplashTimerStarted)return;
-    window.__schoologySplashTimerStarted=true;
-    setTimeout(()=>{const s=document.getElementById('bootSplash');if(s)s.remove();},1000);
-  };
 </script>
 </body>
 </html>

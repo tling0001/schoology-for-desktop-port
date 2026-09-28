@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('schoology',{
   authState:()=>ipcRenderer.invoke('auth-state'),
   loginCredentials:x=>ipcRenderer.invoke('login-credentials',x),
   loginQR:x=>ipcRenderer.invoke('login-qr',x),
+  loginSchoolBrowser:x=>ipcRenderer.invoke('login-school-browser',x),
   logout:()=>ipcRenderer.invoke('logout'),
   schoolSearch:q=>ipcRenderer.invoke('school-search',q),
   api:x=>ipcRenderer.invoke('api',x),

@@ -1,6 +1,9 @@
 const app=document.getElementById('app');
 const A=window.schoology;
-if(!A){app.innerHTML='<div class="fatal"><h2>Schoology</h2><p>The application interface could not initialize.</p><p>Please restart the app.</p></div>';throw new Error('Schoology preload bridge is unavailable')}
+if(!A){
+  app.innerHTML='<div class="fatal"><h2>Schoology</h2><p>The application interface could not initialize.</p><p>The Electron authentication bridge did not load.</p></div>';
+}
+if(!A) throw new Error('Schoology preload bridge is unavailable');
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
 let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',searchToken:0};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -28,5 +31,3 @@ let qrStream=null,qrBusy=false;
 function stopQR(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}qrBusy=false}
 async function startQR(){const v=document.getElementById('video'),canvas=document.getElementById('canvas');if(!v||!canvas)return;try{qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});v.srcObject=qrStream;await v.play().catch(()=>{});const ctx=canvas.getContext('2d',{willReadFrequently:true});const tick=async()=>{if(state.screen!=='qr'||!qrStream)return;if(!qrBusy&&v.readyState>=2&&v.videoWidth){canvas.width=v.videoWidth;canvas.height=v.videoHeight;ctx.drawImage(v,0,0,canvas.width,canvas.height);const img=ctx.getImageData(0,0,canvas.width,canvas.height);const code=A.decodeQR(img.data,img.width,img.height);if(code?.data){qrBusy=true;stopQR();try{state.auth=await A.loginQR(code.data);await afterLogin()}catch(e){state.error=e.message||'Sorry, your code isn’t working. Please try again.';state.screen='qr';render();startQR();return}}}requestAnimationFrame(tick)};requestAnimationFrame(tick)}catch(e){stopQR();state.error='Unable to access the camera. Enable camera access for Schoology and try again.';render()}}
 render();
-// Keep the Android-style splash visible for a real, observable minimum duration.
-setTimeout(()=>{const splash=document.getElementById('bootSplash');if(splash)splash.remove();},1500);

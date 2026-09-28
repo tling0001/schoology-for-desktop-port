@@ -13,9 +13,14 @@
   <img class="androidSplashSpinner" src="../assets/android_loading_spinner_72.gif" alt="">
 </div>
 <div id="app"></div>
-<script src="renderer.js"></script>
 <script>
-  // Electron starts this timer only after the BrowserWindow is actually shown.
+  // Unconditional splash failsafe: this runs before renderer.js, so a preload
+  // or renderer initialization error can never leave the splash permanently visible.
+  window.setTimeout(function(){
+    var splash=document.getElementById('bootSplash');
+    if(splash) splash.remove();
+  }, 1500);
 </script>
+<script src="renderer.js"></script>
 </body>
 </html>

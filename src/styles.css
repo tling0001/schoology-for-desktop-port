@@ -7,3 +7,5 @@
 .androidSplash{height:100vh;width:100%;background:#22303e;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;}
 .androidSplashLogo{width:442px;max-width:72%;height:auto;display:block;margin:0 0 16px;}
 .androidSplashSpinner{width:72px;height:72px;display:block;}
+
+.qrButton{display:block;width:100%;border:1px solid #fff;background:#22303e;color:#fff;border-radius:5px;padding:13px 18px;margin-top:14px;cursor:pointer}.accountTitle{font-size:18px;margin-bottom:28px}.searchStatus{text-align:center;color:#cdd3d7;padding:12px}.fatal{font-family:Arial,sans-serif;padding:32px;color:#22303e;background:#f4f5f5;height:100vh}.qr video{aspect-ratio:4/3;object-fit:cover}.androidSplash{position:fixed;inset:0;z-index:9999}

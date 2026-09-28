@@ -1,0 +1,22 @@
+appId: com.schoology.android.port
+productName: Schoology
+artifactName: Schoology-${version}-${arch}.${ext}
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - src/**
+  - assets/**
+  - package.json
+win:
+  target:
+    - nsis
+    - portable
+  requestedExecutionLevel: user
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+portable:
+  artifactName: Schoology-${version}-portable.${ext}

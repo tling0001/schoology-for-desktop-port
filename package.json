@@ -1,0 +1,10 @@
+{
+  "name": "schoology-windows-port",
+  "version": "2025.04.0-port.1",
+  "description": "Cross-platform Schoology client port based on the supplied Android APK source",
+  "main": "src/main.js",
+  "author": "SchoologyWindowsPort",
+  "license": "UNLICENSED",
+  "scripts": { "start": "electron .", "dist": "electron-builder --win nsis portable" },
+  "devDependencies": { "electron": "^38.2.0", "electron-builder": "^26.0.12" }
+}

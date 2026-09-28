@@ -1,4 +1,6 @@
-const A=window.schoology;const app=document.getElementById('app');
+const app=document.getElementById('app');
+const A=window.schoology;
+if(!A){ app.innerHTML='<div style="font-family:Arial,sans-serif;padding:32px;color:#22303e;background:#f4f5f5;height:100vh"><h2>Schoology</h2><p>The application interface could not initialize.</p><p>Please restart the app.</p></div>'; throw new Error('Schoology preload bridge is unavailable'); }
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
 let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}

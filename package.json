@@ -1,3 +1,9 @@
 {
-  "name":"schoology-windows-port","version":"2025.04.0-port.2","description":"Cross-platform Schoology client port based on the supplied Android APK source","main":"src/main.js","author":"SchoologyWindowsPort","license":"UNLICENSED","scripts":{"start":"electron .","dist":"electron-builder --win nsis portable --publish never"},"devDependencies":{"electron":"^38.2.0","electron-builder":"^26.15.3"},"build":{"appId":"com.schoology.app.windowsport","productName":"Schoology","asar":true,"files":["src/**/*","assets/**/*","package.json"],"win":{"target":["nsis","portable"],"requestedExecutionLevel":"asInvoker"},"nsis":{"oneClick":false,"allowToChangeInstallationDirectory":true}}
+  "name":"schoology-windows-port",
+  "version":"2025.04.0-port.6",
+  "description":"Cross-platform Schoology client port based on the supplied Android APK architecture",
+  "main":"src/main.js",
+  "scripts":{"start":"electron .","dist":"electron-builder --win nsis portable --publish never"},
+  "devDependencies":{"electron":"^39.1.0","electron-builder":"^26.15.3"},
+  "dependencies":{"jsqr":"^1.4.0"}
 }

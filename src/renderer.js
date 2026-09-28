@@ -20,14 +20,52 @@ function bind(){
   const back=document.getElementById('back');if(back)back.onclick=()=>{stopQR();state.error='';state.screen=state.school?'search':'login';if(state.screen==='search')state.schools=[];render()};
   const q=document.getElementById('schoolSearch');
   if(q){q.oninput=async()=>{state.q=q.value;const query=q.value.trim();if(query.length<1){state.schools=[];state.loading=false;render();document.getElementById('schoolSearch')?.focus();return}const token=++state.searchToken;state.loading=true;state.error='';render();document.getElementById('schoolSearch')?.focus();try{const results=await A.schoolSearch(query);if(token!==state.searchToken)return;state.schools=Array.isArray(results)?results:[]}catch(e){if(token===state.searchToken){state.schools=[];state.error=e.message||'Unable to search for schools.'}}finally{if(token===state.searchToken)state.loading=false}render();document.getElementById('schoolSearch')?.focus()}}
-  document.querySelectorAll('[data-school]').forEach(b=>b.onclick=()=>{state.school=state.schools[+b.dataset.school];state.schools=[];state.error='';if(state.school?.login_type&&state.school.login_type!=='schoology'){const url=state.school.login_url||state.school.login_url_suggest;if(url){A.openExternal(url);return}state.error='This school uses an external sign-in flow.';render();return}state.screen='credentials';render();document.getElementById('user')?.focus()});
+  document.querySelectorAll('[data-school]').forEach(b=>b.onclick=async()=>{state.school=state.schools[+b.dataset.school];state.schools=[];state.error='';const school=state.school;if(school?.login_type&&school.login_type!=='schoology'){const url=school.login_url||school.login_url_suggest;if(!url){state.error='This school did not provide a login URL.';render();return}state.loading=true;render();try{state.auth=await A.loginSchoolBrowser({loginUrl:url,domain:school.domain||''});await afterLogin()}catch(e){state.error=e.message||'School browser login failed.';state.screen='search';render()}finally{state.loading=false}return}state.screen='credentials';render();document.getElementById('user')?.focus()});
   const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();loadTab()});
   const lo=document.getElementById('logout');if(lo)lo.onclick=async()=>{await A.logout();state.auth=null;state.school=null;state.screen='login';state.tab='home';render()}
 }
 async function afterLogin(){stopQR();state.screen='app';render();await loadTab()}
 async function loadTab(){const c=document.getElementById('content');if(!c)return;c.innerHTML='<div class="loading">Loading…</div>';try{if(state.tab==='home'){const u=await A.api({path:'users/me'});c.innerHTML=`<section class="welcome"><h1>Welcome, ${esc(u.name_display||u.name||'')}</h1><p>Schoology</p></section>`}else if(state.tab==='courses'){const x=await A.api({path:'users/me/sections',params:{limit:100}});const arr=x.section||x.sections||[];c.innerHTML=`<h2>Courses</h2><div class="cards">${arr.map(s=>`<button class="card"><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></button>`).join('')||'<p>No courses found.</p>'}</div>`}else{c.innerHTML=`<h2>${state.tab[0].toUpperCase()+state.tab.slice(1)}</h2><p>This Schoology module is connected to the Android-compatible API layer.</p>`}}catch(e){c.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
-let qrStream=null,qrBusy=false;
+let qrStream=null,qrBusy=false,qrLastAttempt=0;
 function stopQR(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}qrBusy=false}
-async function startQR(){const v=document.getElementById('video'),canvas=document.getElementById('canvas');if(!v||!canvas)return;try{qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});v.srcObject=qrStream;await v.play().catch(()=>{});const ctx=canvas.getContext('2d',{willReadFrequently:true});const tick=async()=>{if(state.screen!=='qr'||!qrStream)return;if(!qrBusy&&v.readyState>=2&&v.videoWidth){canvas.width=v.videoWidth;canvas.height=v.videoHeight;ctx.drawImage(v,0,0,canvas.width,canvas.height);const img=ctx.getImageData(0,0,canvas.width,canvas.height);const code=A.decodeQR(img.data,img.width,img.height);if(code?.data){qrBusy=true;stopQR();try{state.auth=await A.loginQR(code.data);await afterLogin()}catch(e){state.error=e.message||'Sorry, your code isn’t working. Please try again.';state.screen='qr';render();startQR();return}}}requestAnimationFrame(tick)};requestAnimationFrame(tick)}catch(e){stopQR();state.error='Unable to access the camera. Enable camera access for Schoology and try again.';render()}}
-render();
+function decodeFrame(ctx,w,h){
+  const attempts=[];
+  // Android uses a square framing area. Try that first at a practical size.
+  const side=Math.min(w,h);
+  const sx=Math.max(0,Math.floor((w-side)/2)),sy=Math.max(0,Math.floor((h-side)/2));
+  const size=Math.min(side,900);
+  const work=document.createElement('canvas');work.width=size;work.height=size;
+  const wc=work.getContext('2d',{willReadFrequently:true});
+  wc.drawImage(ctx.canvas,sx,sy,side,side,0,0,size,size);
+  attempts.push(wc.getImageData(0,0,size,size));
+  // Also try the full camera frame for QR codes outside the exact center.
+  attempts.push(ctx.getImageData(0,0,w,h));
+  for(const img of attempts){
+    try{const code=A.decodeQR(img.data,img.width,img.height);if(code?.data)return code.data}catch(e){}
+  }
+  return null;
+}
+async function startQR(){
+  const v=document.getElementById('video'),canvas=document.getElementById('canvas');if(!v||!canvas)return;
+  try{
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera API unavailable');
+    qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    v.srcObject=qrStream;await v.play().catch(()=>{});
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const tick=async(now)=>{
+      if(state.screen!=='qr'||!qrStream)return;
+      if(!qrBusy&&v.readyState>=2&&v.videoWidth&&(!qrLastAttempt||now-qrLastAttempt>120)){
+        qrLastAttempt=now;
+        canvas.width=v.videoWidth;canvas.height=v.videoHeight;ctx.drawImage(v,0,0,canvas.width,canvas.height);
+        const data=decodeFrame(ctx,canvas.width,canvas.height);
+        if(data){
+          qrBusy=true;stopQR();
+          try{state.auth=await A.loginQR(data);await afterLogin()}catch(e){state.error=e.message||'Sorry, your code isn’t working. Please try again.';state.screen='qr';render();startQR();return}
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }catch(e){stopQR();state.error='Unable to access the camera. Enable camera access for Schoology and try again.';render()}
+}

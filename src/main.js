@@ -64,6 +64,7 @@ function request(method,url,body={},opts={}){
       headers['X-Schoology-Client']='Android';
       headers['X-Schoology-App-Version']='2025.04.0';
     }
+    if(opts.headers) Object.assign(headers,opts.headers);
     if(opts.sign){headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');headers.Cookie=MOBILE_COOKIE;}
     if(!isGet){headers['Content-Type']='application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
     const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method,headers},r=>{
@@ -117,6 +118,68 @@ async function api(pathname,method='GET',params={}){
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);
   try{return JSON.parse(r.text)}catch{return r.text}
 }
+async function getSessionCookieForUrl(url){
+  try{
+    const u=new URL(url);
+    const cookies=await session.defaultSession.cookies.get({url:u.origin+'/'});
+    const sess=cookies.find(c=>/^SESS/i.test(c.name));
+    return sess?`${sess.name}=${sess.value}`:null;
+  }catch{return null}
+}
+function hostMatches(host,domain){
+  if(!host||!domain)return false;
+  const h=String(host).toLowerCase(), d=String(domain).toLowerCase().replace(/^https?:\/\//,'').replace(/^\./,'');
+  return h===d || h.endsWith('.'+d);
+}
+async function authorizeSessionCookie(webOrigin,sessionCookie){
+  await syncServerTime().catch(()=>{});
+  const t=await getRequestToken();
+  const r=await request('POST',`${webOrigin.replace(/\/$/,'')}/oauth/authorize_auto`,{oauth_token:t.oauth_token},{clientIdentity:true,headers:{Cookie:sessionCookie}});
+  if(r.status<200||r.status>=300)throw new Error('Schoology browser login was not accepted: '+r.status+' '+r.text);
+  return exchangeToken(t);
+}
+async function loginThroughSchoolBrowser(info){
+  if(!info||!info.loginUrl)throw new Error('This school did not provide a login URL.');
+  return new Promise((resolve,reject)=>{
+    let child=null,settled=false,poll=null;
+    const expectedDomain=info.domain||'';
+    const loginUrl=info.loginUrl;
+    const finish=(err,value)=>{
+      if(settled)return;
+      settled=true;
+      if(poll)clearInterval(poll);
+      if(child&&!child.isDestroyed())child.close();
+      err?reject(err):resolve(value);
+    };
+    const tryCapture=async()=>{
+      if(!child||child.isDestroyed())return;
+      const current=child.webContents.getURL()||loginUrl;
+      let u;try{u=new URL(current)}catch{return}
+      const eligible=hostMatches(u.hostname,expectedDomain)||hostMatches(u.hostname,new URL(`https://${WEB_HOST}`).hostname)||u.search.includes('sgyInitialPage');
+      if(!eligible)return;
+      const cookie=await getSessionCookieForUrl(current);
+      if(!cookie)return;
+      try{
+        const origin=u.origin;
+        const auth=await authorizeSessionCookie(origin,cookie);
+        finish(null,auth);
+      }catch(e){
+        // A redirect can briefly expose a stale/non-authenticated SESS cookie.
+        // Keep the browser open and allow the page to finish its redirect chain.
+        console.error('Schoology browser authorization attempt failed:',e);
+      }
+    };
+    child=new BrowserWindow({width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true}});
+    child.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
+    child.webContents.on('did-navigate',()=>setTimeout(tryCapture,100));
+    child.webContents.on('did-navigate-in-page',()=>setTimeout(tryCapture,100));
+    child.webContents.on('will-redirect',()=>setTimeout(tryCapture,250));
+    child.webContents.on('did-fail-load',(_,code,desc)=>console.error('School login browser failed:',code,desc));
+    poll=setInterval(tryCapture,750);
+    child.on('closed',()=>{if(!settled){if(poll)clearInterval(poll);reject(new Error('School login window was closed.'))}});
+    child.loadURL(loginUrl).catch(e=>finish(e));
+  });
+}
 function create(){
   win=new BrowserWindow({width:430,height:850,minWidth:360,minHeight:650,show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
@@ -134,6 +197,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));
+  ipcMain.handle('login-school-browser',(_,info)=>loginThroughSchoolBrowser(info));
   ipcMain.handle('logout',()=>{try{fs.unlinkSync(storeFile)}catch{};return true});
   ipcMain.handle('school-search',async(_,q)=>{
     const r=await request('GET',`https://${API_HOST}/v1/login/school_search`,{query:q},{clientIdentity:true});

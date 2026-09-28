@@ -21,7 +21,7 @@ if(!A){ app.innerHTML='<div style="font-family:Arial,sans-serif;padding:32px;col
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
 let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function render(){if(state.screen==='login')return login();if(state.screen==='qr')return qr();if(state.screen==='school')return schoolLogin();return shell()}
+function render(){let h;if(state.screen==='login')h=login();else if(state.screen==='qr')h=qr();else if(state.screen==='school')h=schoolLogin();else h=shell();mount(h);return h}
 function mount(h){app.innerHTML=h;bind();}
 function login(){return `<div class="login"><img class="logo" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" placeholder="Search for your school" value="${esc(state.q)}"><span>⌕</span></div>${state.schools.length?`<div class="suggestions">${state.schools.map((s,i)=>`<button class="suggestion" data-school="${i}"><b>${esc(s.title)}</b><small>${esc(s.location||s.domain||'')}</small></button>`).join('')}</div>`:''}<button id="continueSchoology" class="primary">Log in using schoology.com</button><div class="or"><span>OR</span></div><button id="schoolLogin" class="secondary">Log in through your School</button><button id="qrLogin" class="linkbtn">Sign in with QR Code</button></div><div class="loginBottom">I need help signing in</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function schoolLogin(){return `<div class="login"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="selected">${esc(state.school?.title||'School')}</div><div class="label">Username or Email</div><input id="user" class="field" autocomplete="username"><div class="label">Password</div><input id="pass" class="field" type="password" autocomplete="current-password"><button id="signIn" class="primary">Sign In</button><button id="qrLogin" class="linkbtn">Sign in with QR Code</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
@@ -47,7 +47,7 @@ function showLoginNow(){
 }
 // Never wait for auth-state before mounting the interface.
 render();
-setTimeout(()=>showApp(),650);
+setTimeout(()=>showApp(),1000);
 (async()=>{
   try {
     const a=await Promise.race([

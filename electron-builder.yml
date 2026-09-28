@@ -12,7 +12,7 @@ win:
   target:
     - nsis
     - portable
-  requestedExecutionLevel: user
+  requestedExecutionLevel: asInvoker
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

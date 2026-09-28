@@ -5,6 +5,6 @@
   "main": "src/main.js",
   "author": "SchoologyWindowsPort",
   "license": "UNLICENSED",
-  "scripts": { "start": "electron .", "dist": "electron-builder --win nsis portable" },
+  "scripts": { "start": "electron .", "dist": "electron-builder --win nsis portable --publish never" },
   "devDependencies": { "electron": "^38.2.0", "electron-builder": "^26.0.12" }
 }

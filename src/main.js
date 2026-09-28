@@ -187,6 +187,8 @@ function create(){
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
   win.webContents.on('render-process-gone',(_,details)=>console.error('Schoology renderer process gone:',details));
   win.webContents.on('console-message',(_,level,message,line,source)=>console.log('Renderer:',message,'at',source+':'+line));
+  win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
+  win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
   win.once('ready-to-show',()=>{win.show();});
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }

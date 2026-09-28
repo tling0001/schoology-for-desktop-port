@@ -69,3 +69,6 @@ async function startQR(){
     requestAnimationFrame(tick);
   }catch(e){stopQR();state.error='Unable to access the camera. Enable camera access for Schoology and try again.';render()}
 }
+
+// Mount the initial Android-style login screen after the renderer has initialized.
+render();

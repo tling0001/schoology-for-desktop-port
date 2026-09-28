@@ -10,7 +10,7 @@ win:
   target:
     - nsis
     - portable
-  icon: assets/ic_launcher.png
+  icon: assets/ic_launcher.ico
   requestedExecutionLevel: asInvoker
 nsis:
   oneClick: false

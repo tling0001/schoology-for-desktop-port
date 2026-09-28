@@ -31,7 +31,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "assets/ic_launcher.ico",
+      "icon": "assets/ic_launcher_256.ico",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {

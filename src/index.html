@@ -8,7 +8,11 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="app"><div class="startup">Loading Schoology…</div></div>
+<div id="bootSplash" class="androidSplash" aria-label="Loading Schoology">
+  <img class="androidSplashLogo" src="../assets/android_loading_logo.png" alt="Schoology">
+  <img class="androidSplashSpinner" src="../assets/android_loading_spinner_72.gif" alt="">
+</div>
+<div id="app" style="display:none"></div>
 <script>
 try {
 const app=document.getElementById('app');
@@ -27,7 +31,37 @@ function bind(){const q=document.getElementById('schoolSearch');if(q){q.oninput=
 async function afterLogin(){state.screen='app';render();await loadTab()}
 async function loadTab(){const c=document.getElementById('content');if(!c)return;c.innerHTML='<div class="loading">Loading…</div>';try{if(state.tab==='home'){const u=await A.api({path:'users/me'});c.innerHTML=`<section class="welcome"><h1>Welcome, ${esc(u.name_display||u.name||'')}</h1><p>Schoology</p></section>`}else if(state.tab==='courses'){const x=await A.api({path:'users/me/sections',params:{limit:100}});const arr=x.section||x.sections||[];c.innerHTML=`<h2>Courses</h2><div class="cards">${arr.map(s=>`<button class="card"><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></button>`).join('')||'<p>No courses found.</p>'}</div>`}else{c.innerHTML=`<h2>${state.tab[0].toUpperCase()+state.tab.slice(1)}</h2><p>This Schoology module is connected to the Android-compatible API layer.</p>`}}catch(e){c.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
 async function startQR(){const v=document.getElementById('video'),canvas=document.getElementById('canvas');try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});v.srcObject=stream;const ctx=canvas.getContext('2d');const tick=async()=>{if(state.screen!=='qr'){stream.getTracks().forEach(t=>t.stop());return}if(v.readyState>=2){canvas.width=v.videoWidth;canvas.height=v.videoHeight;ctx.drawImage(v,0,0);const img=ctx.getImageData(0,0,canvas.width,canvas.height);const code=window.jsQR?window.jsQR(img.data,img.width,img.height):null;if(code?.data){stream.getTracks().forEach(t=>t.stop());try{state.auth=await A.loginQR(code.data);await afterLogin()}catch(e){state.error=e.message||'QR login failed.';render();startQR();return}}}requestAnimationFrame(tick)};tick()}catch(e){state.error='Camera access is required for QR login. Enable camera permission and try again.';render()}}
-(async()=>{try{const a=await Promise.race([A.authState(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('auth-state timeout')),5000))]);state.auth=a;if(state.auth){state.screen='app';render();loadTab()}else{render()}}catch(e){console.warn('Auth state unavailable; showing login:',e);state.auth=null;state.screen='login';render()}})();
+// Bootstrap the UI synchronously first. Authentication is checked in the background so
+// a stalled IPC call can never prevent the login UI from appearing.
+function showApp(){
+  const splash=document.getElementById('bootSplash');
+  const root=document.getElementById('app');
+  if(splash) splash.remove();
+  if(root) root.style.display='block';
+}
+function showLoginNow(){
+  state.auth=null;
+  state.screen='login';
+  render();
+  showApp();
+}
+// Never wait for auth-state before mounting the interface.
+render();
+setTimeout(()=>showApp(),650);
+(async()=>{
+  try {
+    const a=await Promise.race([
+      A.authState(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('auth-state timeout')),5000))
+    ]);
+    state.auth=a;
+    if(state.auth){ state.screen='app'; render(); showApp(); loadTab(); }
+    else { showLoginNow(); }
+  } catch(e) {
+    console.warn('Auth state unavailable; showing login:',e);
+    showLoginNow();
+  }
+})();
 
 } catch (e) {
   console.error('Schoology UI startup error:', e);

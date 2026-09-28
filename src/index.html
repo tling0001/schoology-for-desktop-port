@@ -13,14 +13,7 @@
   <img class="androidSplashSpinner" src="../assets/android_loading_spinner_72.gif" alt="">
 </div>
 <div id="app"></div>
-<script>
-  // Unconditional splash failsafe: this runs before renderer.js, so a preload
-  // or renderer initialization error can never leave the splash permanently visible.
-  window.setTimeout(function(){
-    var splash=document.getElementById('bootSplash');
-    if(splash) splash.remove();
-  }, 1500);
-</script>
+<script src="boot.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

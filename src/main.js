@@ -61,6 +61,8 @@ function request(method,url,body={},opts={}){
       'Accept':'application/json'
     };
     if(opts.clientIdentity) {
+      headers['X-Schoology-Client']='Android';
+      headers['X-Schoology-App-Version']='2025.04.0';
     }
     if(opts.sign){headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');headers.Cookie=MOBILE_COOKIE;}
     if(!isGet){headers['Content-Type']='application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}

@@ -7,6 +7,19 @@
   var started = Date.now();
   var removed = false;
 
+  function fallbackUI() {
+    var app = document.getElementById('app');
+    if (!app || app.children.length) return;
+    app.innerHTML = '<div class="login"><img class="logo" src="../assets/logo_schoology.png"><div class="loginBody"><button id="bootSchoolLogin" class="primary">Log in through your School</button><button id="bootContinue" class="secondary">Log in using schoology.com</button><button id="bootQr" class="qrButton">Sign in with a QR code</button></div><div class="loginBottom">I need help signing in</div></div>';
+    var bridge = window.schoology;
+    var school = document.getElementById('bootSchoolLogin');
+    var cont = document.getElementById('bootContinue');
+    var qr = document.getElementById('bootQr');
+    if (school) school.onclick=function(){ location.reload(); };
+    if (cont) cont.onclick=function(){ location.reload(); };
+    if (qr) qr.onclick=function(){ location.reload(); };
+  }
+
   function removeSplash() {
     if (removed) return;
     removed = true;
@@ -22,7 +35,7 @@
 
   function schedule() {
     var elapsed = Date.now() - started;
-    window.setTimeout(removeSplash, Math.max(0, MIN_SPLASH_MS - elapsed));
+    window.setTimeout(function(){ removeSplash(); window.setTimeout(fallbackUI, 50); }, Math.max(0, MIN_SPLASH_MS - elapsed));
   }
 
   // The timer is independent of renderer.js, preload, IPC, authentication,

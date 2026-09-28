@@ -1,9 +1,2 @@
-const { contextBridge, ipcRenderer } = require('electron');
-contextBridge.exposeInMainWorld('schoologyDesktop', {
-  account: { get:()=>ipcRenderer.invoke('account:get'), logout:()=>ipcRenderer.invoke('account:logout') },
-  oauth: { start:()=>ipcRenderer.invoke('oauth:start'), finish:(req,verifier)=>ipcRenderer.invoke('oauth:finish',req,verifier) },
-  api: (path,method='GET',body=null)=>ipcRenderer.invoke('api',path,method,body),
-  openExternal:(url)=>ipcRenderer.invoke('open:external',url),
-  openFiles:()=>ipcRenderer.invoke('file:open'),
-  saveFile:(name)=>ipcRenderer.invoke('file:save',name)
-});
+const {contextBridge,ipcRenderer}=require('electron');
+contextBridge.exposeInMainWorld('schoologyDesktop',{account:{get:()=>ipcRenderer.invoke('account:get'),logout:()=>ipcRenderer.invoke('account:logout')},oauth:{start:()=>ipcRenderer.invoke('oauth:start'),finish:(r,v)=>ipcRenderer.invoke('oauth:finish',r,v)},api:(p,m,b)=>ipcRenderer.invoke('api',p,m,b),openExternal:u=>ipcRenderer.invoke('open:external',u),file:{open:()=>ipcRenderer.invoke('file:open'),save:s=>ipcRenderer.invoke('file:save')},deepLink:u=>ipcRenderer.invoke('deep-link',u)});

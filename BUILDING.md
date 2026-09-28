@@ -1,11 +1,11 @@
-# Building the Schoology Windows port
+# Build
 
-This repository is intentionally built by GitHub Actions.
+Push this folder to GitHub and run **Actions → Build Schoology for Windows**.
 
-## GitHub Actions
+Optional repository secrets:
+- `SCHOOLOGY_CONSUMER_KEY`
+- `SCHOOLOGY_CONSUMER_SECRET`
 
-Push the repository to GitHub, then run **Actions → Build Schoology Windows Port**.
+The supplied APK's live OAuth values are included as defaults for development. For redistribution, use repository secrets and replace them in a private deployment as appropriate.
 
-The workflow does **not** use `setup-node` npm caching, so a `package-lock.json` is not required for the checkout. It runs `npm install --no-audit --no-fund`, then `npm run dist`.
-
-The resulting `dist/*.exe` files are uploaded as the `SchoologyWindowsPort-Windows-x64` artifact.
+The workflow produces both an NSIS installer and a portable x64 EXE.

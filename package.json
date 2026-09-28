@@ -1,6 +1,6 @@
 {
   "name": "schoology-windows-port",
-  "version": "2025.04.0-port.6",
+  "version": "2025.04.0-port.7",
   "description": "Cross-platform Schoology client port based on the supplied Android APK architecture",
   "main": "src/main.js",
   "scripts": {
@@ -14,5 +14,32 @@
   "dependencies": {
     "jsqr": "^1.4.0"
   },
-  "author": "Schoology Windows Port"
+  "author": "Schoology Windows Port",
+  "build": {
+    "appId": "com.schoology.app",
+    "productName": "Schoology",
+    "artifactName": "Schoology-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/ic_launcher.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
 }

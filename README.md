@@ -1,22 +1,59 @@
-# Schoology Windows Port v6
+# Schoology Windows / Cross-Platform Port
 
-This is a cross-platform Electron implementation based on the supplied Schoology Android APK/decompiled source. The Android app is itself hybrid: native login/navigation/data flows plus WebView/hybrid surfaces. This project reproduces those boundaries rather than treating Schoology as one generic web page.
+A cross-platform Schoology client port based on the supplied **Schoology Android 2026.06.0** source. The goal is to reproduce the Android app's navigation, API behavior, layouts, app-bar actions, icons, login flow, and hybrid WebView surfaces as closely as practical on desktop.
 
-## GitHub Actions
+## Current version
 
-Push the repository and run `.github/workflows/build-windows.yml`. The workflow produces NSIS and portable Windows x64 artifacts.
+**2026.06.0-port.44**
 
-## Login implementation
+## Source alignment
 
-The implementation follows the supplied Android sources:
-- `ServerConfig` live host: `api.schoology.com` / `app.schoology.com`
-- Android client consumer credentials recovered from `ServerConfig`
-- `OAuthAuthenticator` request-token/access-token sequence
-- `EmailAuthorizer` / `UsernameAuthorizer` automatic authorization
-- `QRCodeAuthorizer` QR automatic authorization with HMAC signing
-- Android client User-Agent `Schoology Android v2025.04.0`
-- School search endpoint `login/school_search`
+This project uses the supplied Android 2026.06.0 source as the reference for:
+- Native login and Schoology OAuth behavior
+- Drawer navigation and official Android vector/PNG assets
+- Course profile tabs and course Materials actions
+- Course-specific Upcoming events
+- Assignment `Info / Comments / Grade Submissions` pager
+- `CommentsResourceV2` comment behavior and attachment handling
+- Dropbox/Grade Submissions data model and revision history
+- Schoology document/file download metadata
+- Android-style Schoology WebView identity where the official app requires it
 
-Camera QR scanning uses the desktop camera permission and jsQR, then follows the Android QR authorization flow.
+## Platforms
 
-Do not publish modified client credentials or claim official affiliation with PowerSchool/Schoology.
+The application is built with Electron and is intended to run on Windows, macOS, and Linux.
+
+### Windows CI outputs
+
+GitHub Actions deliberately produces only:
+1. **Windows NSIS installer**
+2. **Windows unpacked (`win-unpacked`) build**
+
+No portable Windows target is generated.
+
+## Building
+
+```bash
+npm install
+npm start
+```
+
+For Windows packaging:
+
+```bash
+npm run dist:win
+```
+
+The GitHub Actions workflow in `.github/workflows/build-windows.yml` builds the supported release artifacts.
+
+## Important implementation notes
+
+- The desktop shell uses native Electron UI for the navigation and API-backed Schoology screens.
+- Schoology hybrid pages and Course Dashboard use embedded WebViews.
+- Course-app and ordinary web links use the normal desktop Chromium user agent rather than spoofing Android, while the main Schoology shell/login behavior retains the Android client identity where required.
+- The official Android course Materials download/offline toolbar icon is included. Full Android offline synchronization is not yet implemented by the desktop port.
+- Downloaded Schoology files preserve the extension supplied by Schoology when that metadata is available.
+
+## Source reference
+
+The authoritative reference used for this port is the supplied `schoology-android-2026-06-0.zip`.

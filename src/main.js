@@ -412,7 +412,6 @@ function create(){
 app.whenReady().then(()=>{
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
-  session.defaultSession.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));

@@ -1,4 +1,4 @@
-name: Build Schoology Cross-Platform Releases
+name: Build Schoology Releases
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   windows:
-    name: Windows installer + unpacked
+    name: Windows installer + unpacked (no portable build)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

@@ -55,7 +55,7 @@ function shell(){
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
- <header class="toolbar">${state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span>${state.assignmentView&&state.assignmentCanSubmit&&state.assignmentTab==='submit'?`<button id="assignmentPlus" class="iconButton toolbarPlus" aria-label="Add submission">+</button>`:state.tab==='messages'&&!state.courseView&&!state.embeddedTitle?`<button id="composeMessage" class="iconButton toolbarPlus" aria-label="Compose message">+</button>`:`<span class="toolbarSpacer"></span>`}</header>
+ <header class="toolbar">${state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading">Loading…</div></main>
  <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
@@ -65,7 +65,6 @@ function shell(){
 }
 function bind(){
   document.getElementById('composeMessage')?.addEventListener('click',()=>showComposeMessage());
-  document.getElementById('assignmentPlus')?.addEventListener('click',()=>showSubmissionMenu());
   document.getElementById('toolbarBack')?.addEventListener('click',()=>navigateBack());
   const schoolBtn=document.getElementById('schoolLogin');if(schoolBtn)schoolBtn.onclick=()=>{state.error='';state.q='';state.schools=[];state.screen='search';render();document.getElementById('schoolSearch')?.focus()};
   const accountBtn=document.getElementById('continueSchoology');if(accountBtn)accountBtn.onclick=()=>{state.error='';state.school=null;state.screen='credentials';render();document.getElementById('user')?.focus()};
@@ -185,21 +184,24 @@ function syncToolbar(){
   const needs=!!(state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message);
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
-  if(needs&&!existing){
-    const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';
-    b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();
-  }
-  if(!needs&&!existing&&menu===null){
-    const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.textContent='☰';
-    header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});
-  }
-  if(!needs&&existing){
-    existing.remove();
-    const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.textContent='☰';
-    header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});
-  }
+  if(needs&&!existing){const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();}
+  if(!needs&&!existing&&menu===null){const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.textContent='☰';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
+  if(!needs&&existing){existing.remove();const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.textContent='☰';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';
+  const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
+  slot.innerHTML='';
+  if(state.assignmentView&&state.assignmentCanSubmit&&state.assignmentTab==='submit'){
+    slot.innerHTML='<button id="assignmentPlus" class="iconButton toolbarImageButton" aria-label="Add submission"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
+    document.getElementById('assignmentPlus')?.addEventListener('click',()=>showSubmissionMenu());
+  }else if(state.courseView&&!state.assignmentView&&!state.embeddedTitle&&!state.currentGroup&&!state.profileUser&&state.courseTab==='materials'){
+    slot.innerHTML='<button id="courseDownload" class="iconButton toolbarImageButton" aria-label="Make available offline"><img src="../assets/icons/ic_action_download.png" alt=""></button>';
+    document.getElementById('courseDownload')?.addEventListener('click',()=>alert('Make available offline is an Android Schoology offline-sync action. The official toolbar control is shown, but desktop offline synchronization is not yet implemented.'));
+  }else if(state.tab==='messages'&&!state.courseView&&!state.embeddedTitle&&!state.message){
+    slot.innerHTML='<button id="composeMessage" class="iconButton toolbarPlus" aria-label="Compose message">+</button>';
+    document.getElementById('composeMessage')?.addEventListener('click',()=>showComposeMessage());
+  }
 }
+
 function navigateBack(){
   if(state.composeMessage){state.composeMessage=false;state.toolbarTitle='Messages';state.tab='messages';state.message=null;state.messageThread=null;render();loadTab();return}
   if(state.assignmentView){
@@ -275,7 +277,6 @@ async function showAssignment(sectionId,assignmentId){
     const html=typeof at.description==='string'?at.description:'';
     const attachments=at.attachments||at.attachment||{};
     const canSubmit=at.allow_dropbox===1||at.allow_dropbox==='1'||at.allowDropbox===true||at.allow_dropbox===true;
-    const canDiscuss=at.allow_discussion===1||at.allow_discussion==='1'||at.allowDiscussion===true;
     state.assignmentCanSubmit=canSubmit;
     const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button><button class="assignmentTab" data-assignment-tab="comments">Comments</button>${canSubmit?'<button class="assignmentTab" data-assignment-tab="submit">Grade Submissions</button>':''}`;
     c.innerHTML=`<section class="assignmentAndroidPage"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section>`;
@@ -292,10 +293,60 @@ async function showAssignment(sectionId,assignmentId){
       else if(id==='submit')await openSubmissionComposer(sectionId,assignmentId,at);
       syncToolbar();
     };
-    document.querySelectorAll('[data-assignment-tab]').forEach(b=>b.onclick=()=>select(b.dataset.assignmentTab));
+    document.querySelectorAll('[data-assignment-tab]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>select(b.dataset.assignmentTab)));
     renderInfo();
   }catch(e){ c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`; }
 }
+async function openAssignmentComments(sectionId,assignmentId,assignment){
+  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
+  c.innerHTML='<div class="commentsPage"><div class="loading">Loading comments…</div></div>';
+  try{
+    // Android CommentsFragment -> CommentsResourceV2 uses:
+    // GET /v1/{realm}/{realm_id}/{comment_on}/{comment_on_id}/comments
+    // with realm=sections, comment_on=assignments, richtext and attachments.
+    const x=await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});
+    const arr=x.comments||x.comment||[];
+    const flat=[];
+    const walk=(node,depth=0)=>{if(!node||typeof node!=='object')return;flat.push({node,depth});const children=node.children||node.replies||node.comments||node.comment_replies||[];if(Array.isArray(children))children.forEach(ch=>walk(ch,depth+1));};
+    arr.forEach(v=>walk(v,0));
+    const userIds=[...new Set(flat.map(({node})=>Number(node.creater_id||node.creator_id||node.user_id||node.author_id||0)).filter(Boolean))];
+    const users={};await Promise.all(userIds.map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});users[id]=u?.user||u}catch{}}));
+    const cards=flat.map(({node,depth})=>{
+      const uid=Number(node.creater_id||node.creator_id||node.user_id||node.author_id||0),u=users[uid]||{};
+      const name=u.name_display||u.display_name||u.name||node.display_name||node.user_name||'Schoology';
+      const avatar=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||'');
+      const body=node.comment||node.body||node.message||'';
+      const created=formatSchoologyDate(node.created||node.timestamp||'');
+      const likes=Number(node.likes||node.like_count||0),liked=node.userLiked||node.user_liked;
+      const cid=node.comment_id||node.id||'';
+      const att=renderAttachments(node.attachments||node.attachment||{});
+      return `<article class="officialComment" style="margin-left:${Math.min(depth,6)*15}px"><div class="officialCommentMain">${avatar?`<img class="commentAvatarImage" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="commentAvatar">${esc(String(name).charAt(0))}</span>`}<div class="officialCommentBody"><b>${esc(name)}</b><div class="commentHtml">${body}</div><small>${esc(created)}</small>${att}<div class="commentActions"><button data-comment-reply="${esc(cid)}">Reply</button><button data-comment-like="${esc(cid)}" data-liked="${liked?'1':'0'}">${liked?'Unlike':'Like'}</button><button class="commentLikeCount" disabled>♥ ${likes}</button></div></div></div></article>`;
+    }).join('');
+    c.innerHTML=`<div class="commentsPage officialComments"><div class="commentsList">${cards||'<div class="empty">No comments found</div>'}</div>${assignment.allow_discussion===1||assignment.allow_discussion==='1'?'<div class="commentComposer"><textarea id="commentText" placeholder="Write a comment…"></textarea><button id="postComment" class="androidPrimary">Post</button></div>':''}</div>`;
+    await hydrateMediaImages(c);
+    document.querySelectorAll('[data-comment-like]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.commentLike;if(!id)return;const liked=btn.dataset.liked==='1';try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike'}catch(e){alert('Unable to update like: '+e.message)}});
+    document.querySelectorAll('[data-comment-reply]').forEach(btn=>btn.onclick=()=>{const t=document.getElementById('commentText');if(t){t.focus();t.value=(t.value? t.value+'\n':'')+'@reply '+btn.dataset.commentReply+' '}});
+    document.getElementById('postComment')?.addEventListener('click',async()=>{const text=document.getElementById('commentText')?.value.trim();if(!text)return;try{await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{body:text,comment_parent:0},signBody:true});await openAssignmentComments(sectionId,assignmentId,assignment)}catch(e){alert('Unable to post comment: '+e.message)}});
+  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load comments.</b><br>${esc(e.message)}</div>`}
+}
+async function openSubmissionComposer(sectionId,assignmentId,assignment){
+  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
+  const gradeItemId=assignment.grade_item_id||assignment.gradeItemId||assignment.gradeitem_id||assignment.gradeItemID||assignmentId;
+  let submissions=[];
+  try{
+    const uid=state.auth?.userId||state.auth?.user?.id;
+    const x=await A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{all_revisions:'true',with_attachments:'true',limit:200}});
+    submissions=x.submission||x.submissions||x.dropbox_revision||x.dropboxRevisions||x.revisions||[];
+  }catch(e){console.warn('Submission revisions unavailable:',e)}
+  const revisions=Array.isArray(submissions)?submissions:[];
+  const revisionRows=revisions.map((r,i)=>{
+    const files=r.attachments?.files?.file||r.attachments?.files||r.attachments?.file||r.files?.file||r.files||[];const list=Array.isArray(files)?files:(files&&typeof files==='object'?[files]:[]);
+    return `<article class="submissionRevision"><div><b>Submission ${revisions.length-i}</b><small>${esc(formatSchoologyDate(r.created||r.timestamp||''))}${String(r.late)==='1'?' • Late':''}${String(r.draft)==='1'?' • Draft':''}</small></div>${list.map(f=>{const ext=f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||'';const name=f.filename||f.fileName||f.title||f.file_title||'File';const finalName=/\.[A-Za-z0-9]{1,8}$/.test(name)?name:(ext?name+'.'+String(ext).replace(/^\./,''):name);const url=f.file_download_url||f.fileDownloadURL||f.download_path||f.downloadPath||f.file_url||f.url||'';return url?`<button class="submissionFile" data-download-url="${esc(url)}" data-download-name="${esc(finalName)}" data-download-mime="${esc(f.filemime||f.fileMIME||f.file_mime||'application/octet-stream')}">📎 ${esc(finalName)}</button>`:''}).join('')}</article>`;
+  }).join('');
+  c.innerHTML=`<section class="officialSubmissionPage"><div class="submissionHeader"><div><h1>${esc(assignment.title||'Assignment')}</h1><small>${esc(assignment.due||'')}</small></div><strong>${esc(assignment.max_points!=null?assignment.max_points+' points':'')}</strong></div><div class="submissionStatusCard"><b>${revisions.length?'Submission history':'No submissions yet'}</b><small>${revisions.length?'Your submissions and revisions are shown below.':'Use + in the app bar to submit work.'}</small></div><div class="submissionRevisionList">${revisionRows||'<div class="empty">No submission found.</div>'}</div></section>`;
+  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await A.downloadFile({url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
+}
+
 function showSubmissionMenu(){
   state.submissionMenu=!state.submissionMenu;
   const old=document.getElementById('submissionMenu'); old?.remove();
@@ -399,7 +450,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const d=await A.api({path:`sections/${sid}/documents/${f.id}`,params:{}}); data=d?.document||d; const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
-      const r=await A.downloadFile({url:fileUrl,filename:data.filename||data.fileName||data.title||f.title||'Schoology file',mime:data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
+      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const ext=data.file_extension||data.fileExtension||data.extension||data.converted_extension||data.convertedExtension||f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||''; const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const r=await A.downloadFile({url:fileUrl,filename,mime:data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
     }catch(e){alert('Unable to open file: '+e.message)}})();return
   });
 }
@@ -435,6 +486,7 @@ async function loadCourseApps(course){
     const href=launch?.['@id']||launch?.id||launch?.href;
     if(!href){el.innerHTML='<div class="error apiError">This course app did not provide a launch URL.</div>';return}
     try{
+      openWithPressTransition(b,()=>{});
       await A.prepareWebSession();
       const launch=await A.launchCourseApp(href);
       const url=launch?.url||launch?.launchTokenUrl||launch?.data?.url||launch?.data?.launchTokenUrl;
@@ -463,6 +515,7 @@ async function loadCourseTab(course,tab){
    let arr=x.event||x.events||[];
    arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
    el.innerHTML=renderUpcoming(arr);
+   document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=arr.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const esid=e.section_id??e.sectionId??sid;if(String(e.type||'')==='assignment'&&aid)openWithPressTransition(b,()=>showAssignment(esid,aid));else if(e.web_url||e.webUrl)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming'));else if(e.type==='discussion'&&e.id)openWithPressTransition(b,()=>showEmbeddedWeb(`https://app.schoology.com/section/${esid}/discussion/view/${e.id}`,e.title||'Discussion'));});
    return;
  }
  if(tab==='grades'){
@@ -478,7 +531,7 @@ async function loadCourseTab(course,tab){
 function animateTab(){ /* Restored to the Android pager's stable tab layout; no custom overlay animation. */ }
 function renderUpcoming(events){
  const arr=Array.isArray(events)?events:[];
- return arr.length?`<div class="upcomingList">${arr.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+ return arr.length?`<div class="upcomingList">${arr.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-course-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
 }
 function formatSchoologyDate(v){if(v===null||v===undefined||v==='')return '';const n=Number(v);const d=(Number.isFinite(n)&&n>0)?new Date(n*1000):new Date(String(v).replace(' ','T'));if(Number.isNaN(d.getTime()))return String(v);return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}

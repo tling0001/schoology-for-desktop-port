@@ -1,7 +1,7 @@
 {
   "name": "schoology-windows-port",
-  "version": "2025.04.0-port.30",
-  "description": "Cross-platform Schoology client port based on the supplied Schoology Android 2026.06 source architecture",
+  "version": "2026.06.0-port.44",
+  "description": "Schoology Windows/cross-platform port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",

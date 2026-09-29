@@ -389,36 +389,6 @@ async function hydrateMediaImages(root=document){
   }));
   root.querySelectorAll?.('[data-open-url]')?.forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Attachment')));
 }
-async function openAssignmentComments(sectionId,assignmentId,assignment){
-  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
-  c.innerHTML='<div class="commentsPage"><div class="loading">Loading comments…</div></div>';
-  try{
-    const x=await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,params:{limit:50}});
-    const arr=x.comment||x.comments||[];
-    c.innerHTML=`<div class="commentsPage"><div class="commentsList">${arr.map(cm=>`<article class="commentRow"><div class="commentAvatar">${esc(String(cm.display_name||cm.user_name||'U').charAt(0))}</div><div><b>${esc(cm.display_name||cm.user_name||'User')}</b><small>${esc(cm.created||cm.timestamp||'')}</small><div>${cm.body||cm.comment||''}</div></div></article>`).join('')||'<div class="empty">No comments.</div>'}</div>${assignment.allow_discussion?'<div class="commentComposer"><textarea id="commentText" placeholder="Write a comment…"></textarea><button id="postComment" class="androidPrimary">Post</button></div>':''}</div>`;
-    document.getElementById('postComment')?.addEventListener('click',async()=>{
-      const text=document.getElementById('commentText')?.value.trim();if(!text)return;
-      try{
-        await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{body:text}});
-        await openAssignmentComments(sectionId,assignmentId,assignment);
-      }catch(e){alert('Unable to post comment: '+e.message)}
-    });
-  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load comments.</b><br>${esc(e.message)}</div>`}
-}
-async function openSubmissionComposer(sectionId,assignmentId,assignment){
-  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
-  c.innerHTML=`<section class="submissionPage"><div class="submissionExisting"><h3>Submissions</h3><div id="submissionStatus">No submission selected.</div></div><div class="submissionComposer"><div id="submissionFile">No file selected.</div><textarea id="submissionText" class="submissionText" placeholder="Create a text submission…"></textarea><div class="submissionActions"><button id="chooseSubmissionFile" class="androidPrimary">Choose File</button><button id="sendSubmission" class="androidPrimary" disabled>Submit</button></div></div></section>`;
-  let filePath=null;
-  document.getElementById('chooseSubmissionFile')?.addEventListener('click',async()=>{
-    filePath=await A.pickFile();const el=document.getElementById('submissionFile');if(el)el.textContent=filePath?filePath.split(/[\\/]/).pop():'No file selected.';document.getElementById('sendSubmission').disabled=!filePath;
-  });
-  document.getElementById('sendSubmission')?.addEventListener('click',async()=>{
-    if(!filePath)return; const st=document.getElementById('submissionStatus');if(st)st.textContent='Uploading…';
-    try{await A.submitAssignmentFile({sectionId,assignmentId,filePath});if(st)st.textContent='Assignment submitted.';document.getElementById('sendSubmission').disabled=true}catch(e){if(st)st.textContent='Submission failed: '+e.message}
-  });
-  syncToolbar();
-}
-
 async function loadFolder(course,folderId,push=true,title='Materials'){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
   const sid=course.id||course.section_id||course.sectionId;
@@ -660,16 +630,53 @@ function showComposeMessage(){
     try{if(st)st.textContent='Sending…';await A.api({path:'messages',method:'POST',params:{recipient_ids:ids,subject:subject||'',message},signBody:true});if(st)st.textContent='Message sent.';setTimeout(()=>{state.composeMessage=false;state.toolbarTitle='Messages';state.messageTab='sent';render();loadTab()},350)}catch(e){if(st)st.textContent='Unable to send message: '+e.message}
   });
 }
+
+function resourceIconForType(type,title){
+ const t=String(type||'').toLowerCase(), n=String(title||'');
+ if(t==='assignment')return 'ic_assignment.png'; if(t==='assessment'||t==='assessment_v2'||t==='managed_assessment')return 'ic_assessment_16dp.svg'; if(t==='discussion')return 'ic_discussion.png'; if(t==='page')return 'ic_pages.png'; if(t==='album')return 'ic_albums.png'; if(t==='scorm')return 'ic_scorm.png'; if(t==='web_content')return 'ic_web_content.png'; if(t==='link')return 'ic_files_links.png';
+ if(t==='document')return /\.(pdf|docx?|xlsx?|pptx?|txt|zip)$/i.test(n)?'ic_files_links.png':'ic_collection.png'; return 'ic_collection.png';
+}
+function collectionIcon(type){return type==='shared'?'ic_collection.png':type==='groups'?'home_dash_groups.png':type==='apps'?'ic_resourceapps.png':'ic_eportfolio.png'}
+async function loadResourcesHome(c){
+ c.innerHTML='<section class="resourcesAndroidPage"><div class="loading">Loading…</div></section>';
+ const x=await A.api({path:'collections',params:{limit:200}}); const appsX=await A.api({path:'resource_apps',params:{limit:200}}).catch(()=>({}));
+ const all=x.collection||x.collections||x.collection_list||[]; const apps=appsX.resource_apps||appsX.resourceApps||appsX.collection||appsX.collections||[];
+ const uid=state.auth?.userId||state.auth?.user?.id;
+ const groups=[],shared=[],mine=[];
+ all.forEach(o=>{const owner=Number(o.collection_owner_id||o.collectionOwnerId||o.owner_id||0), realm=String(o.collection_realm||o.collectionRealm||'').toLowerCase(), sharedCount=Number(o.shared_users_count||o.sharedUsersCount||0);if(realm==='group')groups.push(o);else if(sharedCount>0)shared.push(o);else if(!realm&&(!owner||owner===Number(uid)))mine.push(o)});
+ const categories=[['mine','My Resources',mine],['shared','Shared',shared],['groups','Groups',groups],['apps','Resource Apps',apps]];
+ c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceCategoryList">${categories.map(([key,label,list])=>`<section class="resourceCategory"><button class="resourceCategoryHeader" data-resource-category="${key}"><img src="../assets/icons/${collectionIcon(key)}" alt=""><b>${esc(label)}</b><span class="resourceChevron">›</span></button><div class="resourceCategoryChildren" id="resource-${key}">${list.length?list.map((o,i)=>`<button class="resourceCollectionRow" data-resource-collection="${key}" data-resource-index="${i}"><img src="../assets/icons/${key==='apps'?'ic_resourceapps.png':o.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'}" alt=""><span><b>${esc(o.collection_title||o.title||o.name||'Resource')}</b>${o.created?`<small>${esc(formatSchoologyDate(o.created))}</small>`:''}</span><span>›</span></button>`).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`).join('')}</div></section>`;
+ window.__resourceCategories=Object.fromEntries(categories.map(([k,l,a])=>[k,a]));
+ document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
+ document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=()=>openResourceCollection(window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex]));
+}
+async function openResourceCollection(col){
+ const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';syncToolbar();
+ const id=col.collection_id||col.collectionID||col.id;if(!id)return;
+ c.innerHTML='<section class="resourcesAndroidPage"><div class="loading">Loading resources…</div></section>';
+ const x=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE'}});const arr=x.resource||x.resources||x.resource_list||[];
+ c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceBackTitle">${esc(state.toolbarTitle)}</div><div class="resourceRows">${arr.length?arr.map(r=>{const title=r.template_title||r.title||r.name||r.filename||'Resource',type=r.template_type||r.type||'';return `<button class="resourceFileRow" data-resource-url="${esc(r.url||r.file_download_url||r.download_path||r.download_url||'')}" data-resource-name="${esc(title)}"><img src="../assets/icons/${resourceIconForType(type,title)}" alt=""><span><b>${esc(title)}</b><small>${esc(type||'Resource')}</small></span><span>›</span></button>`}).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`;
+ document.querySelectorAll('[data-resource-url]').forEach(b=>b.onclick=()=>{const u=b.dataset.resourceUrl;if(!u)return;openWithPressTransition(b,()=>showEmbeddedWeb(u,b.dataset.resourceName||'Resource'))});
+}
 async function loadTab(){
  const c=document.getElementById('content');if(!c)return;
  c.innerHTML='<div class="loading">Loading…</div>';
  const uid=state.auth?.userId||state.auth?.user?.id;
  try{
   if(state.tab==='home'){
-    const tabs=[`<button data-home-tab="recent" class="homeTab ${state.homeTab==='recent'?'active':''}">Recent Activity</button>`,state.courseDashboardEnabled?`<button data-home-tab="dashboard" class="homeTab ${state.homeTab==='dashboard'?'active':''}">Course Dashboard</button>`:'',`<button data-home-tab="upcoming" class="homeTab ${state.homeTab==='upcoming'?'active':''}">Upcoming</button>`].join('');
-    c.innerHTML=`<div class="homeTabViewport"><div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section></div>`;
-    document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{const order=['recent','dashboard','upcoming'];const oldIndex=order.indexOf(state.homeTab),newIndex=order.indexOf(b.dataset.homeTab);state.homeTabDirection=newIndex>=oldIndex?'forward':'back';state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
-    await loadHomeTab();
+    const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
+    if(landscape){
+      const tabs=[`<button data-home-tab="recent" class="homeTab ${state.homeTab==='recent'?'active':''}">Recent Activity</button>`,state.courseDashboardEnabled?`<button data-home-tab="dashboard" class="homeTab ${state.homeTab==='dashboard'?'active':''}">Course Dashboard</button>`:''].join('');
+      c.innerHTML=`<div class="homeLandscapeSplit"><section id="homeUpcomingPane" class="homeUpcomingPane"></section><section class="homeRightPane"><div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section></section></div>`;
+      document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
+      await loadHomeUpcomingPane();
+      await loadHomeTab();
+    }else{
+      const tabs=[`<button data-home-tab="recent" class="homeTab ${state.homeTab==='recent'?'active':''}">Recent Activity</button>`,state.courseDashboardEnabled?`<button data-home-tab="dashboard" class="homeTab ${state.homeTab==='dashboard'?'active':''}">Course Dashboard</button>`:'',`<button data-home-tab="upcoming" class="homeTab ${state.homeTab==='upcoming'?'active':''}">Upcoming</button>`].join('');
+      c.innerHTML=`<div class="homeTabViewport"><div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section></div>`;
+      document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{const order=['recent','dashboard','upcoming'];const oldIndex=order.indexOf(state.homeTab),newIndex=order.indexOf(b.dataset.homeTab);state.homeTabDirection=newIndex>=oldIndex?'forward':'back';state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
+      await loadHomeTab();
+    }
   }else if(state.tab==='courses'){state.toolbarTitle='Courses';
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
@@ -749,7 +756,8 @@ async function loadTab(){
   }else if(state.tab==='notifications'){
     const x=await A.api({path:'notifications'});const arr=x.notification||x.notifications||[];c.innerHTML=`<section class="page"><h1>Notifications</h1>${arr.map(n=>`<article class="messageCard">${esc(n.title||n.message||'Notification')}</article>`).join('')||'<div class="empty">No notifications.</div>'}</section>`;
   }else if(state.tab==='resources'){
-    c.innerHTML='<section class="page"><h1>Resources</h1><p>Resources</p></section>';
+    state.toolbarTitle='Resources';
+    await loadResourcesHome(c);
   }else if(state.tab==='people'){
     c.innerHTML='<section class="page"><h1>People</h1><p>People</p></section>';
   }else if(state.tab==='settings'){
@@ -760,6 +768,16 @@ async function loadTab(){
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }
+
+async function renderUpcomingInto(c){
+ const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+ const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:50}});
+ const arr=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));
+ const sorted=arr.slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
+ c.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_menu_resources':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+ document.querySelectorAll('[data-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.upcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id)openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
+}
+async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="loading">Loading…</div>';await renderUpcomingInto(c)}
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
  animateTab(c,state.homeTabDirection||'forward');
@@ -819,18 +837,11 @@ async function loadHomeTab(){
       dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
     }
   }else{
-    // Android UpcomingFragment.i5("users", 0L) calls UserCalls.getRecentEvents(),
-    // which requests events after today's date with start_date (not `start`).
-    const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:20}});
-    const arr=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));
-    const sorted=arr.slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
-    c.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_menu_resources':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
-    document.querySelectorAll('[data-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.upcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id)openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
+    await renderUpcomingInto(c);
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }
-let qrStream=null,qrBusy=false,qrLastAttempt=0;
+
 function stopQR(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}qrBusy=false}
 function decodeFrame(ctx,w,h){
   const attempts=[];

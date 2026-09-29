@@ -57,3 +57,18 @@ The GitHub Actions workflow in `.github/workflows/build-windows.yml` builds the 
 ## Source reference
 
 The authoritative reference used for this port is the supplied `schoology-android-2026-06-0.zip`.
+
+
+## 2026.06.0 fidelity baseline
+
+This port uses the supplied Schoology Android 2026.06.0 source as the authoritative behavioral and visual reference. Unless a change is explicitly requested for Windows/desktop, screens, navigation, toolbar actions, icons, resources, assignment views, course views, and API behavior should match that source.
+
+### Intentional desktop behavior
+- On displays at or wider than a 4:3 aspect ratio, Home uses a split layout: Upcoming occupies the left one-third, while the right two-thirds contains Recent Activity and Course Dashboard tabs.
+- Course Dashboard remains the official Schoology hybrid dashboard WebView.
+
+### Windows build outputs
+The Windows GitHub Actions build produces only the NSIS installer and the unpacked Windows application.
+
+### Official assets
+Android vector/raster assets used by the source app are extracted into `assets/icons/` where practical, including navigation, Resources, course, assignment, discussion, and toolbar icons.

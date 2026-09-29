@@ -210,16 +210,29 @@ async function downloadAuthenticatedFile(info){
         if(code<200||code>=300){
           const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>reject(new Error(`Schoology file download failed (HTTP ${code}): ${Buffer.concat(chunks).toString('utf8').slice(0,500)}`)));return;
         }
-        const out=fs.createWriteStream(target);
+        let resolvedName=safeName;
+        if(!path.extname(resolvedName)){
+          const cd=String(res.headers['content-disposition']||'');
+          const m=cd.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^;\"]+)\"?/i);
+          if(m){try{const fromHeader=decodeURIComponent(m[1]||m[2]||'').trim();if(path.extname(fromHeader))resolvedName=fromHeader}catch{}}
+        }
+        if(!path.extname(resolvedName)){
+          const mime=String(info.mime||res.headers['content-type']||'').split(';')[0].toLowerCase();
+          const mimeExt={'application/pdf':'.pdf','application/msword':'.doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'.docx','application/vnd.ms-excel':'.xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'.xlsx','application/vnd.ms-powerpoint':'.ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'.pptx','text/plain':'.txt','text/csv':'.csv','application/zip':'.zip','image/jpeg':'.jpg','image/png':'.png','image/gif':'.gif','audio/mpeg':'.mp3','video/mp4':'.mp4'}[mime];
+          if(mimeExt)resolvedName+=mimeExt;
+        }
+        const finalTarget=target.replace(path.basename(target),`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${resolvedName.slice(0,180)}`);
+        const out=fs.createWriteStream(finalTarget);
         res.pipe(out);
-        out.on('finish',()=>out.close(resolve));
+        out.on('finish',()=>{out.close(()=>resolve());});
         out.on('error',e=>{try{out.close()}catch{};reject(e)});
       });
       req.on('error',reject);req.setTimeout(60000,()=>req.destroy(new Error('Schoology file download timed out')));req.end();
     };
     doGet(u.toString());
   });
-  return {path:target,filename:finalName,mime:String(info.mime||'application/octet-stream')};
+  const actual=fs.readdirSync(tmpDir).map(n=>path.join(tmpDir,n)).filter(n=>n.includes(path.basename(target).split('-').slice(0,2).join('-'))).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs)[0]||target;
+  return {path:actual,filename:path.basename(actual).replace(/^\d+-[a-f0-9]+-/i,''),mime:String(info.mime||'application/octet-stream')};
 }
 
 async function submitAssignmentFile(info){

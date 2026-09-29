@@ -428,7 +428,7 @@ async function loginExternalSchool(info){
 }
 
 function create(){
-  win=new BrowserWindow({width:1280,height:800,minWidth:800,minHeight:600,show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
+  win=new BrowserWindow({show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));

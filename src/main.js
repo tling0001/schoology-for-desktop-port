@@ -6,7 +6,8 @@ const https=require('https');
 const querystring=require('querystring');
 
 // Match the Android app's public identity/version as closely as Electron allows.
-const CLIENT_UA='Schoology Android v2025.04.0';
+const ANDROID_WEBVIEW_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2025.04.0';
+const CLIENT_UA=ANDROID_WEBVIEW_UA;
 const API_HOST='api.schoology.com';
 const WEB_HOST='app.schoology.com';
 const CONSUMER_KEY='89b659ae6f6631f10b0bd7a513aab9fb04bfb014f';
@@ -118,65 +119,47 @@ async function api(pathname,method='GET',params={}){
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);
   try{return JSON.parse(r.text)}catch{return r.text}
 }
-async function getSessionCookieForUrl(url){
-  try{
-    const u=new URL(url);
-    const cookies=await session.defaultSession.cookies.get({url:u.origin+'/'});
-    const sess=cookies.find(c=>/^SESS/i.test(c.name));
-    return sess?`${sess.name}=${sess.value}`:null;
-  }catch{return null}
-}
-function hostMatches(host,domain){
-  if(!host||!domain)return false;
-  const h=String(host).toLowerCase(), d=String(domain).toLowerCase().replace(/^https?:\/\//,'').replace(/^\./,'');
-  return h===d || h.endsWith('.'+d);
-}
-async function authorizeSessionCookie(webOrigin,sessionCookie){
-  await syncServerTime().catch(()=>{});
-  const t=await getRequestToken();
-  const r=await request('POST',`${webOrigin.replace(/\/$/,'')}/oauth/authorize_auto`,{oauth_token:t.oauth_token},{clientIdentity:true,headers:{Cookie:sessionCookie}});
-  if(r.status<200||r.status>=300)throw new Error('Schoology browser login was not accepted: '+r.status+' '+r.text);
-  return exchangeToken(t);
+function buildAndroidOAuthLoginUrl(domain,requestToken){
+  const host=String(domain||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+  if(!host) throw new Error('This school did not provide a valid domain.');
+  // This mirrors LoginOAuthManagementActivity.R0() from the Android source.
+  const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000472`;
+  const oauthPath=`oauth/authorize?oauth_token=${encodeURIComponent(requestToken)}&oauth_callback=${encodeURIComponent(callback)}`;
+  return `https://${host}/${oauthPath}&login_landing_dest=${encodeURIComponent(oauthPath)}`;
 }
 async function loginThroughSchoolBrowser(info){
-  if(!info||!info.loginUrl)throw new Error('This school did not provide a login URL.');
+  if(!info||!info.domain)throw new Error('This school did not provide a login domain.');
+  await syncServerTime().catch(()=>{});
+  const requestCredential=await getRequestToken();
+  const loginUrl=buildAndroidOAuthLoginUrl(info.domain,requestCredential.oauth_token);
   return new Promise((resolve,reject)=>{
-    let child=null,settled=false,poll=null;
-    const expectedDomain=info.domain||'';
-    const loginUrl=info.loginUrl;
+    let child=null,settled=false;
     const finish=(err,value)=>{
       if(settled)return;
       settled=true;
-      if(poll)clearInterval(poll);
       if(child&&!child.isDestroyed())child.close();
       err?reject(err):resolve(value);
     };
-    const tryCapture=async()=>{
-      if(!child||child.isDestroyed())return;
-      const current=child.webContents.getURL()||loginUrl;
-      let u;try{u=new URL(current)}catch{return}
-      const eligible=hostMatches(u.hostname,expectedDomain)||hostMatches(u.hostname,new URL(`https://${WEB_HOST}`).hostname)||u.search.includes('sgyInitialPage');
-      if(!eligible)return;
-      const cookie=await getSessionCookieForUrl(current);
-      if(!cookie)return;
+    const callbackMatches=(url)=>{
       try{
-        const origin=u.origin;
-        const auth=await authorizeSessionCookie(origin,cookie);
-        finish(null,auth);
-      }catch(e){
-        // A redirect can briefly expose a stale/non-authenticated SESS cookie.
-        // Keep the browser open and allow the page to finish its redirect chain.
-        console.error('Schoology browser authorization attempt failed:',e);
-      }
+        const u=new URL(url);
+        if(!/\/mobile_login_success$/.test(u.pathname))return false;
+        return u.searchParams.get('request_token')===requestCredential.oauth_token;
+      }catch{return false}
     };
-    child=new BrowserWindow({width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true}});
-    child.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
-    child.webContents.on('did-navigate',()=>setTimeout(tryCapture,100));
-    child.webContents.on('did-navigate-in-page',()=>setTimeout(tryCapture,100));
-    child.webContents.on('will-redirect',()=>setTimeout(tryCapture,250));
+    const handleNavigation=(event,url)=>{
+      if(!callbackMatches(url))return;
+      event.preventDefault();
+      exchangeToken(requestCredential).then(auth=>finish(null,auth)).catch(finish);
+    };
+    child=new BrowserWindow({width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}});
+    // Android SchoologyWebView appends its identity to the normal Android WebView UA.
+    child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
+    child.webContents.on('will-navigate',handleNavigation);
+    child.webContents.on('will-redirect',handleNavigation);
     child.webContents.on('did-fail-load',(_,code,desc)=>console.error('School login browser failed:',code,desc));
-    poll=setInterval(tryCapture,750);
-    child.on('closed',()=>{if(!settled){if(poll)clearInterval(poll);reject(new Error('School login window was closed.'))}});
+    child.webContents.on('console-message',(_,level,message,line,source)=>console.log('School login browser:',message,'at',source+':'+line));
+    child.on('closed',()=>{if(!settled)reject(new Error('School login window was closed.'))});
     child.loadURL(loginUrl).catch(e=>finish(e));
   });
 }

@@ -7,10 +7,14 @@ if(!A){
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
 let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',searchToken:0};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function render(){let h=state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='qr'?qr():shell();app.innerHTML=h;bind();return h}
+function render(){let h=state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;bind();return h}
 function login(){return `<div class="login"><img class="logo" src="../assets/logo_schoology.png"><div class="loginBody"><button id="schoolLogin" class="primary">Log in through your School</button><button id="continueSchoology" class="secondary">Log in using schoology.com</button><button id="qrLogin" class="qrButton">Sign in with a QR code</button></div><div class="loginBottom">I need help signing in</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function schoolSearchScreen(){return `<div class="login"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" autofocus placeholder="Enter your School or domain" value="${esc(state.q)}"><span>⌕</span></div>${state.loading?'<div class="searchStatus">Searching…</div>':''}${state.schools.length?`<div class="suggestions">${state.schools.map((s,i)=>`<button class="suggestion" data-school="${i}"><b>${esc(s.title||'')}</b><small>${esc([s.id,s.domain,s.location].filter(Boolean).join(' • '))}</small></button>`).join('')}</div>`:''}${!state.loading&&state.q&&state.schools.length===0&&!state.error?'<div class="searchStatus">No schools found.</div>':''}</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function credentials(){return `<div class="login"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody">${state.school?`<div class="selected">${esc(state.school.title||'School')}</div>`:'<div class="accountTitle">Log in using schoology.com</div>'}<div class="label">Username or Email</div><input id="user" class="field" autocomplete="username"><div class="label">Password</div><input id="pass" class="field" type="password" autocomplete="current-password"><button id="signIn" class="primary">Login</button><button id="qrLogin" class="qrButton">Sign in with a QR code</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
+function externalSelect(){
+  const name=state.school?.title||'School';
+  return `<div class="login"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="selected">${esc(name)}</div><button id="browserLogin" class="primary">Log in through your browser</button><button id="nativeLogin" class="secondary">Log in with a username and password</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`
+}
 function qr(){return `<div class="qr"><button id="back" class="back">‹</button><h1>QR Code Login</h1><p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><div class="qrbox"></div><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function shell(){const tabs=[['home','Home'],['courses','Courses'],['calendar','Calendar'],['grades','Grades'],['messages','Messages'],['notifications','Notifications'],['resources','Resources'],['profile','Profile']];return `<div class="shell"><header><img src="../assets/ic_launcher.png"><span>Schoology</span><button id="logout">Sign out</button></header><nav>${tabs.map(t=>`<button class="tab ${state.tab===t[0]?'active':''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</nav><main id="content"><div class="loading">Loading…</div></main></div>`}
 function bind(){
@@ -20,7 +24,33 @@ function bind(){
   const back=document.getElementById('back');if(back)back.onclick=()=>{stopQR();state.error='';state.screen=state.school?'search':'login';if(state.screen==='search')state.schools=[];render()};
   const q=document.getElementById('schoolSearch');
   if(q){q.oninput=async()=>{const start=q.selectionStart??q.value.length,end=q.selectionEnd??start;state.q=q.value;const query=q.value.trim();const restore=()=>{const el=document.getElementById('schoolSearch');if(el){el.focus();try{el.setSelectionRange(start,end)}catch{}}};if(query.length<1){state.schools=[];state.loading=false;render();restore();return}const token=++state.searchToken;state.loading=true;state.error='';render();restore();try{const results=await A.schoolSearch(query);if(token!==state.searchToken)return;state.schools=Array.isArray(results)?results:[]}catch(e){if(token===state.searchToken){state.schools=[];state.error=e.message||'Unable to search for schools.'}}finally{if(token===state.searchToken)state.loading=false}if(token===state.searchToken){render();restore()}}}
-  document.querySelectorAll('[data-school]').forEach(b=>b.onclick=async()=>{state.school=state.schools[+b.dataset.school];state.schools=[];state.error='';const school=state.school;const external=!!school&&school.login_type&&school.login_type!=='schoology';const browserFlow=!!school&&(school.use_browser_login_flow??school.useBrowserLoginFlow??school.use_browser_login??false);if(external&&browserFlow){state.loading=true;render();try{state.auth=await A.loginSchoolBrowser({domain:school.domain||''});await afterLogin()}catch(e){state.error=e.message||'School browser login failed.';state.screen='search';render()}finally{state.loading=false}return}state.screen='credentials';render();document.getElementById('user')?.focus()});
+  document.querySelectorAll('[data-school]').forEach(b=>b.onclick=async()=>{
+    state.school=state.schools[+b.dataset.school];
+    state.schools=[];state.error='';
+    const school=state.school;
+    const external=!!school&&school.login_type&&school.login_type!=='schoology';
+    // Android: schoology login_type always opens LoginNativeActivity.
+    // External login types branch on use_browser_login_flow: when true,
+    // ExternalLoginSelectionActivity is shown; otherwise LoginExternalActivity
+    // immediately opens the school's login page in a SchoologyWebView.
+    const browserFlow=!!school&&(school.use_browser_login_flow??school.useBrowserLoginFlow??true);
+    if(!external){
+      state.screen='credentials';render();document.getElementById('user')?.focus();return;
+    }
+    if(browserFlow){state.screen='externalSelect';render();return}
+    state.loading=true;render();
+    try{state.auth=await A.loginExternalSchool({url:school.login_url||school.loginUrl||'',domain:school.domain||''});await afterLogin()}
+    catch(e){state.error=e.message||'School sign-in failed.';state.screen='search';render()}
+    finally{state.loading=false}
+  });
+  const browserLogin=document.getElementById('browserLogin');
+  if(browserLogin)browserLogin.onclick=async()=>{
+    state.loading=true;state.error='';render();
+    try{state.auth=await A.loginSchoolBrowser({domain:state.school?.domain||''});await afterLogin()}
+    catch(e){state.loading=false;state.error=e.message||'Browser sign-in failed.';render()}
+  };
+  const nativeLogin=document.getElementById('nativeLogin');
+  if(nativeLogin)nativeLogin.onclick=()=>{state.error='';state.screen='credentials';render();document.getElementById('user')?.focus()};
   const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();loadTab()});
   const lo=document.getElementById('logout');if(lo)lo.onclick=async()=>{await A.logout();state.auth=null;state.school=null;state.screen='login';state.tab='home';render()}

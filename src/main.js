@@ -163,6 +163,65 @@ async function loginThroughSchoolBrowser(info){
     child.loadURL(loginUrl).catch(e=>finish(e));
   });
 }
+
+async function loginExternalSchool(info){
+  if(!info||!info.url)throw new Error('This school did not provide a login URL.');
+  const rawUrl=String(info.url);
+  const parsed=new URL(rawUrl);
+  const host=parsed.host;
+  const base=`${parsed.protocol}//${host}`;
+  const schoolDomain=String(info.domain||host).replace(/^https?:\/\//,'').replace(/\/$/,'');
+  return new Promise((resolve,reject)=>{
+    let child=null,settled=false,poll=null;
+    const finish=(err,value)=>{
+      if(settled)return;
+      settled=true;
+      if(poll)clearInterval(poll);
+      if(child&&!child.isDestroyed())child.close();
+      err?reject(err):resolve(value);
+    };
+    const domainMatches=(url)=>{
+      try{
+        const h=new URL(url).hostname;
+        return h===host.split(':')[0] || h.endsWith('.'+host.split(':')[0]) ||
+          h===schoolDomain.split(':')[0] || h.endsWith('.'+schoolDomain.split(':')[0]);
+      }catch{return false}
+    };
+    const checkSession=async()=>{
+      try{
+        const cookies=await session.defaultSession.cookies.get({});
+        const c=cookies.find(x=>/^SESS/i.test(x.name) &&
+          (domainMatches(`${x.secure?'https':'http'}://${x.domain.replace(/^\\./,'')}/`) || x.domain.replace(/^\\./,'')===host.split(':')[0]));
+        if(!c)return;
+        const cookie=`${c.name}=${c.value}`;
+        const t=await getRequestToken();
+        // This is the Android ExternalSessionLoginFlow / SessionAuthorizer:
+        // POST oauth_token to /oauth/authorize_auto with the SESS cookie.
+        const r=await request('POST',`${base}/oauth/authorize_auto`,{oauth_token:t.oauth_token},{
+          clientIdentity:true,
+          headers:{Cookie:cookie}
+        });
+        if(r.status<200||r.status>=300)throw new Error('School session authorization failed: '+r.status+' '+r.text);
+        const auth=await exchangeToken(t);
+        finish(null,auth);
+      }catch(e){finish(e)}
+    };
+    child=new BrowserWindow({
+      width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,
+      backgroundColor:'#ffffff',
+      webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}
+    });
+    child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
+    child.webContents.on('did-navigate',()=>checkSession());
+    child.webContents.on('did-navigate-in-page',()=>checkSession());
+    child.webContents.on('will-redirect',()=>setTimeout(checkSession,100));
+    child.webContents.on('did-fail-load',(_,code,desc)=>console.error('School external login failed:',code,desc));
+    child.on('closed',()=>{if(!settled)finish(new Error('School login window was closed.'))});
+    poll=setInterval(checkSession,750);
+    child.loadURL(rawUrl).catch(finish);
+  });
+}
+
 function create(){
   win=new BrowserWindow({width:430,height:850,minWidth:360,minHeight:650,show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
@@ -183,6 +242,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));
   ipcMain.handle('login-school-browser',(_,info)=>loginThroughSchoolBrowser(info));
+  ipcMain.handle('login-external-school',(_,info)=>loginExternalSchool(info));
   ipcMain.handle('logout',()=>{try{fs.unlinkSync(storeFile)}catch{};return true});
   ipcMain.handle('school-search',async(_,q)=>{
     const r=await request('GET',`https://${API_HOST}/v1/login/school_search`,{query:q},{clientIdentity:true});

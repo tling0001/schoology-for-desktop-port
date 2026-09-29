@@ -49,6 +49,13 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "artifactName": "Schoology-${version}-Setup-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "identity": "-",
+      "hardenedRuntime": false
     }
   }
 }

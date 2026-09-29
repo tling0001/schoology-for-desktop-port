@@ -6,12 +6,12 @@ const https=require('https');
 const querystring=require('querystring');
 
 // Match the Android app's public identity/version as closely as Electron allows.
-const ANDROID_WEBVIEW_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2025.04.0';
+const ANDROID_WEBVIEW_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0';
 const CLIENT_UA=ANDROID_WEBVIEW_UA;
 const API_HOST='api.schoology.com';
 const WEB_HOST='app.schoology.com';
-const CONSUMER_KEY='89b659ae6f6631f10b0bd7a513aab9fb04bfb014f';
-const CONSUMER_SECRET='7ab6b83e0c89bec71010582da6e82ed9';
+const CONSUMER_KEY='998121f221d5dc0f4956ee6946d27d5e04e55635e';
+const CONSUMER_SECRET='5cff9d3780d64695d762ba8e05a34e9e';
 const ANDROID_OKHTTP_UA='okhttp/4.8.0';
 const MOBILE_COOKIE='s_mobile=03447c0175ac0c7299a5508fde9569fc';
 const storeFile=path.join(app.getPath('userData'),'auth.json');
@@ -57,7 +57,7 @@ function request(method,url,body={},opts={}){
     };
     if(opts.clientIdentity) {
       headers['X-Schoology-Client']='Android';
-      headers['X-Schoology-App-Version']='2025.04.0';
+      headers['X-Schoology-App-Version']='2026.06.0';
     }
     if(opts.headers) Object.assign(headers,opts.headers);
     if(opts.sign){headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');headers.Cookie=MOBILE_COOKIE;}

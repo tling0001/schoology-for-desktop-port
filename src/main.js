@@ -32,12 +32,14 @@ function sortedOAuthBaseParams(method,url,oauth,extra=[]){
   pairs.sort((a,b)=>{if(a[0]!==b[0])return a[0]<b[0]?-1:1;if(a[1]!==b[1])return a[1]<b[1]?-1:1;return 0});
   return pairs.map(([k,v])=>k+'='+v).join('&');
 }
-function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
+function makeOAuthHeader(method,url,authToken,authSecret,qrData='',bodyParams=null){
   const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
   // Android OAuthRequestSigner always includes oauth_token; for the initial
   // request-token request its value is explicitly the empty string.
   oauth.oauth_token=authToken==null?'':String(authToken);
-  const extra=qrData?[['scanned_qr_data',qrData]]:[];
+  const extra=[];
+  if(qrData) extra.push(['scanned_qr_data',qrData]);
+  if(bodyParams && method.toUpperCase()!=='GET') for(const [k,v] of Object.entries(bodyParams||{})){ if(v==null || typeof v==='object') continue; extra.push([k,String(v)]); }
   const normalized=sortedOAuthBaseParams(method,url,oauth,extra);
   const u=new URL(url);
   const base=method.toUpperCase()+'&'+enc(u.protocol+'//'+u.host+u.pathname)+'&'+enc(normalized);
@@ -61,7 +63,7 @@ function request(method,url,body={},opts={},redirectDepth=0){
     }
     if(opts.headers) Object.assign(headers,opts.headers);
     if(opts.sign){
-      headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');
+      headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'',opts.signBody?body:null);
       headers.Cookie=MOBILE_COOKIE;
     }
     if(!isGet){headers['Content-Type']=opts.json?'application/json':'application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
@@ -256,7 +258,7 @@ async function api(pathname,method='GET',params={}){
   const version=clean.startsWith('v2/')?'v2':'v1';
   const resource=clean.startsWith('v2/')?clean.slice(3):clean;
   const url=`https://${API_HOST}/${version}/${resource}`;
-  const r=await request(method,url,params,{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+  const r=await request(method,url,params,{sign:true,signBody:method.toUpperCase()!=='GET' && method.toUpperCase()!=='HEAD',clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
   if(r.status===401)throw new Error('Schoology session expired (HTTP 401)');
   if(r.status===403)throw new Error('Schoology denied this request (HTTP 403)');
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);

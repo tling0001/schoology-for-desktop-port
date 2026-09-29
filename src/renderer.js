@@ -5,7 +5,7 @@ if(!A){
   throw new Error('Schoology preload bridge is unavailable');
 }
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function messageDetail(){
  const m=state.message||{}; const thread=state.messageThread;
@@ -54,7 +54,7 @@ function shell(){
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
- <header class="toolbar">${state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><button id="toolbarMore" class="iconButton">⋮</button></header>
+ <header class="toolbar">${state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span>${state.tab==='messages'&&!state.courseView&&!state.embeddedTitle?`<button id="composeMessage" class="iconButton toolbarPlus" aria-label="Compose message">+</button>`:`<button id="toolbarMore" class="iconButton">⋮</button>`}</header>
  <main id="content"><div class="loading">Loading…</div></main>
  <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
@@ -63,6 +63,7 @@ function shell(){
  </div>`
 }
 function bind(){
+  document.getElementById('composeMessage')?.addEventListener('click',()=>showComposeMessage());
   document.getElementById('toolbarBack')?.addEventListener('click',()=>navigateBack());
   const schoolBtn=document.getElementById('schoolLogin');if(schoolBtn)schoolBtn.onclick=()=>{state.error='';state.q='';state.schools=[];state.screen='search';render();document.getElementById('schoolSearch')?.focus()};
   const accountBtn=document.getElementById('continueSchoology');if(accountBtn)accountBtn.onclick=()=>{state.error='';state.school=null;state.screen='credentials';render();document.getElementById('user')?.focus()};
@@ -87,10 +88,11 @@ function bind(){
 
   const shade=document.getElementById('drawerShade'),drawer=document.getElementById('drawer');
   const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null};
+  const closeDrawerThen=(fn)=>{drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;fn?.()},280)};
   document.getElementById('menuButton')?.addEventListener('click',()=>setDrawer(true));
   shade?.addEventListener('click',()=>setDrawer(false));
 
-  document.getElementById('profileButton')?.addEventListener('click',()=>{setDrawer(false);state.profileUser=state.auth?.user||null;state.tab='profile';state.toolbarTitle='Profile';render();loadTab()});
+  document.getElementById('profileButton')?.addEventListener('click',()=>{closeDrawerThen(()=>{state.profileUser=state.auth?.user||null;state.tab='profile';state.toolbarTitle='Profile';render();loadTab()})});
   document.getElementById('drawerBack')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0)});
   document.getElementById('joinCourse')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0)});
 
@@ -99,10 +101,11 @@ function bind(){
     if(id==='courses'||id==='grades'){
       state.drawerPage=id;render();document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open');loadCourseSubmenu();return;
     }
-    setDrawer(false);
-    if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
-    if(id==='settings'){state.tab='settings';state.toolbarTitle='Settings';state.screen='app';render();loadTab();return}
-    if(['home','calendar','grades','messages','notifications','resources','profile','groups','people'].includes(id)){state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
+    closeDrawerThen(async()=>{
+      if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
+      if(id==='settings'){state.tab='settings';state.toolbarTitle='Settings';state.screen='app';render();loadTab();return}
+      if(['home','calendar','grades','messages','notifications','resources','profile','groups','people'].includes(id)){state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
+    });
   }));
 
   document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
@@ -191,7 +194,7 @@ function courseTitleOf(course){return course?.course_title||course?.courseTitle|
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
 function syncToolbar(){
   const header=document.querySelector('.toolbar');if(!header)return;
-  const needs=!!(state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser);
+  const needs=!!(state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message);
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
   if(needs&&!existing){
@@ -210,6 +213,7 @@ function syncToolbar(){
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';
 }
 function navigateBack(){
+  if(state.composeMessage){state.composeMessage=false;state.toolbarTitle='Messages';state.tab='messages';state.message=null;state.messageThread=null;render();loadTab();return}
   if(state.assignmentView){
     state.assignmentView=null;state.embeddedTitle=null;state.profileUser=null;
     syncToolbar();
@@ -394,12 +398,19 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
     if(String(f.type)==='folder'){loadFolder(course,f.id,true,f.title||'Folder');return}
     if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
     if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(f.type))){(async()=>{try{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${f.id}`,f.title||'Assessment')}catch(e){alert(e.message)}})();return}
-    const fileUrl=f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath||f.file_url||f.fileUrl||f.download_url||f.downloadUrl||f.url;
-    if(fileUrl){(async()=>{try{const r=await A.downloadFile({url:fileUrl,filename:f.filename||f.fileName||f.title||'Schoology file',mime:f.filemime||f.fileMIME||f.converted_filemime||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}})();return}
+    (async()=>{try{
+      let data=f; let fileUrl=f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath||f.file_url||f.fileUrl||f.download_url||f.downloadUrl||f.location||f.url;
+      if(String(f.type)==='document'){
+        const d=await A.api({path:`sections/${sid}/documents/${f.id}`,params:{}}); data=d?.document||d; const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
+      }
+      if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
+      const r=await A.downloadFile({url:fileUrl,filename:data.filename||data.fileName||data.title||f.title||'Schoology file',mime:data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
+    }catch(e){alert('Unable to open file: '+e.message)}})();return
   });
 }
 function showEmbeddedWeb(url,title){
   const c=document.getElementById('content');if(!c)return;
+  c.classList.add('webContentHost');
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
@@ -558,8 +569,8 @@ function showOfflineStorage(){
 async function loadMessageThread(m){
   try{
     const id=m?.id||m?.message_id||m?.messageId; if(!id)throw new Error('Message ID is missing.');
-    const folder=state.messageFolder||'inbox'; const x=await A.api({path:`messages/${folder}/${id}`,params:{with_attachments:'TRUE',keep_unread:'TRUE'}});
-    const msgs=x.message||x.messages||[]; const users={};
+    const folder=state.messageFolder||'inbox'; const x=await A.api({path:`messages/${id}`,params:{with_attachments:'TRUE',keep_unread:'TRUE'}});
+    const raw=x?.message||x?.messages||x?.data?.message||x?.data?.messages||[]; const msgs=Array.isArray(raw)?raw:(raw?.message||raw?.messages||[]); const users={};
     const ids=[...new Set(msgs.map(v=>Number(v.author_id||v.authorId)).filter(Boolean))];
     await Promise.all(ids.map(async uid=>{try{const u=await A.api({path:`users/${uid}`,params:{}});users[uid]=u?.user||u}catch{}}));
     state.messageThread={messages:msgs,users}; render(); await hydrateMediaImages(document.querySelector('.messageDetail'));
@@ -567,6 +578,21 @@ async function loadMessageThread(m){
   }catch(e){state.messageThread={messages:[],users:{},error:e.message};render();const el=document.querySelector('.messageDetail');if(el)el.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`}
 }
 
+function showComposeMessage(){
+  state.composeMessage=true;state.message=null;state.messageThread=null;state.toolbarTitle='New Message';syncToolbar();
+  const c=document.getElementById('content');if(!c)return;
+  c.classList.remove('webContentHost');
+  c.innerHTML=`<section class="composeMessagePage"><div class="composeField recipientField"><label>To</label><input id="composeToSearch" autocomplete="off" placeholder="Search for a recipient"><div id="recipientSuggestions" class="recipientSuggestions"></div><div id="recipientChips" class="recipientChips"></div><input id="composeTo" type="hidden"></div><div class="composeField"><label>Subject</label><input id="composeSubject" placeholder="Subject"></div><div class="composeField composeBody"><label>Message</label><textarea id="composeBody" placeholder="Write a message…"></textarea></div><div class="composeActions"><button id="sendMessage" class="androidPrimary">Send</button></div><div id="composeStatus"></div></section>`;
+  const selected=[]; const search=document.getElementById('composeToSearch'), suggestions=document.getElementById('recipientSuggestions'), chips=document.getElementById('recipientChips');
+  const renderRecipients=()=>{chips.innerHTML=selected.map((u,i)=>`<span class="recipientChip">${esc(u.name)} <button type="button" data-remove-recipient="${i}">×</button></span>`).join('');document.getElementById('composeTo').value=selected.map(u=>u.id).join(',');chips.querySelectorAll('[data-remove-recipient]').forEach(b=>b.onclick=()=>{selected.splice(+b.dataset.removeRecipient,1);renderRecipients()})};
+  let searchTimer=null; search?.addEventListener('input',()=>{clearTimeout(searchTimer);const q=search.value.trim();if(q.length<2){suggestions.innerHTML='';return}searchTimer=setTimeout(async()=>{try{const x=await A.api({path:'messages/recipients',params:{name:q,limit:10}});const arr=x.user||x.users||x.recipient||x.recipients||[];suggestions.innerHTML=arr.map(u=>`<button type="button" class="recipientSuggestion" data-recipient-id="${esc(u.id)}" data-recipient-name="${esc(u.name_display||u.nameDisplay||u.display_name||u.name||'User')}">${esc(u.name_display||u.nameDisplay||u.display_name||u.name||'User')}</button>`).join('')||'<div class="recipientNone">No recipients found.</div>';suggestions.querySelectorAll('[data-recipient-id]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.recipientId),name=b.dataset.recipientName;if(id&&!selected.some(u=>u.id===id)){selected.push({id,name});renderRecipients()}search.value='';suggestions.innerHTML=''})}catch(e){suggestions.innerHTML=`<div class="recipientNone">${esc(e.message)}</div>`}},250)});
+  document.getElementById('sendMessage')?.addEventListener('click',async()=>{
+    const to=document.getElementById('composeTo')?.value.trim(),subject=document.getElementById('composeSubject')?.value.trim(),message=document.getElementById('composeBody')?.value.trim();
+    const st=document.getElementById('composeStatus'); if(!to||!message){if(st)st.textContent='Enter a recipient and message.';return}
+    const ids=selected.map(u=>u.id).join(',');
+    try{if(st)st.textContent='Sending…';await A.api({path:'messages',method:'POST',params:{recipient_ids:ids,subject:subject||'',message},signBody:true});if(st)st.textContent='Message sent.';setTimeout(()=>{state.composeMessage=false;state.toolbarTitle='Messages';state.messageTab='sent';render();loadTab()},350)}catch(e){if(st)st.textContent='Unable to send message: '+e.message}
+  });
+}
 async function loadTab(){
  const c=document.getElementById('content');if(!c)return;
  c.innerHTML='<div class="loading">Loading…</div>';
@@ -672,7 +698,7 @@ async function loadHomeTab(){
     const userIds=[...new Set(updates.map(x=>x.user_id||x.uid).filter(Boolean).map(Number))];
     const userMap={};
     await Promise.all(userIds.slice(0,20).map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});userMap[id]=u?.user||u}catch{}}));
-    state.activityUsers=userMap;
+    state.activityUsers=userMap;state.__activityById=Object.fromEntries(updates.map(u=>[String(u.id),u]));
     c.innerHTML=updates.length?updates.map(x=>{
       const uid=x.user_id||x.uid||x.author_id||x.authorId;
       const u=userMap[uid]||{};
@@ -694,14 +720,14 @@ async function loadHomeTab(){
     document.querySelectorAll('[data-activity-like]').forEach(btn=>btn.onclick=async()=>{
       const id=btn.dataset.activityLike;if(!id)return;
       const liked=btn.dataset.liked==='1';
-      try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:String(!liked)}});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike';}
+      try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike';}
       catch(e){alert('Unable to update like: '+e.message)}
     });
     document.querySelectorAll('[data-activity-comments]').forEach(btn=>btn.onclick=async()=>{
       const id=btn.dataset.activityComments;if(!id)return;
       try{
         const uid=state.auth?.userId||state.auth?.user?.id;
-        const x=await A.api({path:`users/${uid}/updates/${id}/comments`,params:{limit:50}});
+        const update=state.__activityById?.[String(id)]||{}; const rawRealm=String(update.realm||update.realm_name||update.realmName||'user').toLowerCase(); const realm=rawRealm==='user'?'users':rawRealm==='section'?'sections':rawRealm==='group'?'groups':rawRealm==='school'?'schools':rawRealm; const realmId=rawRealm==='user'?(update.user_id||update.uid||uid):rawRealm==='section'?(update.section_id||update.sectionId||uid):rawRealm==='group'?(update.group_id||update.groupId||uid):rawRealm==='school'?(update.school_id||update.schoolId||uid):(update.realm_id||update.realmId||uid); const x=await A.api({path:`${realm}/${realmId}/updates/${id}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});
         const arr=x.comment||x.comments||[];
         alert(arr.length?arr.map(c=>`${c.display_name||c.user_name||'User'}: ${c.body||c.comment||''}`).join('\n\n'):'No comments.');
       }catch(e){alert('Unable to load comments: '+e.message)}
@@ -712,7 +738,7 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    c.classList.add('webContentHost');c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
       dw.addEventListener('new-window',e=>{e.preventDefault();try{dw.src=e.url}catch{}});
@@ -774,5 +800,5 @@ async function startQR(){
   }catch(e){stopQR();state.error='Unable to access the camera. Enable camera access for Schoology and try again.';render()}
 }
 
-// Mount the initial Android-style login screen after the renderer has initialized.
-render();
+// Restore the persisted Android-style OAuth session on application launch.
+(async()=>{try{const saved=await A.authState();if(saved?.oauth_token&&saved?.oauth_token_secret){state.auth=saved;await afterLogin();return}}catch(e){console.warn('Saved Schoology session could not be restored:',e)}render()})();

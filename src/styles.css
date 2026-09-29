@@ -312,7 +312,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 
 
 /* v45 exact-baseline exception: desktop landscape homepage split requested by user. */
-.homeLandscapeSplit{height:100%;min-height:0;display:grid;grid-template-columns:1fr 2fr;background:#fff;overflow:hidden}
+.homeLandscapeSplit{height:100%;min-height:0;display:grid;grid-template-columns:2fr 1fr;background:#fff;overflow:hidden}
 .homeUpcomingPane{min-width:0;min-height:0;overflow:auto;border-right:1px solid #ddd;background:#fff}
 .homeRightPane{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .homeRightPane .homeTabs{flex:0 0 48px}
@@ -322,3 +322,11 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .toolbar{position:relative!important}.toolbarActionSlot{margin-left:auto!important;flex:0 0 48px!important;width:48px!important;height:56px!important;display:flex!important;align-items:center!important;justify-content:flex-end!important}.toolbarActionSlot .iconButton{margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
 .sectionProfilePage{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}.sectionProfileContent{flex:1 1 auto;min-height:0;overflow:auto}.materialList,.gradesNativeList,.upcomingList{overflow:visible}
 .resourcesAndroidPage{height:100%;min-height:0;overflow:auto;background:#fff}.resourceCategory{border-bottom:1px solid #ddd}.resourceCategoryHeader{width:100%;height:56px;border:0;background:#fff;display:flex;align-items:center;text-align:left;padding:0 16px;color:#333;cursor:pointer}.resourceCategoryHeader img{width:40px;height:40px;object-fit:contain;margin-right:12px}.resourceCategoryHeader b{font-size:16px;font-weight:400;flex:1}.resourceChevron{font-size:25px;color:#888;transform:rotate(0deg);transition:transform .15s}.resourceCategory.open .resourceChevron{transform:rotate(90deg)}.resourceCategoryChildren{display:none;background:#fafafa}.resourceCategory.open .resourceCategoryChildren{display:block}.resourceCollectionRow,.resourceFileRow{width:100%;min-height:58px;border:0;border-bottom:1px solid #e5e5e5;background:#fff;display:flex;align-items:center;text-align:left;padding:8px 16px 8px 32px;color:#333;cursor:pointer}.resourceCollectionRow img,.resourceFileRow img{width:40px;height:40px;object-fit:contain;margin-right:12px;flex:0 0 40px}.resourceCollectionRow span:nth-child(2),.resourceFileRow span:nth-child(2){flex:1;min-width:0}.resourceCollectionRow b,.resourceFileRow b{display:block;font-size:15px;font-weight:400;color:#2e66a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.resourceCollectionRow small,.resourceFileRow small{display:block;color:#888;font-size:11px;margin-top:3px}.resourceCollectionRow>span:last-child,.resourceFileRow>span:last-child{font-size:24px;color:#999}.resourceEmpty{padding:14px 32px;color:#888;font-size:13px}.resourceBackTitle{padding:14px 16px;font-size:18px;color:#333;border-bottom:1px solid #ddd;background:#fff}
+
+/* v46: requested dynamic desktop Home orientation and full Course Dashboard fill. */
+.homeLandscapeSplit #homeUpcomingPane{border-left:1px solid #ddd;border-right:0;font-size:.94em}
+.homeLandscapeSplit .homeRightPane{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.homeLandscapeSplit .homeRightPane #homeTabContent{min-height:0;flex:1 1 auto;overflow:auto}
+.homeLandscapeSplit .homeRightPane #homeTabContent:has(.dashboardHybrid){display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:0!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;overflow:hidden!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid webview{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;flex:1 1 auto!important;display:block!important}

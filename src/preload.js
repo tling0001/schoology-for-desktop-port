@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('schoology',{
   prepareWebSession:()=>ipcRenderer.invoke('prepare-web-session'),
   fetchImage:u=>ipcRenderer.invoke('fetch-image',u),
   submitAssignmentFile:x=>ipcRenderer.invoke('submit-assignment-file',x),
+  submitAssignmentText:x=>ipcRenderer.invoke('submit-assignment-text',x),
   downloadFile:x=>ipcRenderer.invoke('download-file',x),
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),

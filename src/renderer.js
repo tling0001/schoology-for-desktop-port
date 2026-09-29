@@ -102,7 +102,7 @@ function bind(){
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
     if(id==='courses'||id==='groups'||id==='grades'){
-      state.drawerPage=id;render();document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open');loadCourseSubmenu();return;
+      state.drawerPage=id;const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${id==='grades'?'Grades':id==='groups'?'Groups':'Courses'}</span>${id==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div><div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${id==='grades'?'grades':id==='groups'?'groups':'courses'}…</div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadCourseSubmenu();return;
     }
     closeDrawerThen(async()=>{
       if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
@@ -335,19 +335,11 @@ async function openAssignmentComments(sectionId,assignmentId,assignment){
 async function openSubmissionComposer(sectionId,assignmentId,assignment){
   const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
   const gradeItemId=assignment.grade_item_id||assignment.gradeItemId||assignment.gradeitem_id||assignment.gradeItemID||assignmentId;
-  let submissions=[];
-  try{
-    const uid=state.auth?.userId||state.auth?.user?.id;
-    const x=await A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{all_revisions:'true',with_attachments:'true',limit:200}});
-    submissions=x.submission||x.submissions||x.dropbox_revision||x.dropboxRevisions||x.revisions||[];
-  }catch(e){console.warn('Submission revisions unavailable:',e)}
-  const revisions=Array.isArray(submissions)?submissions:[];
-  const revisionRows=revisions.map((r,i)=>{
-    const files=r.attachments?.files?.file||r.attachments?.files||r.attachments?.file||r.files?.file||r.files||[];const list=Array.isArray(files)?files:(files&&typeof files==='object'?[files]:[]);
-    return `<article class="submissionRevision"><div><b>Submission ${revisions.length-i}</b><small>${esc(formatSchoologyDate(r.created||r.timestamp||''))}${String(r.late)==='1'?' • Late':''}${String(r.draft)==='1'?' • Draft':''}</small></div>${list.map(f=>{const ext=f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||'';const name=f.filename||f.fileName||f.title||f.file_title||'File';const finalName=/\.[A-Za-z0-9]{1,8}$/.test(name)?name:(ext?name+'.'+String(ext).replace(/^\./,''):name);const url=f.file_download_url||f.fileDownloadURL||f.download_path||f.downloadPath||f.file_url||f.url||'';return url?`<button class="submissionFile" data-download-url="${esc(url)}" data-download-name="${esc(finalName)}" data-download-mime="${esc(f.filemime||f.fileMIME||f.file_mime||'application/octet-stream')}">📎 ${esc(finalName)}</button>`:''}).join('')}</article>`;
-  }).join('');
-  c.innerHTML=`<section class="officialSubmissionPage"><div class="submissionHeader"><div><h1>${esc(assignment.title||'Assignment')}</h1><small>${esc(assignment.due||'')}</small></div><strong>${esc(assignment.max_points!=null?assignment.max_points+' points':'')}</strong></div><div class="submissionStatusCard"><b>${revisions.length?'Submission history':'No submissions yet'}</b><small>${revisions.length?'Your submissions and revisions are shown below.':'Use + in the app bar to submit work.'}</small></div><div class="submissionRevisionList">${revisionRows||'<div class="empty">No submission found.</div>'}</div></section>`;
-  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await A.downloadFile({url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
+  c.innerHTML=`<section class="officialSubmissionPage"><div class="submissionHeader"><div><h1>${esc(assignment.title||'Assignment')}</h1><small>${esc(assignment.due||'')}</small></div><strong>${esc(assignment.max_points!=null?assignment.max_points+' points':'')}</strong></div><div class="submissionComposerAndroid"><textarea id="submissionText" class="submissionText" placeholder="Write your submission…"></textarea><input id="chooseSubmissionFile" type="file" hidden><div id="selectedSubmissionFile" class="selectedSubmissionFile"></div><div class="submissionActions"><button id="submissionUploadButton" class="androidSecondary">Upload File</button><button id="submissionPostText" class="androidPrimary">Create Text Submission</button></div><div id="submissionStatus" class="submissionStatus"></div></div></section>`;
+  const input=document.getElementById('chooseSubmissionFile'),status=document.getElementById('submissionStatus');
+  document.getElementById('submissionUploadButton')?.addEventListener('click',()=>input?.click());
+  input?.addEventListener('change',async()=>{const f=input.files?.[0];if(!f)return;document.getElementById('selectedSubmissionFile').textContent=f.name;try{status.textContent='Uploading…';await A.submitAssignmentFile({sectionId,assignmentId,filePath:f.path});status.textContent='File submitted.';await openSubmissionComposer(sectionId,assignmentId,assignment)}catch(e){status.textContent=e.message||'Unable to upload submission.'}});
+  document.getElementById('submissionPostText')?.addEventListener('click',async()=>{try{const text=document.getElementById('submissionText')?.value||'';status.textContent='Submitting…';await A.submitAssignmentText({sectionId,gradeItemId,text,draft:false});status.textContent='Submission posted.';await openSubmissionComposer(sectionId,assignmentId,assignment)}catch(e){status.textContent=e.message||'Unable to submit.'}});
 }
 
 function showSubmissionMenu(){
@@ -651,7 +643,7 @@ async function loadResourcesHome(c){
  c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceCategoryList">${categories.map(([key,label,list])=>`<section class="resourceCategory"><button class="resourceCategoryHeader" data-resource-category="${key}"><img src="../assets/icons/${collectionIcon(key)}" alt=""><b>${esc(label)}</b><span class="resourceChevron">›</span></button><div class="resourceCategoryChildren" id="resource-${key}">${list.length?list.map((o,i)=>`<button class="resourceCollectionRow" data-resource-collection="${key}" data-resource-index="${i}"><img src="../assets/icons/${key==='apps'?'ic_resourceapps.png':o.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'}" alt=""><span><b>${esc(o.collection_title||o.title||o.name||'Resource')}</b>${o.created?`<small>${esc(formatSchoologyDate(o.created))}</small>`:''}</span><span>›</span></button>`).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`).join('')}</div></section>`;
  window.__resourceCategories=Object.fromEntries(categories.map(([k,l,a])=>[k,a]));
  document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
- document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=()=>openResourceCollection(window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex]));
+ document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];if(b.dataset.resourceCollection==='apps'){try{const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');showEmbeddedWeb(url,col.collection_title||col.title||'Resource App')}catch(e){alert('Unable to launch resource app: '+e.message)}}else openResourceCollection(col)});
 }
 async function openResourceCollection(col){
  const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';syncToolbar();
@@ -661,16 +653,19 @@ async function openResourceCollection(col){
  c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceBackTitle">${esc(state.toolbarTitle)}</div><div class="resourceRows">${arr.length?arr.map(r=>{const title=r.template_title||r.title||r.name||r.filename||'Resource',type=r.template_type||r.type||'';return `<button class="resourceFileRow" data-resource-url="${esc(r.url||r.file_download_url||r.download_path||r.download_url||'')}" data-resource-name="${esc(title)}"><img src="../assets/icons/${resourceIconForType(type,title)}" alt=""><span><b>${esc(title)}</b><small>${esc(type||'Resource')}</small></span><span>›</span></button>`}).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`;
  document.querySelectorAll('[data-resource-url]').forEach(b=>b.onclick=()=>{const u=b.dataset.resourceUrl;if(!u)return;openWithPressTransition(b,()=>showEmbeddedWeb(u,b.dataset.resourceName||'Resource'))});
 }
+let homeLayoutMediaQuery=null;
+function installHomeLayoutWatcher(){const mq=window.matchMedia('(min-aspect-ratio: 4/3)');if(homeLayoutMediaQuery===mq)return;window.__schoologyHomeLayoutChange=()=>{if(state.tab==='home')loadTab()};homeLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyHomeLayoutChange);mq.addEventListener?.('change',window.__schoologyHomeLayoutChange);homeLayoutMediaQuery=mq}
 async function loadTab(){
  const c=document.getElementById('content');if(!c)return;
  c.innerHTML='<div class="loading">Loading…</div>';
  const uid=state.auth?.userId||state.auth?.user?.id;
  try{
   if(state.tab==='home'){
+    installHomeLayoutWatcher();
     const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
     if(landscape){
       const tabs=[`<button data-home-tab="recent" class="homeTab ${state.homeTab==='recent'?'active':''}">Recent Activity</button>`,state.courseDashboardEnabled?`<button data-home-tab="dashboard" class="homeTab ${state.homeTab==='dashboard'?'active':''}">Course Dashboard</button>`:''].join('');
-      c.innerHTML=`<div class="homeLandscapeSplit"><section id="homeUpcomingPane" class="homeUpcomingPane"></section><section class="homeRightPane"><div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section></section></div>`;
+      c.innerHTML=`<div class="homeLandscapeSplit"><section class="homeRightPane"><div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section></section><section id="homeUpcomingPane" class="homeUpcomingPane"></section></div>`;
       document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
       await loadHomeUpcomingPane();
       await loadHomeTab();

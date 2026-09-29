@@ -260,33 +260,28 @@ async function downloadAuthenticatedFile(info){
 async function submitAssignmentFile(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.assignmentId||!info?.filePath)throw new Error('Submission information is incomplete.');
-  // The 2026 Android client uploads the attachment through FileServiceAPI,
-  // then submits the returned file id through AssignmentApi.
-  const filePath=info.filePath;
-  const stat=fs.statSync(filePath);
-  const filename=path.basename(filePath);
+  const filePath=info.filePath, filename=path.basename(filePath), file=fs.readFileSync(filePath);
   const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
-  const file=fs.readFileSync(filePath);
   const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
-  const post=Buffer.from(`\r\n--${boundary}--\r\n`);
-  const body=Buffer.concat([pre,file,post]);
-  const u=new URL(`https://${API_HOST}/file`);
-  const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length};
-  headers['X-Schoology-Client']='Android';headers['X-Schoology-App-Version']='2026.06.0';
-  headers.Authorization=makeOAuthHeader('POST',u.toString(),a.oauth_token,a.oauth_token_secret);
-  headers.Cookie=MOBILE_COOKIE;
-  const uploaded=await new Promise((resolve,reject)=>{
-    const req=https.request({hostname:u.hostname,path:u.pathname,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});
-    req.on('error',reject);req.write(body);req.end();
-  });
+  const post=Buffer.from(`\r\n--${boundary}--\r\n`), body=Buffer.concat([pre,file,post]);
+  const uploadUrl=new URL(`https://${API_HOST}/file`);
+  const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0','Cookie':MOBILE_COOKIE};
+  headers.Authorization=makeOAuthHeader('POST',uploadUrl.toString(),a.oauth_token,a.oauth_token_secret);
+  const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.write(body);req.end()});
   if(uploaded.status<200||uploaded.status>=300)throw new Error('File upload failed: '+uploaded.status+' '+uploaded.text);
-  let j={};try{j=JSON.parse(uploaded.text)}catch{}
-  const fileId=j.file_id||j.id||j.file?.id||j.file?.file_id;
-  if(!fileId)throw new Error('Schoology did not return an uploaded file ID.');
-  const r=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
-  if(r.status<200||r.status>=300)throw new Error('Assignment submission failed: '+r.status+' '+r.text);
-  return true;
+  let j={};try{j=JSON.parse(uploaded.text)}catch{} const fileId=j.fileMetadataId;
+  if(!fileId)throw new Error('Schoology did not return fileMetadataId.');
+  const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+  if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text); return true;
 }
+async function submitAssignmentText(info){
+  const a=loadAuth(); if(!a)throw new Error('Not signed in');
+  if(!info?.sectionId||!info?.gradeItemId)throw new Error('Text submission information is incomplete.');
+  const body=String(info.text||'').trim(); if(!body)throw new Error('Enter a submission before posting.');
+  const result=await request('POST',`https://${API_HOST}/v1/sections/${info.sectionId}/submissions/${info.gradeItemId}/create`,{body,draft:info.draft?1:0},{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+  if(result.status<200||result.status>=300)throw new Error('Text submission failed: '+result.status+' '+result.text); return true;
+}
+
 async function api(pathname,method='GET',params={}){
   const a=loadAuth();if(!a)throw new Error('Not signed in');
   const clean=String(pathname||'').replace(/^\//,'');
@@ -433,7 +428,7 @@ async function loginExternalSchool(info){
 }
 
 function create(){
-  win=new BrowserWindow({width:430,height:850,minWidth:360,minHeight:650,show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
+  win=new BrowserWindow({width:1280,height:800,minWidth:800,minHeight:600,show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
@@ -463,14 +458,15 @@ app.whenReady().then(()=>{
   ipcMain.handle('fetch-image',(_,u)=>fetchSchoologyImage(u));
   ipcMain.handle('prepare-web-session',()=>prepareWebSession());
   ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));
+  ipcMain.handle('submit-assignment-text',(_,x)=>submitAssignmentText(x));
   ipcMain.handle('download-file',(_,x)=>downloadAuthenticatedFile(x));
   ipcMain.handle('launch-course-app',async(_,x)=>{
     const a=loadAuth(); if(!a)throw new Error('Not signed in');
-    let url=String(x||''); if(!url)throw new Error('Course app launch URL is missing.');
-    if(!/^https?:\/\//i.test(url))url=`https://${WEB_HOST}${url.startsWith('/')?'':'/'}${url}`;
-    const r=await request('GET',url,{}, {sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
-    if(r.status<200||r.status>=300)throw new Error(`Course app launch failed (HTTP ${r.status}): ${r.text}`);
-    let j={};try{j=JSON.parse(r.text)}catch{throw new Error('Schoology returned an invalid course-app launch response.')}
+    const appId=Number(x?.appId ?? x); if(!Number.isFinite(appId))throw new Error('Resource app ID is missing.');
+    const u=new URL(`https://${API_HOST}/v2/resources/applications/${appId}/launch`);
+    const r=await request('GET',u.toString(),{}, {sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+    if(r.status<200||r.status>=300)throw new Error(`Resource app launch failed (HTTP ${r.status}): ${r.text}`);
+    let j={};try{j=JSON.parse(r.text)}catch{throw new Error('Schoology returned an invalid resource-app launch response.')}
     return j;
   });
   ipcMain.handle('open-downloaded-file',(_,x)=>shell.openPath(String(x?.path||'')));

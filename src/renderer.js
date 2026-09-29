@@ -23,17 +23,17 @@ function shell(){
   ['home','Home','⌂'],['courses','Courses','▣'],['groups','Groups','♧'],['resources','Resources','▤'],['grades','Grades','✓'],['calendar','Calendar','□'],['people','People','♙'],
   ['settings','Settings','⚙'],['logout','Logout','↪']
  ];
- const drawerPage=state.drawerPage==='courses'?`
+ const drawerPage=state.drawerPage==='courses'||state.drawerPage==='grades'?`
    <div class="drawerSub">
-    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>Courses</span><button id="joinCourse" class="drawerHeaderAction">+</button></div>
-    <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading courses…</div></div>
+    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${state.drawerPage==='grades'?'Grades':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
+    <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
  <header class="toolbar"><button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button><span class="toolbarTitle">${state.tab==='home'?'Home':state.tab==='settings'?'Settings':state.tab==='messages'?'Messages':state.tab==='courses'?'Courses':state.tab==='calendar'?'Calendar':state.tab==='grades'?'Grades':state.tab==='groups'?'Groups':state.tab==='resources'?'Resources':state.tab==='people'?'People':state.tab==='profile'?'Profile':'Schoology'}</span><button id="toolbarMore" class="iconButton">⋮</button></header>
  <main id="content"><div class="loading">Loading…</div></main>
  <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
-   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon}</span><span>${label}${id==='courses'?'<span class="disclosure">›</span>':''}</span></button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon}</span><span>${label}${id==='courses'?'<span class="disclosure">›</span>':''}</span></button>`).join('')}</div>`}
+   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon}</span><span>${label}${id==='courses'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon}</span><span>${label}${id==='courses'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`).join('')}</div>`}
  </aside>
  </div>`
 }
@@ -65,13 +65,13 @@ function bind(){
   shade?.addEventListener('click',()=>setDrawer(false));
 
   document.getElementById('profileButton')?.addEventListener('click',()=>{setDrawer(false);state.tab='profile';render();loadTab()});
-  document.getElementById('drawerBack')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0);loadCourseSubmenu()});
+  document.getElementById('drawerBack')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0)});
   document.getElementById('joinCourse')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0)});
 
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
-    if(id==='courses'){
-      state.drawerPage='courses';render();document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open');loadCourseSubmenu();return;
+    if(id==='courses'||id==='grades'){
+      state.drawerPage=id;render();document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open');loadCourseSubmenu();return;
     }
     setDrawer(false);
     if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
@@ -89,12 +89,43 @@ async function loadCourseSubmenu(){
  const c=document.getElementById('courseSubList');if(!c)return;
  try{
    const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('No logged-in user ID.');
+   // Android SectionRepository.listAllSections(userId) is the source for both
+   // the Courses submenu and the Grades section selector.
    const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});
    const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
-   c.innerHTML=arr.length?arr.map((s,i)=>`<button class="courseSubItem" data-course-sub="${i}"><span class="courseThumb">${esc((s.section_title||s.title||'C').charAt(0))}</span><span><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></span></button>`).join(''):'<div class="drawerEmpty">No courses found.</div>';
-   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const course=window.__schoologyCourses[+b.dataset.courseSub];state.drawerPage=null;state.tab='courses';state.screen='app';render();showCourse(course)});
+   c.innerHTML=arr.length?arr.map((s,i)=>{
+     const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';
+     const sectionTitle=s.section_title||s.sectionTitle||'';
+     const image=s.course_theme||s.courseTheme||s.image||'';
+     const admin=String(s.admin||'')==='1'||s.admin===true;
+     return `<button class="courseSubItem" data-course-sub="${i}">
+       <span class="courseImage">${image?`<img src="${esc(image)}" alt="">`:`<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span>`}</span>
+       <span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span>
+       ${admin?'<span class="courseAdmin" aria-label="Administrator">★</span>':''}
+     </button>`;
+   }).join(''):'<div class="drawerEmpty">No courses found.</div>';
+   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{
+     const course=window.__schoologyCourses[+b.dataset.courseSub];
+     if(state.drawerPage==='grades'){
+       state.drawerPage=null;state.tab='grades';state.screen='app';render();showGradeSection(course);
+     }else{
+       state.drawerPage=null;state.tab='courses';state.screen='app';render();showCourse(course);
+     }
+   });
  }catch(e){c.innerHTML=`<div class="drawerError">${esc(e.message)}</div>`}
 }
+function showGradeSection(course){
+ const c=document.getElementById('content');if(!c)return;
+ const title=course?.course_title||course?.courseTitle||course?.title||'Grades';
+ const section=course?.section_title||course?.sectionTitle||'';
+ c.innerHTML=`<section class="page gradesSectionPage">
+   <div class="sectionHero">
+     <div class="sectionHeroTitle"><h1>${esc(title)}</h1><p>${esc(section)}</p></div>
+   </div>
+   <div class="empty"><h2>Grades</h2><p>Selecting this course opens its grades in the Android app.</p></div>
+ </section>`;
+}
+
 function showCourse(course){
  const c=document.getElementById('content');if(!c)return;
  if(!course){loadTab();return}
@@ -112,7 +143,17 @@ async function loadTab(){
   }else if(state.tab==='courses'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
-    c.innerHTML=`<section class="page"><h1>Courses</h1><div class="cards">${arr.map((s,i)=>`<button class="card" data-course-page="${i}"><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></button>`).join('')||'<p>No courses found.</p>'}</div></section>`;
+    c.innerHTML=`<section class="androidSectionList"><div class="sectionListRows">${arr.map((s,i)=>{
+      const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';
+      const sectionTitle=s.section_title||s.sectionTitle||'';
+      const image=s.course_theme||s.courseTheme||s.image||'';
+      const admin=String(s.admin||'')==='1'||s.admin===true;
+      return `<button class="sectionListItem" data-course-page="${i}">
+        <span class="sectionImage">${image?`<img src="${esc(image)}" alt="">`:`<span>${esc(courseTitle.charAt(0))}</span>`}</span>
+        <span class="sectionLabels"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span>
+        ${admin?'<span class="courseAdmin">★</span>':''}
+      </button>`;
+    }).join('')||'<div class="empty"><h2>No courses found.</h2></div>'}</div></section>`;
     document.querySelectorAll('[data-course-page]').forEach(b=>b.onclick=()=>showCourse(window.__schoologyCourses[+b.dataset.coursePage]));
   }else if(state.tab==='calendar'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
@@ -156,9 +197,17 @@ async function loadHomeTab(){
     const arr=x.section||x.sections||[];
     c.innerHTML=`<div class="dashboardGrid">${arr.map(s=>`<button class="dashboardCard"><div class="dashboardThumb">${esc((s.section_title||s.title||'C').charAt(0))}</div><div><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></div></button>`).join('')||'<div class="empty"><h2>No courses</h2></div>'}</div>`;
   }else{
-    const x=await A.api({path:`users/${state.auth?.userId||state.auth?.user?.id||0}/events`,params:{limit:50}});
-    const arr=x.event||x.events||[];
-    c.innerHTML=arr.length?`<div class="upcomingList">${arr.map(e=>`<article class="upcomingCard"><div class="dateBadge">${esc((e.start||e.start_date||'').slice(0,10))}</div><div><b>${esc(e.title||'Event')}</b><small>${esc(e.start||e.start_date||'')}</small></div></article>`).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming events will appear here.</p></div>';
+    // Android HomePagerFragment uses UpcomingFragment.i5("users", 0L).
+    // Its UpcomingAdapter renders assignments/assessments/discussions (not a
+    // generic events dashboard), with date grouping and an item icon.
+    const x=await A.api({path:'users/0/events',params:{limit:50}});
+    let arr=x.event||x.events||[];
+    arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
+    c.innerHTML=arr.length?`<div class="upcomingList">${arr.map(e=>{
+      const type=String(e.type||'');
+      const icon=type==='assignment'?'📝':(type.startsWith('assessment')||type==='managed_assessment'?'▣':(type==='discussion'?'💬':'▤'));
+      return `<article class="upcomingAssignment"><div class="assignmentIcon">${icon}</div><div class="assignmentInfo"><b>${esc(e.title||'Assignment')}</b><small>${esc(e.start||e.start_date||'')}</small></div></article>`;
+    }).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }

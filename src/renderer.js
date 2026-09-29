@@ -58,7 +58,7 @@ function shell(){
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
- <header class="toolbar">${state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
+ <header class="toolbar">${state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu"><img src="../assets/icons/ic_menu.svg" alt=""></button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading">Loading…</div></main>
  <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
@@ -188,8 +188,8 @@ function syncToolbar(){
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
   if(needs&&!existing){const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();}
-  if(!needs&&!existing&&menu===null){const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.textContent='☰';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
-  if(!needs&&existing){existing.remove();const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.textContent='☰';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
+  if(!needs&&!existing&&menu===null){const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.innerHTML='<img src="../assets/icons/ic_menu.svg" alt="">';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
+  if(!needs&&existing){existing.remove();const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.innerHTML='<img src="../assets/icons/ic_menu.svg" alt="">';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
@@ -253,7 +253,20 @@ function navigateBack(){
     render();loadTab();
   }
 }
-function showCourse(course,activeTab='materials'){
+async function getCourseNavigationPermissions(sectionId,userId){
+ if(!sectionId||!userId)throw new Error('Missing course/user ID');
+ const request=[`/v1/sections/${sectionId}/grades`,`/v1/users/${userId}/grades`,`/v1/sections/${sectionId}/attendance`];
+ const x=await A.api({path:'multioptions',method:'POST',params:{request}});
+ const list=Array.isArray(x?.response)?x.response:(Array.isArray(x?.responses)?x.responses:[]);
+ const by={};
+ for(const r of list){if(r?.location)by[String(r.location)]=String(r.body||'').toLowerCase()}
+ const sectionGradeBody=by[`/v1/sections/${sectionId}/grades`]||'';
+ const userGradeBody=by[`/v1/users/${userId}/grades`]||'';
+ const attendanceBody=by[`/v1/sections/${sectionId}/attendance`]||'';
+ return {sectionGradesPut:sectionGradeBody.includes('put'),userGradesGet:userGradeBody.includes('get'),attendanceGet:attendanceBody.includes('get')};
+}
+
+async function showCourse(course,activeTab='materials'){
  const c=document.getElementById('content');if(!c)return;
  if(!course){loadTab();return}
  state.selectedCourse=course;state.courseView='course';state.courseTab=activeTab;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;
@@ -261,11 +274,20 @@ function showCourse(course,activeTab='materials'){
  const sid=course.id||course.section_id||course.sectionId;
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.course_theme||course.courseTheme||course.image||course.course_image||'');
- const tabs=[['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],['grades','Grades'],['courseapp','Course App']];
+ const navPerms=await getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null);
+ const canGradebook=!!navPerms?.sectionGradesPut;
+ const canGrades=!!navPerms?.userGradesGet;
+ const attendanceEnabled=!!navPerms?.attendanceGet;
+ const tabs=[['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),['courseapp','Course App']];
  const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
- const effectiveTab=landscape&&activeTab==='upcoming'?'materials':activeTab;
+ let effectiveTab=activeTab;
+ if(effectiveTab==='grades'&&canGradebook)effectiveTab='gradebook';
+ if(effectiveTab==='gradebook'&&!canGradebook)effectiveTab='grades';
+ if(effectiveTab==='attendance'&&!attendanceEnabled)effectiveTab='materials';
+ if(landscape&&effectiveTab==='upcoming')effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
+   <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading">Loading…</div></div></aside>
    <section class="courseMainPane">
     <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''} ${id==='upcoming'?'courseUpcomingTab':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
     <div class="sectionProfileHeader">
@@ -287,6 +309,7 @@ function showCourse(course,activeTab='materials'){
    if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;
  });
  loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
+ loadCourseApps(course,document.getElementById('courseAppsSideContent')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
  installCourseLayoutWatcher();
 }
 async function showAssignment(sectionId,assignmentId){
@@ -494,8 +517,20 @@ function showEmbeddedWeb(url,title){
   w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^schoology:\/\/course(?:s)?\//i.test(u)){e.preventDefault();const m=u.match(/^schoology:\/\/course(?:s)?\/(\d+)/i);if(m){A.api({path:`sections/${m[1]}`,params:{}}).then(x=>{state.embeddedTitle=null;showCourse(x?.section||x)}).catch(()=>{})}}});
   w.addEventListener('did-fail-load',e=>{if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)});
 }
-async function loadCourseApps(course){
+async function loadAttendanceTab(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
+  const sid=course.id||course.section_id||course.sectionId;
+  try{
+    const x=await A.api({path:`sections/${sid}/attendance`,params:{start:0,limit:100}});
+    const arr=x.attendance||x.records||x.record||[];
+    el.innerHTML=arr.length?`<div class="attendanceList">${arr.map(r=>`<div class="attendanceRow"><b>${esc(r.date||r.created||'')}</b><span>${esc(r.status||r.type||r.label||'')}</span></div>`).join('')}</div>`:'<div class="empty"><h2>No attendance records</h2></div>';
+  }catch(e){
+    el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`;
+  }
+}
+
+async function loadCourseApps(course,targetEl){
+  const el=targetEl||document.getElementById('sectionProfileContent');if(!el)return;
   const sid=course.id||course.section_id||course.sectionId;
   const x=await A.api({path:`v2/sections/${sid}/applications`,params:{}});
   const apps=x?.['@extra']||x.extra||x.data?.['@extra']||x.data?.extra||[];
@@ -556,12 +591,16 @@ async function loadCourseTab(course,tab){
    document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=arr.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const esid=e.section_id??e.sectionId??sid;if(String(e.type||'')==='assignment'&&aid)openWithPressTransition(b,()=>showAssignment(esid,aid));else if(e.web_url||e.webUrl)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming'));else if(e.type==='discussion'&&e.id)openWithPressTransition(b,()=>showEmbeddedWeb(`https://app.schoology.com/section/${esid}/discussion/view/${e.id}`,e.title||'Discussion'));});
    return;
  }
- if(tab==='grades'){
+ if(tab==='grades'||tab==='gradebook'){
    await loadSectionGrades(course);
    return;
  }
+ if(tab==='attendance'){
+   await loadAttendanceTab(course);
+   return;
+ }
  if(tab==='courseapp'){
-   await loadCourseApps(course);
+   await loadCourseApps(course,el);
    return;
  }
 }
@@ -900,7 +939,7 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.classList.remove('webContentHost');c.classList.add('dashboardContentActive');c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    c.classList.remove('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
       dw.addEventListener('new-window',e=>{e.preventDefault();try{dw.src=e.url}catch{}});
@@ -908,7 +947,8 @@ async function loadHomeTab(){
       dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
     }
   }else{
-    await renderUpcomingInto(c);
+    c.innerHTML='<div class="homePaneHeader">Upcoming</div><div id="homeUpcomingList"></div>';
+    await renderUpcomingInto(document.getElementById('homeUpcomingList'));
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }

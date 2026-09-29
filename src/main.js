@@ -298,7 +298,8 @@ async function api(pathname,method='GET',params={}){
   const version=clean.startsWith('v2/')?'v2':'v1';
   const resource=clean.startsWith('v2/')?clean.slice(3):clean;
   const url=`https://${API_HOST}/${version}/${resource}`;
-  const r=await request(method,url,params,{sign:true,signBody:method.toUpperCase()!=='GET' && method.toUpperCase()!=='HEAD',clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+  const isMultioptions=clean==='multioptions' && method.toUpperCase()==='POST';
+  const r=await request(method,url,params,{sign:true,signBody:method.toUpperCase()!=='GET' && method.toUpperCase()!=='HEAD',clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:isMultioptions});
   if(r.status===401)throw new Error('Schoology session expired (HTTP 401)');
   if(r.status===403)throw new Error('Schoology denied this request (HTTP 403)');
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);

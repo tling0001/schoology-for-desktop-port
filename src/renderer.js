@@ -8,7 +8,7 @@ const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:
 let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',assignmentTab:'info',assignmentCanSubmit:false,submissionMenu:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 window.closeDrawerThen=function closeDrawerThen(fn){const drawer=document.getElementById('drawer'),shade=document.getElementById('drawerShade');drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;if(typeof fn==='function')fn()},280)};const closeDrawerThen=(fn)=>window.closeDrawerThen(fn);
 function messageDetail(){
@@ -193,9 +193,15 @@ function syncToolbar(){
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
-  if(state.assignmentView&&state.assignmentCanSubmit&&state.assignmentTab==='submit'){
-    slot.innerHTML='<button id="assignmentPlus" class="iconButton toolbarImageButton" aria-label="Add submission"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
+  if(state.assignmentView&&state.assignmentTab==='comments'&&!state.assignmentSubpage){
+    slot.innerHTML='<button id="assignmentPlus" class="iconButton toolbarImageButton" aria-label="Post comment"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
+    document.getElementById('assignmentPlus')?.addEventListener('click',()=>openAssignmentCommentComposer(state.assignmentView.sectionId,state.assignmentView.assignmentId,'0'));
+  }else if(state.assignmentView&&state.assignmentCanSubmit&&state.assignmentTab==='submit'&&!state.assignmentIsTeacher&&!state.assignmentSubpage){
+    slot.innerHTML='<button id="assignmentPlus" class="iconButton toolbarImageButton" aria-label="Submit assignment"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
     document.getElementById('assignmentPlus')?.addEventListener('click',()=>showSubmissionMenu());
+  }else if(state.assignmentView&&state.assignmentIsTeacher&&state.assignmentSubpage==='teacherSubmission'){
+    slot.innerHTML='<button id="assignmentSaveGrade" class="iconButton" aria-label="Save grade">✓</button>';
+    document.getElementById('assignmentSaveGrade')?.addEventListener('click',()=>document.getElementById('saveTeacherGrade')?.click());
   }else if(state.courseView&&!state.assignmentView&&!state.embeddedTitle&&!state.currentGroup&&!state.profileUser&&state.courseTab==='materials'){
     slot.innerHTML='<button id="courseDownload" class="iconButton toolbarImageButton" aria-label="Make available offline"><img src="../assets/icons/ic_action_download.png" alt=""></button>';
     document.getElementById('courseDownload')?.addEventListener('click',()=>alert('Make available offline is an Android Schoology offline-sync action. The official toolbar control is shown, but desktop offline synchronization is not yet implemented.'));
@@ -208,7 +214,12 @@ function syncToolbar(){
 function navigateBack(){
   if(state.composeMessage){state.composeMessage=false;state.toolbarTitle='Messages';state.tab='messages';state.message=null;state.messageThread=null;render();loadTab();return}
   if(state.assignmentView){
-    state.assignmentView=null;state.assignmentCanSubmit=false;state.assignmentTab='info';state.submissionMenu=false;state.embeddedTitle=null;state.profileUser=null;
+    if(state.assignmentSubpage){
+      state.assignmentSubpage=null; state.toolbarTitle=state.assignmentTab==='comments'?'Comments':'Assignment'; syncToolbar();
+      if(state.assignmentTab==='comments')openAssignmentComments(state.assignmentView.sectionId,state.assignmentView.assignmentId,state.assignmentData||{}); else openAssignmentSubmissions(state.assignmentView.sectionId,state.assignmentView.assignmentId,state.assignmentData||{},state.assignmentIsTeacher);
+      return;
+    }
+    state.assignmentView=null;state.assignmentCanSubmit=false;state.assignmentIsTeacher=false;state.assignmentSubpage=null;state.assignmentData=null;state.assignmentEnrollmentId=null;state.assignmentTab='info';state.submissionMenu=false;state.embeddedTitle=null;state.profileUser=null;
     syncToolbar();
     if(state.selectedCourse){showCourse(state.selectedCourse,state.courseTab||'materials');}
     else {state.toolbarTitle='Home';state.courseView=null;render();loadTab();}
@@ -251,95 +262,146 @@ function showCourse(course,activeTab='materials'){
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const tabs=[['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],['grades','Grades'],['courseapp','Course App']];
- c.innerHTML=`<section class="sectionProfilePage">
-   <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${activeTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
-   <div class="sectionProfileHeader">
-     <img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt="">
-     <span class="sectionProfileFallback">${esc(title.charAt(0))}</span>
-     <div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div>
-   </div>
-   <div class="sectionProfileRule"></div>
-   <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading">Loading…</div></div>
+ const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
+ const effectiveTab=landscape&&activeTab==='upcoming'?'materials':activeTab;
+ state.courseTab=effectiveTab;
+ c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
+   <section class="courseMainPane">
+    <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''} ${id==='upcoming'?'courseUpcomingTab':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
+    <div class="sectionProfileHeader">
+      <img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt="">
+      <span class="sectionProfileFallback">${esc(title.charAt(0))}</span>
+      <div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div>
+    </div>
+    <div class="sectionProfileRule"></div>
+    <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading">Loading…</div></div>
+   </section>
+   <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading">Loading…</div></div></aside>
  </section>`;
  hydrateCourseImages(c);
  document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{
    state.toolbarTitle=b.textContent||'Course';showCourse(course,b.dataset.courseTab);
  });
- loadCourseTab(course,activeTab).catch(e=>{
+ loadCourseTab(course,effectiveTab).catch(e=>{
    const el=document.getElementById('sectionProfileContent');
    if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;
  });
+ loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
+ installCourseLayoutWatcher();
 }
 async function showAssignment(sectionId,assignmentId){
   const c=document.getElementById('content'); if(!c)return;
-  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.submissionMenu=false; syncToolbar();
+  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSubpage=null; state.submissionMenu=false; syncToolbar();
   c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading">Loading assignment…</div></section>`;
   try{
-    const a=await A.api({path:`sections/${sectionId}/assignments/${assignmentId}`,params:{richtext:1,with_attachments:'TRUE'}});
-    const at=a.assignment||a;
+    const uid=state.auth?.userId||state.auth?.user?.id;
+    const [aResp,sectionResp,enrollResp]=await Promise.all([
+      A.api({path:`sections/${sectionId}/assignments/${assignmentId}`,params:{richtext:1,with_attachments:'TRUE'}}),
+      A.api({path:`sections/${sectionId}`,params:{}}).catch(()=>({})),
+      uid?A.api({path:`sections/${sectionId}/enrollments`,params:{uid,enrollment_status:1}}).catch(()=>({})):Promise.resolve({})
+    ]);
+    const at=aResp.assignment||aResp;
     const html=typeof at.description==='string'?at.description:'';
     const attachments=at.attachments||at.attachment||{};
+    const myEnrollment=(enrollResp.enrollment||enrollResp.enrollments||[])[0]||{};
+    const isTeacher=String(myEnrollment.admin??sectionResp.admin??at.admin??(state.selectedCourse?.admin||0))==='1';
     const canSubmit=at.allow_dropbox===1||at.allow_dropbox==='1'||at.allowDropbox===true||at.allow_dropbox===true;
-    state.assignmentCanSubmit=canSubmit;
-    const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button><button class="assignmentTab" data-assignment-tab="comments">Comments</button>${canSubmit?'<button class="assignmentTab" data-assignment-tab="submit">Grade Submissions</button>':''}`;
+    state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentData=at; state.assignmentEnrollmentId=myEnrollment.id||null;
+    const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button><button class="assignmentTab" data-assignment-tab="comments">Comments</button>${canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
     c.innerHTML=`<section class="assignmentAndroidPage"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section>`;
     const renderInfo=()=>{
       const el=document.getElementById('assignmentTabContent');if(!el)return;
       el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${renderAttachments(attachments)}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
-      state.assignmentTab='info';state.submissionMenu=false;syncToolbar();
+      state.assignmentTab='info';state.assignmentSubpage=null;state.submissionMenu=false;syncToolbar();
     };
     const select=async(id)=>{
       state.assignmentTab=id; state.submissionMenu=false;
       document.querySelectorAll('.assignmentTab').forEach(x=>x.classList.toggle('active',x.dataset.assignmentTab===id));
       if(id==='info')renderInfo();
       else if(id==='comments')await openAssignmentComments(sectionId,assignmentId,at);
-      else if(id==='submit')await openSubmissionComposer(sectionId,assignmentId,at);
+      else if(id==='submit')await openAssignmentSubmissions(sectionId,assignmentId,at,isTeacher);
       syncToolbar();
     };
     document.querySelectorAll('[data-assignment-tab]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>select(b.dataset.assignmentTab)));
     renderInfo();
   }catch(e){ c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`; }
 }
+
 async function openAssignmentComments(sectionId,assignmentId,assignment){
   const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
-  c.innerHTML='<div class="commentsPage"><div class="loading">Loading comments…</div></div>';
+  c.innerHTML='<div class="commentsPage officialComments"><div class="loading">Loading comments…</div></div>';
   try{
-    // Android CommentsFragment -> CommentsResourceV2 uses:
-    // GET /v1/{realm}/{realm_id}/{comment_on}/{comment_on_id}/comments
-    // with realm=sections, comment_on=assignments, richtext and attachments.
     const x=await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});
     const arr=x.comments||x.comment||[];
     const flat=[];
     const walk=(node,depth=0)=>{if(!node||typeof node!=='object')return;flat.push({node,depth});const children=node.children||node.replies||node.comments||node.comment_replies||[];if(Array.isArray(children))children.forEach(ch=>walk(ch,depth+1));};
     arr.forEach(v=>walk(v,0));
-    const userIds=[...new Set(flat.map(({node})=>Number(node.creater_id||node.creator_id||node.user_id||node.author_id||0)).filter(Boolean))];
-    const users={};await Promise.all(userIds.map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});users[id]=u?.user||u}catch{}}));
+    const userIds=[...new Set(flat.map(({node})=>Number(node.creater_id??node.creator_id??node.uid??node.user_id??node.author_id??0)).filter(Boolean))];
+    const users={};await Promise.all(userIds.map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{picture_size:'sm'}});users[id]=u?.user||u}catch{}}));
     const cards=flat.map(({node,depth})=>{
-      const uid=Number(node.creater_id||node.creator_id||node.user_id||node.author_id||0),u=users[uid]||{};
+      const uid=Number(node.creater_id??node.creator_id??node.uid??node.user_id??node.author_id??0),u=users[uid]||{};
       const name=u.name_display||u.display_name||u.name||node.display_name||node.user_name||'Schoology';
       const avatar=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||'');
-      const body=node.comment||node.body||node.message||'';
-      const created=formatSchoologyDate(node.created||node.timestamp||'');
-      const likes=Number(node.likes||node.like_count||0),liked=node.userLiked||node.user_liked;
-      const cid=node.comment_id||node.id||'';
+      const body=node.comment??node.body??node.message??'';
+      const created=formatSchoologyDate(node.created??node.timestamp??'');
+      const likes=Number(node.likes??node.like_count??0),liked=!!(node.userLiked||node.user_liked||node.liked);
+      const cid=node.comment_id??node.id??'';
       const att=renderAttachments(node.attachments||node.attachment||{});
-      return `<article class="officialComment" style="margin-left:${Math.min(depth,6)*15}px"><div class="officialCommentMain">${avatar?`<img class="commentAvatarImage" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="commentAvatar">${esc(String(name).charAt(0))}</span>`}<div class="officialCommentBody"><b>${esc(name)}</b><div class="commentHtml">${body}</div><small>${esc(created)}</small>${att}<div class="commentActions"><button data-comment-reply="${esc(cid)}">Reply</button><button data-comment-like="${esc(cid)}" data-liked="${liked?'1':'0'}">${liked?'Unlike':'Like'}</button><button class="commentLikeCount" disabled>♥ ${likes}</button></div></div></div></article>`;
+      const deleted=Number(node.status??1)===0;
+      return `<article class="androidCommentRow" style="padding-left:${12+Math.min(depth,8)*15}px"><div class="androidCommentAvatar">${avatar?`<img data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:'<span class="commentAvatar">'+esc(String(name).charAt(0))+'</span>'}</div><div class="androidCommentContent"><button class="commentUserName" data-comment-user="${esc(uid)}">${esc(name)}</button><div class="commentBodyHtml ${deleted?'commentDeleted':''}">${deleted?'Comment deleted':body}</div><div class="commentCreated">${esc(created)}</div>${att}<div class="androidCommentActions">${!deleted&&depth===0?`<button data-comment-reply="${esc(cid)}">Reply</button>`:''}<button data-comment-like="${esc(cid)}" data-liked="${liked?'1':'0'}">${liked?'Unlike':'Like'}</button><button disabled>♥ ${likes}</button></div></div></article>`;
     }).join('');
-    c.innerHTML=`<div class="commentsPage officialComments"><div class="commentsList">${cards||'<div class="empty">No comments found</div>'}</div>${assignment.allow_discussion===1||assignment.allow_discussion==='1'?'<div class="commentComposer"><textarea id="commentText" placeholder="Write a comment…"></textarea><button id="postComment" class="androidPrimary">Post</button></div>':''}</div>`;
+    c.innerHTML=`<div class="commentsAndroidList">${cards||'<div class="androidEmptyState">No comments yet.</div>'}</div>`;
     await hydrateMediaImages(c);
     document.querySelectorAll('[data-comment-like]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.commentLike;if(!id)return;const liked=btn.dataset.liked==='1';try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike'}catch(e){alert('Unable to update like: '+e.message)}});
-    document.querySelectorAll('[data-comment-reply]').forEach(btn=>btn.onclick=()=>{const t=document.getElementById('commentText');if(t){t.focus();t.value=(t.value? t.value+'\n':'')+'@reply '+btn.dataset.commentReply+' '}});
-    document.getElementById('postComment')?.addEventListener('click',async()=>{const text=document.getElementById('commentText')?.value.trim();if(!text)return;try{await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{body:text,comment_parent:0},signBody:true});await openAssignmentComments(sectionId,assignmentId,assignment)}catch(e){alert('Unable to post comment: '+e.message)}});
+    document.querySelectorAll('[data-comment-user]').forEach(btn=>btn.onclick=()=>{const uid=btn.dataset.commentUser;if(uid){state.profileUser={id:uid};state.toolbarTitle=btn.textContent||'Profile';showProfile(uid,'updates')}});
+    document.querySelectorAll('[data-comment-reply]').forEach(btn=>btn.onclick=()=>openAssignmentCommentComposer(sectionId,assignmentId,btn.dataset.commentReply));
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load comments.</b><br>${esc(e.message)}</div>`}
 }
-async function openSubmissionComposer(sectionId,assignmentId,assignment){
+
+function openAssignmentCommentComposer(sectionId,assignmentId,parentId='0'){
+  state.assignmentSubpage='commentComposer';
+  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
+  state.toolbarTitle='Comments';syncToolbar();
+  c.innerHTML=`<section class="androidCommentComposer"><div class="androidComposerBar"><b>Comment</b><button id="cancelAssignmentComment">Cancel</button><button id="postAssignmentComment" class="androidPostIcon">➤</button></div><textarea id="assignmentCommentBody" placeholder="Post a comment…" autofocus></textarea></section>`;
+  document.getElementById('cancelAssignmentComment')?.addEventListener('click',()=>openAssignmentComments(sectionId,assignmentId,{}));
+  document.getElementById('postAssignmentComment')?.addEventListener('click',async()=>{const body=document.getElementById('assignmentCommentBody')?.value.trim();if(!body){alert('Please enter a comment.');return}try{await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{comment:body,parent_id:Number(parentId)||0,uid:state.auth?.userId||state.auth?.user?.id}});await openAssignmentComments(sectionId,assignmentId,{})}catch(e){alert('Unable to post comment: '+e.message)}});
+}
+
+async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTeacher){
   const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
   const gradeItemId=assignment.grade_item_id||assignment.gradeItemId||assignment.gradeitem_id||assignment.gradeItemID||assignmentId;
-  c.innerHTML=`<section class="officialSubmissionPage"><div class="submissionHeader"><div><h1>${esc(assignment.title||'Assignment')}</h1><small>${esc(assignment.due||'')}</small></div><strong>${esc(assignment.max_points!=null?assignment.max_points+' points':'')}</strong></div><div class="submissionComposerAndroid"><textarea id="submissionText" class="submissionText" placeholder="Write your submission…"></textarea><input id="chooseSubmissionFile" type="file" hidden><div id="selectedSubmissionFile" class="selectedSubmissionFile"></div><div class="submissionActions"><button id="submissionUploadButton" class="androidSecondary">Upload File</button><button id="submissionPostText" class="androidPrimary">Create Text Submission</button></div><div id="submissionStatus" class="submissionStatus"></div></div></section>`;
-  const input=document.getElementById('chooseSubmissionFile'),status=document.getElementById('submissionStatus');
-  document.getElementById('submissionUploadButton')?.addEventListener('click',()=>input?.click());
-  input?.addEventListener('change',async()=>{const f=input.files?.[0];if(!f)return;document.getElementById('selectedSubmissionFile').textContent=f.name;try{status.textContent='Uploading…';await A.submitAssignmentFile({sectionId,assignmentId,filePath:f.path});status.textContent='File submitted.';await openSubmissionComposer(sectionId,assignmentId,assignment)}catch(e){status.textContent=e.message||'Unable to upload submission.'}});
-  document.getElementById('submissionPostText')?.addEventListener('click',async()=>{try{const text=document.getElementById('submissionText')?.value||'';status.textContent='Submitting…';await A.submitAssignmentText({sectionId,gradeItemId,text,draft:false});status.textContent='Submission posted.';await openSubmissionComposer(sectionId,assignmentId,assignment)}catch(e){status.textContent=e.message||'Unable to submit.'}});
+  c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading">Loading…</div></div>';
+  try{
+    if(isTeacher){
+      const [enr,grades,subs]=await Promise.all([
+        A.api({path:`sections/${sectionId}/enrollments`,params:{enrollment_status:1,limit:200}}),
+        A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,limit:200}}),
+        A.api({path:`sections/${sectionId}/submissions/${gradeItemId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',limit:200}}).catch(()=>({}))
+      ]);
+      const enrollments=(enr.enrollment||enr.enrollments||[]).filter(e=>String(e.admin)!=='1'&&String(e.status||1)==='1');
+      const gradesArr=grades.grades?.grade||grades.grade||[];const gmap={};gradesArr.forEach(g=>gmap[String(g.enrollment_id)]=g);
+      const revisions=subs.revision||subs.revisions||[];const smap={};revisions.forEach(r=>{const uid=String(r.uid||r.user_id||'');if(uid&&!smap[uid])smap[uid]=r});
+      enrollments.sort((a,b)=>String(a.name_last||'').localeCompare(String(b.name_last||''))||String(a.name_first||'').localeCompare(String(b.name_first||'')));
+      c.innerHTML=`<section class="gradeDropboxAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc(assignment.max_points!=null?'/ '+assignment.max_points:'')}</span></div><div class="gradeStudentList">${enrollments.map(e=>{const g=gmap[String(e.id)]||{};const r=smap[String(e.uid)];const score=g.grade??g.calculated_grade??'';const status=r?(String(r.draft)==='1'?'Draft':(String(r.late)==='1'?'Late':'Submitted')):'Not submitted';return `<button class="gradeStudentRow" data-grade-student="${esc(e.uid)}" data-grade-enrollment="${esc(e.id)}"><span class="gradeStudentAvatar">${esc(String(e.name_first||e.name_display||'?').charAt(0))}</span><span class="gradeStudentName"><b>${esc((e.name_last||'')+', '+(e.name_first||''))}</b><small>${esc(status)}</small></span><span class="gradeStudentScore">${esc(score===''?'—':score)}</span></button>`}).join('')||'<div class="androidEmptyState">No students found.</div>'}</div></section>`;
+      document.querySelectorAll('[data-grade-student]').forEach(b=>b.onclick=()=>openTeacherSubmission(sectionId,gradeItemId,assignment,b.dataset.gradeStudent,b.dataset.gradeEnrollment));
+    }else{
+      const uid=state.auth?.userId||state.auth?.user?.id;const [grades,subs]=await Promise.all([A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:(state.assignmentEnrollmentId||undefined)}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{with_attachments:'TRUE'}}).catch(()=>({}))]);
+      const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||[];
+      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
+    }
+  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load submissions.</b><br>${esc(e.message)}</div>`}
+}
+
+async function openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId){
+  state.assignmentSubpage='teacherSubmission'; state.toolbarTitle='Grade Submission'; syncToolbar();
+  const c=document.getElementById('assignmentTabContent');if(!c)return;
+  c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading">Loading submission…</div></div>';
+  try{
+    const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,params:{with_attachments:'TRUE'}}).catch(()=>({}))]);
+    const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revs=subs.revision||subs.revisions||[];
+    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
+    document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{try{await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment:document.getElementById('teacherGradeComment')?.value||'',commentStatus:document.getElementById('teacherDisplayComment')?.checked});await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId)}catch(e){alert(e.message)}});
+  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this submission.</b><br>${esc(e.message)}</div>`}
 }
 
 function showSubmissionMenu(){
@@ -461,6 +523,17 @@ async function loadCourseApps(course){
   });
   await hydrateCourseImages(el);
 }
+async function loadCourseUpcomingPane(course){
+ const el=document.getElementById('courseUpcomingContent');if(!el)return;
+ const sid=course.id||course.section_id||course.sectionId;if(!sid)return;
+ const x=await A.api({path:`sections/${sid}/events`,params:{start_date:formatApiDate(new Date()),limit:20}});
+ let arr=x.event||x.events||[];
+ arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
+ el.innerHTML=renderUpcoming(arr);
+ document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=arr.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const esid=e.section_id??e.sectionId??sid;if(String(e.type||'')==='assignment'&&aid)openWithPressTransition(b,()=>showAssignment(esid,aid));else if(e.web_url||e.webUrl)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming'));else if(e.type==='discussion'&&e.id)openWithPressTransition(b,()=>showEmbeddedWeb(`https://app.schoology.com/section/${esid}/discussion/view/${e.id}`,e.title||'Discussion'));});
+}
+let courseLayoutMediaQuery=null;
+function installCourseLayoutWatcher(){const mq=window.matchMedia('(min-aspect-ratio: 4/3)');const handler=()=>{if(state.courseView==='course'&&state.selectedCourse&&!state.assignmentView)showCourse(state.selectedCourse,state.courseTab||'materials')};if(courseLayoutMediaQuery===mq)return;courseLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyCourseLayoutChange);window.__schoologyCourseLayoutChange=handler;mq.addEventListener?.('change',handler);courseLayoutMediaQuery=mq}
 async function loadCourseTab(course,tab){
  const el=document.getElementById('sectionProfileContent');if(!el)return;
  const sid=course.id||course.section_id||course.sectionId;

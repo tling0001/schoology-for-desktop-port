@@ -216,6 +216,7 @@ async function downloadAuthenticatedFile(info){
   const tmpDir=path.join(app.getPath('temp'),'Schoology');
   fs.mkdirSync(tmpDir,{recursive:true});
   const target=path.join(tmpDir,`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${finalName}`);
+  let downloadedPath=null;
   await new Promise((resolve,reject)=>{
     const doGet=(url,depth=0)=>{
       if(depth>6)return reject(new Error('Too many redirects while downloading the Schoology file.'));
@@ -243,17 +244,18 @@ async function downloadAuthenticatedFile(info){
           const mimeExt={'application/pdf':'.pdf','application/msword':'.doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'.docx','application/vnd.ms-excel':'.xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'.xlsx','application/vnd.ms-powerpoint':'.ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'.pptx','text/plain':'.txt','text/csv':'.csv','application/zip':'.zip','image/jpeg':'.jpg','image/png':'.png','image/gif':'.gif','audio/mpeg':'.mp3','video/mp4':'.mp4'}[mime];
           if(mimeExt)resolvedName+=mimeExt;
         }
-        const finalTarget=target.replace(path.basename(target),`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${resolvedName.slice(0,180)}`);
+        const finalTarget=path.join(tmpDir,`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${resolvedName.slice(0,180)}`);
         const out=fs.createWriteStream(finalTarget);
         res.pipe(out);
-        out.on('finish',()=>{out.close(()=>resolve());});
+        out.on('finish',()=>{downloadedPath=finalTarget;out.close(()=>resolve(finalTarget));});
         out.on('error',e=>{try{out.close()}catch{};reject(e)});
       });
       req.on('error',reject);req.setTimeout(60000,()=>req.destroy(new Error('Schoology file download timed out')));req.end();
     };
     doGet(u.toString());
   });
-  const actual=fs.readdirSync(tmpDir).map(n=>path.join(tmpDir,n)).filter(n=>n.includes(path.basename(target).split('-').slice(0,2).join('-'))).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs)[0]||target;
+  const actual=downloadedPath;
+  if(!actual || !fs.existsSync(actual)) throw new Error('Downloaded file was not found after Schoology download completed.');
   return {path:actual,filename:path.basename(actual).replace(/^\d+-[a-f0-9]+-/i,''),mime:String(info.mime||'application/octet-stream')};
 }
 
@@ -273,6 +275,14 @@ async function submitAssignmentFile(info){
   if(!fileId)throw new Error('Schoology did not return fileMetadataId.');
   const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
   if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text); return true;
+}
+async function updateAssignmentGrade(info){
+  const a=loadAuth(); if(!a)throw new Error('Not signed in');
+  if(!info?.sectionId||!info?.assignmentId||!info?.enrollmentId)throw new Error('Grade information is incomplete.');
+  const body={grades:{grade:[{type:'assignment',assignment_id:String(info.assignmentId),enrollment_id:String(info.enrollmentId),grade:info.grade===''?null:info.grade,comment:String(info.comment||''),comment_status:info.commentStatus?1:0}]}};
+  const result=await request('PUT',`https://${API_HOST}/v1/sections/${info.sectionId}/grades`,body,{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+  if(result.status<200||result.status>=300)throw new Error('Grade update failed: '+result.status+' '+result.text);
+  return true;
 }
 async function submitAssignmentText(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
@@ -459,6 +469,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('prepare-web-session',()=>prepareWebSession());
   ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));
   ipcMain.handle('submit-assignment-text',(_,x)=>submitAssignmentText(x));
+  ipcMain.handle('update-assignment-grade',(_,x)=>updateAssignmentGrade(x));
   ipcMain.handle('download-file',(_,x)=>downloadAuthenticatedFile(x));
   ipcMain.handle('launch-course-app',async(_,x)=>{
     const a=loadAuth(); if(!a)throw new Error('Not signed in');

@@ -42,7 +42,9 @@ function oauthHeader(method,url,tokenSecret='',qrData=''){
 }
 function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
   const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(12).toString('hex'),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
-  if(authToken) oauth.oauth_token=authToken;
+  // Android OAuthRequestSigner always includes oauth_token; for the initial
+  // request-token request its value is explicitly the empty string.
+  oauth.oauth_token=authToken==null?'':String(authToken);
   const extra=qrData?[['scanned_qr_data',qrData]]:[];
   const normalized=sortedOAuthBaseParams(method,url,oauth,extra);
   const u=new URL(url);
@@ -167,58 +169,88 @@ async function loginThroughSchoolBrowser(info){
 async function loginExternalSchool(info){
   if(!info||!info.url)throw new Error('This school did not provide a login URL.');
   const rawUrl=String(info.url);
-  const parsed=new URL(rawUrl);
-  const host=parsed.host;
-  const base=`${parsed.protocol}//${host}`;
-  const schoolDomain=String(info.domain||host).replace(/^https?:\/\//,'').replace(/\/$/,'');
+  let launch;
+  try{launch=new URL(rawUrl)}catch{throw new Error('This school provided an invalid login URL.');}
+
+  // This mirrors LoginExternalActivity + ExternalAuthWebViewClient from Android.
+  // Android does NOT poll the whole cookie jar. It waits for a navigation to an
+  // expected Schoology domain (or sgyInitialPage), then reads the SESS cookie
+  // associated with that navigation URL.
+  const expectedDomain=String(info.domain||'').trim().replace(/^https?:\/\//,'').replace(/\/$/,'');
+  const defaultUrl='https://app.schoology.com';
+  let defaultDomain='app.schoology.com';
+  try{defaultDomain=new URL(defaultUrl).hostname}catch{}
+  const expectedHost=expectedDomain.split('/')[0].split(':')[0].toLowerCase();
+
+  const hostMatchesSuffix=(hostname,suffix)=>{
+    const h=String(hostname||'').toLowerCase();
+    const s=String(suffix||'').toLowerCase().replace(/^\./,'');
+    return !!s && (h===s || h.endsWith('.'+s));
+  };
+  const shouldIntercept=(url)=>{
+    try{
+      const u=new URL(url);
+      const initial=u.searchParams.has('sgyInitialPage');
+      return initial || hostMatchesSuffix(u.hostname,expectedHost) || hostMatchesSuffix(u.hostname,defaultDomain);
+    }catch{return false}
+  };
+
+  const getSessionCookieForUrl=async(url)=>{
+    const cookies=await session.defaultSession.cookies.get({url});
+    // Match Android's ExternalAuthWebViewClient: find the first cookie whose
+    // name begins with SESS and pass the complete name=value pair onward.
+    const c=cookies.find(x=>/^SESS/i.test(x.name));
+    return c ? `${c.name}=${c.value}` : null;
+  };
+
+  // Android creates ExternalSessionLoginFlow only after the WebView client
+  // reports the session cookie. That flow then obtains the OAuth request token,
+  // POSTs /oauth/authorize_auto with the SESS cookie, and exchanges the token.
   return new Promise((resolve,reject)=>{
-    let child=null,settled=false,poll=null;
+    let child=null,settled=false,processing=false;
     const finish=(err,value)=>{
       if(settled)return;
       settled=true;
-      if(poll)clearInterval(poll);
       if(child&&!child.isDestroyed())child.close();
       err?reject(err):resolve(value);
     };
-    const domainMatches=(url)=>{
+    const handleCandidate=async(url,event)=>{
+      if(settled||processing||!shouldIntercept(url))return;
+      const cookie=await getSessionCookieForUrl(url).catch(()=>null);
+      if(!cookie)return;
+      processing=true;
+      if(event&&typeof event.preventDefault==='function')event.preventDefault();
       try{
-        const h=new URL(url).hostname;
-        return h===host.split(':')[0] || h.endsWith('.'+host.split(':')[0]) ||
-          h===schoolDomain.split(':')[0] || h.endsWith('.'+schoolDomain.split(':')[0]);
-      }catch{return false}
-    };
-    const checkSession=async()=>{
-      try{
-        const cookies=await session.defaultSession.cookies.get({});
-        const c=cookies.find(x=>/^SESS/i.test(x.name) &&
-          (domainMatches(`${x.secure?'https':'http'}://${x.domain.replace(/^\\./,'')}/`) || x.domain.replace(/^\\./,'')===host.split(':')[0]));
-        if(!c)return;
-        const cookie=`${c.name}=${c.value}`;
+        await syncServerTime().catch(()=>{});
         const t=await getRequestToken();
-        // This is the Android ExternalSessionLoginFlow / SessionAuthorizer:
-        // POST oauth_token to /oauth/authorize_auto with the SESS cookie.
-        const r=await request('POST',`${base}/oauth/authorize_auto`,{oauth_token:t.oauth_token},{
+        const base=new URL(url);
+        const r=await request('POST',`${base.protocol}//${base.host}/oauth/authorize_auto`,{oauth_token:t.oauth_token},{
           clientIdentity:true,
           headers:{Cookie:cookie}
         });
         if(r.status<200||r.status>=300)throw new Error('School session authorization failed: '+r.status+' '+r.text);
         const auth=await exchangeToken(t);
         finish(null,auth);
-      }catch(e){finish(e)}
+      }catch(e){
+        processing=false;
+        finish(e);
+      }
     };
+
     child=new BrowserWindow({
       width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,
       backgroundColor:'#ffffff',
       webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}
     });
     child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
-    child.webContents.on('did-navigate',()=>checkSession());
-    child.webContents.on('did-navigate-in-page',()=>checkSession());
-    child.webContents.on('will-redirect',()=>setTimeout(checkSession,100));
+    child.webContents.on('will-navigate',(event,url)=>{handleCandidate(url,event)});
+    child.webContents.on('will-redirect',(event,url)=>{handleCandidate(url,event)});
+    child.webContents.on('did-navigate',(event,url)=>{handleCandidate(url,null)});
+    child.webContents.on('did-navigate-in-page',(event,url)=>{handleCandidate(url,null)});
     child.webContents.on('did-fail-load',(_,code,desc)=>console.error('School external login failed:',code,desc));
+    child.webContents.on('console-message',(_,level,message,line,source)=>console.log('School external login:',message,'at',source+':'+line));
     child.on('closed',()=>{if(!settled)finish(new Error('School login window was closed.'))});
-    poll=setInterval(checkSession,750);
-    child.loadURL(rawUrl).catch(finish);
+    child.loadURL(rawUrl).catch(e=>finish(e));
   });
 }
 

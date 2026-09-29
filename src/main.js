@@ -140,9 +140,13 @@ async function exchangeToken(t){
 }
 async function api(pathname,method='GET',params={}){
   const a=loadAuth();if(!a)throw new Error('Not signed in');
-  const url=`https://${API_HOST}/v1/${pathname.replace(/^\//,'')}`;
+  const clean=String(pathname||'').replace(/^\//,'');
+  const version=clean.startsWith('v2/')?'v2':'v1';
+  const resource=clean.startsWith('v2/')?clean.slice(3):clean;
+  const url=`https://${API_HOST}/${version}/${resource}`;
   const r=await request(method,url,params,{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
-  if(r.status===401||r.status===403)throw new Error('Schoology session expired');
+  if(r.status===401)throw new Error('Schoology session expired (HTTP 401)');
+  if(r.status===403)throw new Error('Schoology denied this request (HTTP 403)');
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);
   try{return JSON.parse(r.text)}catch{return r.text}
 }

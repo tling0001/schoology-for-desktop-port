@@ -14,12 +14,34 @@ const CONSUMER_KEY='998121f221d5dc0f4956ee6946d27d5e04e55635e';
 const CONSUMER_SECRET='5cff9d3780d64695d762ba8e05a34e9e';
 const ANDROID_OKHTTP_UA='okhttp/4.8.0';
 const MOBILE_COOKIE='s_mobile=03447c0175ac0c7299a5508fde9569fc';
-const storeFile=path.join(app.getPath('userData'),'auth.json');
+// Keep OAuth credentials in a stable per-user location across portable/unpacked/installer builds.
+// Migrate the older Electron default location once so existing logins are not lost.
+const legacyUserData=app.getPath('userData');
+const stableUserData=path.join(app.getPath('appData'),'Schoology');
+try{app.setPath('userData',stableUserData)}catch{}
+const storeFile=path.join(stableUserData,'auth.json');
+const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 let serverTimeOffset=0;
 
-function loadAuth(){try{return JSON.parse(fs.readFileSync(storeFile,'utf8'))}catch{return null}}
-function saveAuth(v){fs.mkdirSync(path.dirname(storeFile),{recursive:true});fs.writeFileSync(storeFile,JSON.stringify(v,null,2),'utf8')}
+function loadAuth(){
+  for(const f of [storeFile,legacyStoreFile]){
+    try{
+      const v=JSON.parse(fs.readFileSync(f,'utf8'));
+      if(v?.oauth_token&&v?.oauth_token_secret){
+        if(f!==storeFile){try{saveAuth(v)}catch{}}
+        return v;
+      }
+    }catch{}
+  }
+  return null;
+}
+function saveAuth(v){
+  fs.mkdirSync(path.dirname(storeFile),{recursive:true});
+  const tmp=storeFile+'.tmp';
+  fs.writeFileSync(tmp,JSON.stringify(v,null,2),'utf8');
+  fs.renameSync(tmp,storeFile);
+}
 function enc(v){return encodeURIComponent(String(v)).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g,'+')}
 function parseBody(s){return Object.fromEntries(String(s||'').split('&').filter(Boolean).map(x=>{const i=x.indexOf('=');const k=i<0?x:x.slice(0,i);const v=i<0?'':x.slice(i+1);return [decodeURIComponent(k.replace(/\+/g,' ')),decodeURIComponent(v.replace(/\+/g,' '))]}))}
 function oauthTimestamp(){return Math.floor(Date.now()/1000)+serverTimeOffset}

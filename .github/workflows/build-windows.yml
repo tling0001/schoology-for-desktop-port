@@ -97,12 +97,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Schoology-Windows-Installer-x64
-          path: release-assets/windows/installer
+          path: release-assets/windows
       - name: Download Windows unpacked
         uses: actions/download-artifact@v4
         with:
           name: Schoology-Windows-Unpacked-x64
           path: release-assets/windows/unpacked
+      - name: Package Windows unpacked build for release
+        run: |
+          cd release-assets/windows
+          zip -r Schoology-Windows-Unpacked-x64.zip unpacked
+          rm -rf unpacked
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:

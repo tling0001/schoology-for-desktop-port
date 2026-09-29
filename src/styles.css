@@ -146,7 +146,7 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .embeddedPage{height:100%;width:100%;background:#fff}.embeddedPage webview{display:block;width:100%;height:100%;border:0}
 .offlinePage .settingRow{cursor:pointer}
 
-.dashboardHybrid{height:430px;background:#fff}.dashboardHybrid webview{width:100%;height:100%;border:0;display:block}.dashboardFallback{padding:8px 10px;background:#fff}.dashboardFallback:before{content:"Course Dashboard";display:block;font-size:18px;color:#333;padding:10px 4px}.dashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboardCard{background:#fff;border:1px solid #ddd;border-radius:3px;text-align:left;padding:0;overflow:hidden;cursor:pointer}.dashboardThumb{height:86px;background:#e8ecef;position:relative}.dashboardThumb img{width:100%;height:100%;object-fit:cover;display:block}.dashboardThumbFallback{width:100%;height:100%;align-items:center;justify-content:center;background:#56607d;color:#fff;font-size:28px}.dashboardCard>div:last-child{padding:10px}.dashboardCard b,.dashboardCard small{display:block}.dashboardCard b{font-size:14px;color:#333}.dashboardCard small{font-size:11px;color:#888;margin-top:4px}
+.dashboardHybrid webview{width:100%;height:100%;border:0;display:block}.dashboardFallback{padding:8px 10px;background:#fff}.dashboardFallback:before{content:"Course Dashboard";display:block;font-size:18px;color:#333;padding:10px 4px}.dashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboardCard{background:#fff;border:1px solid #ddd;border-radius:3px;text-align:left;padding:0;overflow:hidden;cursor:pointer}.dashboardThumb{height:86px;background:#e8ecef;position:relative}.dashboardThumb img{width:100%;height:100%;object-fit:cover;display:block}.dashboardThumbFallback{width:100%;height:100%;align-items:center;justify-content:center;background:#56607d;color:#fff;font-size:28px}.dashboardCard>div:last-child{padding:10px}.dashboardCard b,.dashboardCard small{display:block}.dashboardCard b{font-size:14px;color:#333}.dashboardCard small{font-size:11px;color:#888;margin-top:4px}
 
 /* v36 Android navigation/media/submission parity */
 .toolbar .iconButton{border:0!important;outline:none!important;box-shadow:none!important;-webkit-appearance:none!important}
@@ -155,3 +155,34 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .activityMedia{padding:4px 0 4px 0}.activityMediaImage{display:block;width:100%;max-height:420px;object-fit:contain;background:#f2f3f4;margin-top:7px}.activityAttachment{display:block;padding:9px 0;color:#2e66a3;text-decoration:none;word-break:break-word}
 .assignmentActions{display:flex;gap:10px;flex-wrap:wrap;padding:15px 20px}.androidPrimary{background:#002137;color:#fff;border:0;border-radius:2px;padding:10px 16px;cursor:pointer}.androidSecondary{background:#fff;border:1px solid #aaa;border-radius:2px;padding:10px 16px;cursor:pointer}
 .commentsPage,.submissionPage{background:#fff;min-height:100%;padding:0 16px 30px}.commentsList{margin:0 -16px}.commentRow{display:flex;gap:10px;padding:13px 16px;border-bottom:1px solid #ddd}.commentAvatar{width:36px;height:36px;border-radius:50%;background:#56607d;color:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 36px}.commentRow b{display:block;font-size:14px;color:#333}.commentRow small{display:block;color:#888;font-size:11px;margin:2px 0 5px}.commentComposer{padding-top:15px}.commentComposer textarea{width:100%;min-height:90px;border:1px solid #ccc;padding:10px;resize:vertical}.submissionPage h1{font-size:22px;font-weight:400;margin:20px 0 6px}.submissionPage p{color:#777}.submissionPage #submissionFile{padding:15px;border:1px solid #ddd;margin:18px 0;color:#555}.submissionPage button{margin-right:8px}.submissionPage #submissionStatus{margin-top:15px;color:#555}
+
+/* v37 Android parity */
+.shell .toolbar,.toolbar{background:#002137 !important;display:flex;align-items:center;min-height:56px;height:56px;padding:0 4px;box-sizing:border-box}
+.shell .toolbar .iconButton,.toolbar .iconButton{display:flex;align-items:center;justify-content:center;width:48px;height:48px;min-width:48px;min-height:48px;padding:0;margin:0;border:0!important;outline:none!important;box-shadow:none!important;background:transparent!important;border-radius:0!important;line-height:1!important;appearance:none}
+.shell .toolbar .toolbarTitle{display:flex;align-items:center;height:56px;line-height:56px;padding-left:8px;margin:0}
+.activityAvatar{width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;border-radius:50%!important;object-fit:cover!important;overflow:hidden}
+.authenticatedMediaImage{max-width:100%;height:auto;border-radius:2px}
+.embeddedPage{height:calc(100vh - 56px)!important;width:100%;background:#fff}
+.embeddedPage webview{width:100%!important;height:100%!important;min-height:calc(100vh - 56px)!important;border:0}
+.assignmentAndroidPage{background:#fff;min-height:100%}
+.assignmentTabs,.profileTabs,.groupTabs{display:flex;background:#002137;overflow-x:auto;white-space:nowrap}
+.assignmentTab,.profileTab,.groupTab{height:48px;padding:0 16px;border:0;background:transparent;color:rgba(255,255,255,.8);position:relative;flex:0 0 auto}
+.assignmentTab.active,.profileTab.active,.groupTab.active{color:#fff}
+.assignmentTab.active:after,.profileTab.active:after,.groupTab.active:after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;background:#fff}
+.assignmentInfoHeader{padding:16px;border-bottom:1px solid #ddd;background:#fff}
+.assignmentInfoHeader h1{font-size:21px;font-weight:500;margin:0 0 6px;color:#333}
+.assignmentInfoHeader div{font-size:13px;color:#777}
+.assignmentTabContent{padding:0;background:#fff}
+.assignmentDescription{padding:14px 16px;line-height:1.5;color:#333}
+.assignmentMeta{padding:10px 16px;color:#777;border-top:1px solid #eee}
+.profileAndroidPage,.groupProfilePage{background:#fff;min-height:100%}
+.profileHeader,.groupHeader{display:flex;align-items:center;padding:8px;border-bottom:1px solid #ddd}
+.profileHeaderImage{width:64px;height:64px;border-radius:50%;object-fit:cover;margin:8px}
+.profileHeaderFallback,.groupHero{width:64px;height:64px;border-radius:50%;background:#2e66a3;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;margin:8px}
+.profileHeader h1,.groupHeader h1{font-size:20px;margin:0;color:#333}.profileHeader p,.groupHeader p{color:#3183c8;margin:4px 0}
+.profileInfoList{background:#fff}.profileInfoRow{display:flex;border-bottom:1px solid #ddd;margin:0 16px;padding:0}.profileInfoRow span{width:33%;padding:16px;color:#777;font-size:16px}.profileInfoRow b{flex:1;padding:16px;font-size:16px;font-weight:400}
+.badgeGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}.badgeCard{border:1px solid #ddd;padding:14px;background:#fff}.badgeCard b,.badgeCard small{display:block}.badgeCard small{margin-top:6px;color:#777}
+.groupListItem{width:100%;display:flex;align-items:center;min-height:96px;padding:12px 16px;border:0;border-bottom:1px solid rgba(255,255,255,.12);background:#002137;color:#fff;text-align:left}
+.groupList{background:#002137}.groupImage{width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex:0 0 72px;background:#2e66a3;margin-right:16px}.groupImage span{font-size:28px}.groupListItem>b,.groupListItem>span:nth-child(2){flex:1}.groupListItem small{display:block;color:#fff;margin-top:4px}.groupRow{width:100%;padding:14px 16px;border:0;border-bottom:1px solid #ddd;background:#fff;text-align:left}.groupRow b,.groupRow small{display:block}.groupRow small{color:#888;margin-top:5px}
+.courseAppIcon{width:56px;height:56px;flex:0 0 56px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-right:12px}.courseAppIcon img{width:56px;height:56px;object-fit:contain}.courseAppIcon span{font-size:24px;color:#2e66a3}
+.dashboardHybrid{height:calc(100vh - 152px)!important}.dashboardHybrid webview{height:100%!important}

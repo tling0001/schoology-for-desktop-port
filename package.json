@@ -5,8 +5,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis portable --publish never",
-    "dist:win": "electron-builder --win nsis portable --publish never",
+    "dist": "electron-builder --win nsis dir --publish never",
+    "dist:win": "electron-builder --win nsis dir --publish never",
     "dist:mac": "electron-builder --mac dmg --publish never",
     "dist:linux": "electron-builder --linux deb rpm --publish never"
   },
@@ -37,7 +37,7 @@
     "win": {
       "target": [
         "nsis",
-        "portable"
+        "dir"
       ],
       "icon": "assets/ic_launcher_256.ico",
       "requestedExecutionLevel": "asInvoker"
@@ -49,9 +49,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "artifactName": "Schoology-${version}-Setup-${arch}.${ext}"
-    },
-    "portable": {
-      "artifactName": "Schoology-${version}-Portable-${arch}.${ext}"
     }
   }
 }

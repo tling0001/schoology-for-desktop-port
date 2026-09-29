@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   windows:
-    name: Windows installer + portable
+    name: Windows installer + unpacked
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,27 +32,19 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build Windows installer
         run: npx electron-builder --win nsis --publish never
-      - name: Build Windows portable
-        run: npx electron-builder --win portable --publish never
+      - name: Build Windows unpacked
+        run: npx electron-builder --win dir --publish never
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: Schoology-Windows-Installer-x64
           path: dist/*Setup*.exe
           if-no-files-found: error
-      - name: Upload Windows portable
+      - name: Upload Windows unpacked build
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Windows-Portable-x64
-          path: dist/*Portable*.exe
-          if-no-files-found: error
-      - name: Upload Windows combined artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Schoology-Windows-x64
-          path: |
-            dist/*.exe
-            dist/*.zip
+          name: Schoology-Windows-Unpacked-x64
+          path: dist/win-unpacked
           if-no-files-found: error
 
   macos:
@@ -101,11 +93,16 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.release == true }}
     runs-on: ubuntu-latest
     steps:
-      - name: Download Windows artifacts
+      - name: Download Windows installer
         uses: actions/download-artifact@v4
         with:
-          name: Schoology-Windows-x64
-          path: release-assets/windows
+          name: Schoology-Windows-Installer-x64
+          path: release-assets/windows/installer
+      - name: Download Windows unpacked
+        uses: actions/download-artifact@v4
+        with:
+          name: Schoology-Windows-Unpacked-x64
+          path: release-assets/windows/unpacked
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:

@@ -96,7 +96,7 @@ async function loadCourseSubmenu(){
    c.innerHTML=arr.length?arr.map((s,i)=>{
      const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';
      const sectionTitle=s.section_title||s.sectionTitle||'';
-     const image=s.course_theme||s.courseTheme||s.image||'';
+     const image=normalizeImageUrl(s.course_theme||s.courseTheme||s.image||s.course_image||'');
      const admin=String(s.admin||'')==='1'||s.admin===true;
      return `<button class="courseSubItem" data-course-sub="${i}">
        <span class="courseImage">${image?`<img src="${esc(image)}" alt="">`:`<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span>`}</span>
@@ -115,21 +115,102 @@ async function loadCourseSubmenu(){
  }catch(e){c.innerHTML=`<div class="drawerError">${esc(e.message)}</div>`}
 }
 function showGradeSection(course){
+ state.selectedCourse=course;
  const c=document.getElementById('content');if(!c)return;
- const title=course?.course_title||course?.courseTitle||course?.title||'Grades';
- const section=course?.section_title||course?.sectionTitle||'';
- c.innerHTML=`<section class="page gradesSectionPage">
-   <div class="sectionHero">
-     <div class="sectionHeroTitle"><h1>${esc(title)}</h1><p>${esc(section)}</p></div>
-   </div>
-   <div class="empty"><h2>Grades</h2><p>Selecting this course opens its grades in the Android app.</p></div>
- </section>`;
+ const title=courseTitleOf(course),section=sectionTitleOf(course),sid=course?.id||course?.section_id||course?.sectionId;
+ c.innerHTML=`<section class="gradesNativePage"><div class="gradesHeader"><h1>${esc(section||title)}</h1><p>${esc(title)}</p></div><div id="gradesContent" class="gradesContent"><div class="loading">Loading…</div></div></section>`;
+ (async()=>{try{
+   const x=await A.api({path:`sections/${sid}/grades`,params:{}});
+   const rows=x.grade||x.grades||x.assignment||x.assignments||[];
+   document.getElementById('gradesContent').innerHTML=renderGrades(rows);
+ }catch(e){document.getElementById('gradesContent').innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}})();
 }
 
-function showCourse(course){
+function normalizeImageUrl(value){
+  if(!value)return '';
+  const s=String(value).trim();
+  if(s.startsWith('//'))return 'https:'+s;
+  if(s.startsWith('http://'))return s.replace(/^http:/,'https:');
+  if(s.startsWith('/'))return 'https://app.schoology.com'+s;
+  return s;
+}
+function courseTitleOf(course){return course?.course_title||course?.courseTitle||course?.title||course?.section_title||'Course'}
+function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
+function showCourse(course,activeTab='materials'){
  const c=document.getElementById('content');if(!c)return;
  if(!course){loadTab();return}
- c.innerHTML=`<section class="courseDetail"><div class="courseHero"><div class="courseAvatar">${esc((course.section_title||course.title||'C').charAt(0))}</div><div><h1>${esc(course.section_title||course.title||'Course')}</h1><p>${esc(course.course_title||'')}</p></div></div><div class="courseRows"><button>Materials <span>›</span></button><button>Updates <span>›</span></button><button>Assignments <span>›</span></button><button>Grades <span>›</span></button></div></section>`;
+ state.selectedCourse=course;
+ const sid=course.id||course.section_id||course.sectionId;
+ const title=courseTitleOf(course), section=sectionTitleOf(course);
+ const image=normalizeImageUrl(course.course_theme||course.courseTheme||course.image||course.course_image||'');
+ const tabs=[
+   ['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],['grades','Grades'],['courseapp','Course App']
+ ];
+ c.innerHTML=`<section class="sectionProfilePage">
+   <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${activeTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
+   <div class="sectionProfileHeader">
+     <img class="sectionProfileImage" src="${esc(image)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
+     <span class="sectionProfileFallback">${esc(title.charAt(0))}</span>
+     <div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div>
+   </div>
+   <div class="sectionProfileRule"></div>
+   <div id="sectionProfileContent" class="sectionProfileContent"><div class="loading">Loading…</div></div>
+ </section>`;
+ document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>showCourse(course,b.dataset.courseTab));
+ loadCourseTab(course,activeTab).catch(e=>{
+   const el=document.getElementById('sectionProfileContent');
+   if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;
+ });
+}
+async function loadCourseTab(course,tab){
+ const el=document.getElementById('sectionProfileContent');if(!el)return;
+ const sid=course.id||course.section_id||course.sectionId;
+ if(!sid)throw new Error('Course section ID is missing.');
+ if(tab==='materials'){
+   const x=await A.api({path:`sections/${sid}/folders`,params:{start:0,limit:2000}});
+   const arr=x.folder||x.folders||[];
+   el.innerHTML=arr.length?`<div class="materialList">${arr.map(f=>`<button class="materialRow" data-folder-id="${esc(f.id)}"><span class="materialIcon">📁</span><span><b>${esc(f.title||f.name||'Folder')}</b></span><span>›</span></button>`).join('')}</div>`:'<div class="empty"><h2>No materials</h2></div>';
+   return;
+ }
+ if(tab==='updates'){
+   const x=await A.api({path:`sections/${sid}/updates`,params:{start:0,limit:20}});
+   const arr=x.update||x.updates||[];
+   el.innerHTML=arr.length?arr.map(u=>`<article class="sectionUpdate"><b>${esc(u.title||u.body||u.message||'Update')}</b><small>${esc(u.created||u.timestamp||'')}</small></article>`).join(''):'<div class="empty"><h2>No updates</h2></div>';
+   return;
+ }
+ if(tab==='upcoming'){
+   const x=await A.api({path:`sections/${sid}/events`,params:{start:0,limit:20}});
+   let arr=x.event||x.events||[];
+   arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
+   el.innerHTML=renderUpcoming(arr);
+   return;
+ }
+ if(tab==='grades'){
+   const x=await A.api({path:`sections/${sid}/grades`,params:{}});
+   const rows=x.grade||x.grades||x.assignment||x.assignments||[];
+   el.innerHTML=renderGrades(rows);
+   return;
+ }
+ if(tab==='courseapp'){
+   el.innerHTML='<div class="empty"><h2>Course Apps</h2><p>Course applications are loaded by the Android app through its course-app view.</p></div>';
+ }
+}
+function renderUpcoming(arr){
+ if(!arr.length)return '<div class="empty"><h2>Nothing upcoming</h2><p>No upcoming assignments.</p></div>';
+ return `<div class="upcomingList">${arr.map(e=>{
+  const type=String(e.type||'');
+  const icon=type==='assignment'?'📝':(type.startsWith('assessment')||type==='managed_assessment'?'▣':(type==='discussion'?'💬':'▤'));
+  const when=e.start||e.start_date||e.due||e.due_date||'';
+  return `<button class="upcomingAssignment" data-event-id="${esc(e.id||'')}"><span class="assignmentIcon">${icon}</span><span class="assignmentInfo"><b>${esc(e.title||'Assignment')}</b><small>${esc(when)}</small></span><span class="rowChevron">›</span></button>`;
+ }).join('')}</div>`;
+}
+function renderGrades(rows){
+ if(!rows.length)return '<div class="empty"><h2>No grades</h2></div>';
+ return `<div class="gradesNativeList">${rows.map(g=>{
+   const name=g.assignment_title||g.assignment_name||g.title||g.name||'Assignment';
+   const value=g.grade||g.score||g.grade_value||g.points||'';
+   return `<button class="gradeAssignmentRow"><span>${esc(name)}</span><span>${esc(value)}</span></button>`;
+ }).join('')}</div>`;
 }
 async function loadTab(){
  const c=document.getElementById('content');if(!c)return;
@@ -146,7 +227,7 @@ async function loadTab(){
     c.innerHTML=`<section class="androidSectionList"><div class="sectionListRows">${arr.map((s,i)=>{
       const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';
       const sectionTitle=s.section_title||s.sectionTitle||'';
-      const image=s.course_theme||s.courseTheme||s.image||'';
+      const image=normalizeImageUrl(s.course_theme||s.courseTheme||s.image||s.course_image||'');
       const admin=String(s.admin||'')==='1'||s.admin===true;
       return `<button class="sectionListItem" data-course-page="${i}">
         <span class="sectionImage">${image?`<img src="${esc(image)}" alt="">`:`<span>${esc(courseTitle.charAt(0))}</span>`}</span>
@@ -190,17 +271,33 @@ async function loadHomeTab(){
   if(state.homeTab==='recent'){
     const recent=await A.api({path:'recent',params:{start:0,limit:20}});
     const updates=recent?.update||recent?.updates||recent?.update_list||[];
-    c.innerHTML=updates.length?updates.map(x=>`<article class="activityCard"><div class="activityTitle">${esc(x.title||x.body||x.message||'Schoology update')}</div><div class="activityMeta">${esc(x.created||x.timestamp||'')}</div></article>`).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>';
+    c.innerHTML=updates.length?updates.map(x=>{
+      const user=x.user||x.author||x.actor||{};
+      const name=user.name_display||user.name||x.user_name||x.author_name||'Schoology';
+      const body=x.body||x.message||x.description||x.title||'';
+      const created=x.created||x.timestamp||x.created_at||'';
+      const avatar=normalizeImageUrl(user.photo_url||user.photo||user.picture||x.user_photo||'');
+      return `<article class="androidActivityCard">
+        <div class="activityHeader">${avatar?`<img src="${esc(avatar)}" alt="">`:`<span class="activityAvatar">${esc(name.charAt(0))}</span>`}<span class="activityUser">${esc(name)}</span></div>
+        <div class="activityBody">${esc(body)}</div>
+        <div class="activityMeta">${esc(created)}</div>
+        <div class="activityActions"><button>Comment</button><button>Like</button></div>
+      </article>`;
+    }).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>';
   }else if(state.homeTab==='dashboard'){
     const uid=state.auth?.userId||state.auth?.user?.id;
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100} }):{};
     const arr=x.section||x.sections||[];
-    c.innerHTML=`<div class="dashboardGrid">${arr.map(s=>`<button class="dashboardCard"><div class="dashboardThumb">${esc((s.section_title||s.title||'C').charAt(0))}</div><div><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></div></button>`).join('')||'<div class="empty"><h2>No courses</h2></div>'}</div>`;
+    window.__schoologyDashboardCourses=arr;
+    c.innerHTML=`<div class="dashboardGrid">${arr.map((s,i)=>{const im=normalizeImageUrl(s.course_theme||s.courseTheme||s.image||'');return `<button class="dashboardCard" data-dashboard-course="${i}"><div class="dashboardThumb">${im?`<img src="${esc(im)}" alt="">`:`<span>${esc((s.section_title||s.title||'C').charAt(0))}</span>`}</div><div><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></div></button>`}).join('')||'<div class="empty"><h2>No courses</h2></div>'}</div>`;
+    document.querySelectorAll('[data-dashboard-course]').forEach(b=>b.onclick=()=>showCourse(window.__schoologyDashboardCourses[+b.dataset.dashboardCourse]));
   }else{
     // Android HomePagerFragment uses UpcomingFragment.i5("users", 0L).
     // Its UpcomingAdapter renders assignments/assessments/discussions (not a
     // generic events dashboard), with date grouping and an item icon.
-    const x=await A.api({path:'users/0/events',params:{limit:50}});
+    const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+    const now=new Date();const iso=now.toISOString();
+    const x=await A.api({path:`users/${uid}/events`,params:{start:iso,limit:20}});
     let arr=x.event||x.events||[];
     arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
     c.innerHTML=arr.length?`<div class="upcomingList">${arr.map(e=>{

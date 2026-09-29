@@ -108,7 +108,7 @@ function bind(){
     });
   }));
 
-  document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
+  document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{const order=['recent','dashboard','upcoming'];const oldIndex=order.indexOf(state.homeTab),newIndex=order.indexOf(b.dataset.homeTab);state.homeTabDirection=newIndex>=oldIndex?'forward':'back';state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
   document.querySelectorAll('[data-message]').forEach(b=>b.onclick=()=>{const i=+b.dataset.message;const m=window.__schoologyMessages?.[i];if(m){state.message=m;render();}});
   document.getElementById('messageBack')?.addEventListener('click',()=>{state.message=null;state.messageThread=null;render();loadTab()});
   document.querySelectorAll('[data-message-tab]').forEach(b=>b.onclick=()=>{state.messageTab=b.dataset.messageTab;loadTab()});
@@ -266,10 +266,12 @@ function showCourse(course,activeTab='materials'){
      <div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div>
    </div>
    <div class="sectionProfileRule"></div>
-   <div id="sectionProfileContent" class="sectionProfileContent"><div class="loading">Loading…</div></div>
+   <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading">Loading…</div></div>
  </section>`;
+ animateTab(document.getElementById('sectionProfileContent'),state.courseTabDirection||'forward');
  hydrateCourseImages(c);
  document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{
+   const order=['materials','updates','upcoming','grades','courseapp']; const oi=order.indexOf(activeTab), ni=order.indexOf(b.dataset.courseTab); state.courseTabDirection=ni>=oi?'forward':'back';
    state.toolbarTitle=b.textContent||'Course';showCourse(course,b.dataset.courseTab);
  });
  loadCourseTab(course,activeTab).catch(e=>{
@@ -477,68 +479,84 @@ async function loadCourseTab(course,tab){
  }
 }
 
+function animateTab(el,direction='forward'){
+ if(!el)return;
+ el.classList.remove('tabSlidePage','forward','back');
+ void el.offsetWidth;
+ el.classList.add('tabSlidePage',direction==='back'?'back':'forward');
+}
 function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 async function loadSectionGrades(course){
  const el=document.getElementById('sectionProfileContent')||document.getElementById('gradesContent');if(!el)return;
  const sid=course.id||course.section_id||course.sectionId;
- const uid=state.auth?.userId||state.auth?.user?.id;
- if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+ const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
  const [section,periods,categories,items,userGrades]=await Promise.all([
-   A.api({path:`sections/${sid}`,params:{}}),
-   A.api({path:`sections/${sid}/grading_periods`,params:{}}),
-   A.api({path:`sections/${sid}/grading_categories`,params:{}}),
-   A.api({path:`sections/${sid}/grade_items`,params:{limit:2000}}),
-   A.api({path:`users/${uid}/grades`,params:{section_id:sid}})
+  A.api({path:`sections/${sid}`,params:{}}),
+  A.api({path:`sections/${sid}/grading_periods`,params:{}}),
+  A.api({path:`sections/${sid}/grading_categories`,params:{}}),
+  A.api({path:`sections/${sid}/grade_items`,params:{limit:2000}}),
+  A.api({path:`users/${uid}/grades`,params:{section_id:sid}})
  ]);
  const assignments=items.assignment||items.assignments||[];
- const gradeSections=userGrades.section||userGrades.sections||[];
- const current=gradeSections.find(s=>String(s.section_id||s.id)===String(sid))||gradeSections[0]||{};
+ const gs=userGrades.section||userGrades.sections||[];
+ const current=gs.find(s=>String(s.section_id||s.id)===String(sid))||gs[0]||{};
  const byId={};
  for(const per of (current.period||current.periods||[])){
-   for(const ga of (per.assignment||[]))byId[String(ga.assignment_id)]={...ga};
+  for(const ga of (per.assignment||per.assignments||[]))byId[String(ga.assignment_id||ga.id)]={...ga};
  }
  const rows=assignments.map(a=>({...a,gradeData:byId[String(a.id)]||{}}));
- el.innerHTML=`<div class="gradesAndroid">
-   <div class="gradesOverall">${renderOverallGrade(current)}</div>
-   ${renderGradePeriods(rows,periods,categories)}
- </div>`;
- document.querySelectorAll('[data-grade-assignment]').forEach(b=>b.onclick=()=>showAssignment(sid,b.dataset.gradeAssignment));
+ el.innerHTML=`<div class="gradesAndroid">${renderOverallGrade(current)}${renderGradePeriods(rows,periods,categories)}</div>`;
+ el.querySelectorAll('[data-grade-assignment]').forEach(b=>b.onclick=()=>showAssignment(sid,b.dataset.gradeAssignment));
+ el.querySelectorAll('[data-grade-toggle]').forEach(b=>b.onclick=()=>{
+   const target=document.getElementById(b.dataset.gradeToggle);if(!target)return;
+   const parent=b.closest('.gradePeriod,.gradeCategory');if(!parent)return;
+   const collapsed=parent.classList.toggle('collapsed');b.setAttribute('aria-expanded',String(!collapsed));
+ });
 }
 function renderOverallGrade(sec){
- const final=(sec.final_grade||[])[0]||{};
- return `<div class="gradePeriodHeader"><span>OVERALL</span><strong>${esc(final.grade||final.grade_override||'—')}</strong></div>`;
+ const final=(sec.final_grade||sec.finalGrade||[])[0]||{};
+ const val=final.grade||final.grade_override||final.calculated_grade||'—';
+ return `<div class="gradeOverallCard"><div class="label">Overall Grade</div><div class="value">${esc(val)}</div></div>`;
 }
 function renderGradePeriods(rows,periods,categories){
- const ps=periods.grading_period||periods.gradePeriod||periods.period||[];
- const cats=categories.grading_category||categories.category||[];
- const catMap={};cats.forEach(c=>catMap[String(c.id)]=c.title);
- const groups={};
- rows.forEach(a=>{const pid=String(a.grading_period||'0');const cid=String(a.grading_category||'0');(groups[pid]??=[]).push(a);});
- const pmap={};ps.forEach(p=>pmap[String(p.id)]=p.title);
- const keys=Object.keys(groups);
- if(!keys.length)return '<div class="empty"><h2>No grades</h2></div>';
- return keys.map(pid=>`<section class="gradePeriod"><div class="gradePeriodHeader"><span>${esc((pmap[pid]||'Grading Period').toUpperCase())}</span><span></span></div>${groups[pid].map(a=>{
-   const g=a.gradeData||{};const raw=g.grade??g.calculated_grade??g.score??'—';const max=a.max_points??a.maxPoints??g.max_points??g.maxPoints;const value=(raw!=='—'&&max!=null&&String(max)!=='')?`${raw}/${max}`:raw;const cat=catMap[String(a.grading_category)]||'';
-   return `<button class="gradeAssignmentRow" data-grade-assignment="${esc(a.id||'')}"><span class="gradeAssignmentName">${esc(a.title||'Assignment')}<small>${esc(cat)}</small></span><span class="gradeValue">${esc(value)}</span></button>`;
- }).join('')}</section>`).join('');
+ const ps=periods.grading_period||periods.gradePeriod||periods.period||periods.periods||[];
+ const cats=categories.grading_category||categories.category||categories.categories||[];
+ const catMap={};cats.forEach(c=>{catMap[String(c.id)]={title:c.title||c.name||'Category',weight:c.weight??c.percent??c.percentage??c.weight_percent??c.weightPercentage};});
+ const pmap={};ps.forEach(p=>pmap[String(p.id)]=p.title||p.name||'Grading Period');
+ const periodGroups={};
+ rows.forEach(a=>{
+  const pid=String(a.grading_period_id??a.grading_period??a.period_id??'0');
+  const cid=String(a.grading_category_id??a.grading_category??a.category_id??'0');
+  (periodGroups[pid]??={}).__title=pmap[pid]||'Grading Period';
+  (periodGroups[pid][cid]??=[]).push(a);
+ });
+ const pids=Object.keys(periodGroups);
+ if(!pids.length)return '<div class="empty"><h2>No grades</h2></div>';
+ return pids.map((pid,pi)=>{
+  const pg=periodGroups[pid], title=pg.__title||'Grading Period';
+  const catIds=Object.keys(pg).filter(k=>k!=='__title');
+  return `<section class="gradePeriod" id="grade-period-${pi}">
+   <button class="gradePeriodHeader" data-grade-toggle="grade-period-body-${pi}" aria-expanded="true"><span>${esc(title.toUpperCase())}</span><span class="gradeChevron">⌃</span></button>
+   <div id="grade-period-body-${pi}">
+   ${catIds.map((cid,ci)=>{
+    const meta=catMap[cid]||{title:cid==='0'?'Ungraded':'Category',weight:null};const list=pg[cid];
+    const weight=meta.weight!=null?`<span class="weight">${esc(meta.weight)}%</span>`:'';
+    return `<div class="gradeCategory" id="grade-cat-${pi}-${ci}">
+      <button class="gradeCategoryHeader" data-grade-toggle="grade-cat-body-${pi}-${ci}" aria-expanded="true"><span>${esc(meta.title)}</span>${weight}<span class="gradeChevron">⌃</span></button>
+      <div class="gradeCategoryBody" id="grade-cat-body-${pi}-${ci}">
+      ${list.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''))).map(a=>{
+       const g=a.gradeData||{};const raw=g.grade??g.calculated_grade??g.score??'—';const max=a.max_points??a.maxPoints??g.max_points??g.maxPoints;
+       const value=(raw!=='—'&&max!=null&&String(max)!=='')?`${raw}/${max}`:raw;
+       return `<button class="gradeAssignmentRow" data-grade-assignment="${esc(a.id||'')}"><span class="gradeAssignmentName">${esc(a.title||a.assignment_title||'Assignment')}</span><span class="gradeValue">${esc(value)}</span></button>`;
+      }).join('')||'<div class="empty">No graded items.</div>'}
+      </div>
+    </div>`;
+   }).join('')}
+   </div>
+  </section>`;
+ }).join('');
 }
-function renderUpcoming(arr){
- if(!arr.length)return '<div class="empty"><h2>Nothing upcoming</h2><p>No upcoming assignments.</p></div>';
- return `<div class="upcomingList">${arr.map(e=>{
-  const type=String(e.type||'');
-  const icon=type==='assignment'?'📝':(type.startsWith('assessment')||type==='managed_assessment'?'▣':(type==='discussion'?'💬':'▤'));
-  const when=e.start||e.start_date||e.due||e.due_date||'';
-  return `<button class="upcomingAssignment" data-event-id="${esc(e.id||'')}"><span class="assignmentIcon">${icon}</span><span class="assignmentInfo"><b>${esc(e.title||'Assignment')}</b><small>${esc(when)}</small></span><span class="rowChevron">›</span></button>`;
- }).join('')}</div>`;
-}
-function renderGrades(rows){
- if(!rows.length)return '<div class="empty"><h2>No grades</h2></div>';
- return `<div class="gradesNativeList">${rows.map(g=>{
-   const name=g.assignment_title||g.assignment_name||g.title||g.name||'Assignment';
-   const value=g.grade||g.score||g.grade_value||g.points||'';
-   return `<button class="gradeAssignmentRow"><span>${esc(name)}</span><span>${esc(value)}</span></button>`;
- }).join('')}</div>`;
-}
+function renderGrades(rows){return renderGradePeriods(rows,{grading_period:[]},{grading_category:[]});}
 
 async function showGroup(group,activeTab='updates'){
   if(!group)return;
@@ -601,7 +619,7 @@ async function loadTab(){
   if(state.tab==='home'){
     const tabs=[`<button data-home-tab="recent" class="homeTab ${state.homeTab==='recent'?'active':''}">Recent Activity</button>`,state.courseDashboardEnabled?`<button data-home-tab="dashboard" class="homeTab ${state.homeTab==='dashboard'?'active':''}">Course Dashboard</button>`:'',`<button data-home-tab="upcoming" class="homeTab ${state.homeTab==='upcoming'?'active':''}">Upcoming</button>`].join('');
     c.innerHTML=`<div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section>`;
-    document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
+    document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{const order=['recent','dashboard','upcoming'];const oldIndex=order.indexOf(state.homeTab),newIndex=order.indexOf(b.dataset.homeTab);state.homeTabDirection=newIndex>=oldIndex?'forward':'back';state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
     await loadHomeTab();
   }else if(state.tab==='courses'){state.toolbarTitle='Courses';
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
@@ -674,6 +692,11 @@ async function loadTab(){
     const users={}; await Promise.all(ids.map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});users[id]=u?.user||u}catch{}})); window.__schoologyMessageUsers=users;
     c.innerHTML=`<section class="messagesAndroidPage"><div class="messageTabs"><button class="messageTab ${state.messageTab==='inbox'?'active':''}" data-message-tab="inbox">Inbox</button><button class="messageTab ${state.messageTab==='sent'?'active':''}" data-message-tab="sent">Sent</button></div><div class="messageList">${arr.map((m,i)=>{const uid=Number(state.messageTab==='sent'?(m.recipient_ids||m.recipientIds||'').split(',')[0]:(m.author_id||m.authorId));const u=users[uid]||{};const me=Number(state.auth?.userId||state.auth?.user?.id||0)===uid;const name=me?'You':(u.name_display||u.nameDisplay||u.display_name||u.name||'Schoology');const avatar=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||'');const ts=m.last_updated||m.lastUpdated||m.created||m.timestamp;const date=ts?(typeof ts==='number'||/^\\d+$/.test(String(ts))?new Date(Number(ts)*1000).toLocaleString():String(ts)):'';return `<button class="messageListItem ${m.message_status==='unread'?'unread':''}" data-message="${i}"><span class="messageListAvatar">${avatar?`<img data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`${esc(String(name).charAt(0))}`}</span><span class="messageListText"><b>${esc(name)}</b><strong>${esc(m.subject||'Message')}</strong><small>${esc(date)}</small></span>${m.message_status==='unread'?'<span class="messageUnreadDot"></span>':''}</button>`}).join('')||'<div class="empty">No messages.</div>'}</div></section>`;
     await hydrateMediaImages(c);
+    document.querySelectorAll('[data-message-tab]').forEach(b=>b.onclick=()=>{state.messageTab=b.dataset.messageTab;loadTab()});
+    document.querySelectorAll('[data-message]').forEach(b=>b.onclick=async()=>{
+      const m=window.__schoologyMessages?.[+b.dataset.message];if(!m)return;
+      state.message=m;state.messageFolder=state.messageTab;state.messageThread=null;render();await loadMessageThread(m);
+    });
   }else if(state.tab==='notifications'){
     const x=await A.api({path:'notifications'});const arr=x.notification||x.notifications||[];c.innerHTML=`<section class="page"><h1>Notifications</h1>${arr.map(n=>`<article class="messageCard">${esc(n.title||n.message||'Notification')}</article>`).join('')||'<div class="empty">No notifications.</div>'}</section>`;
   }else if(state.tab==='resources'){
@@ -690,6 +713,7 @@ async function loadTab(){
 }
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
+ animateTab(c,state.homeTabDirection||'forward');
  c.innerHTML='<div class="loading">Loading…</div>';
  try{
   if(state.homeTab==='recent'){

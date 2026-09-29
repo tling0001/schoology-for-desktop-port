@@ -237,3 +237,44 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .messageTabs{position:sticky;top:0;z-index:2}.messageListItem{transition:background-color .12s ease}.messageListItem:active{background:#eef3f7!important}
 
 .recipientSuggestions{position:relative;background:#fff;border:1px solid #d8dde1;z-index:4}.recipientSuggestion{display:block;width:100%;padding:11px 10px;border:0;border-bottom:1px solid #e4e7e9;background:#fff;text-align:left;color:#333}.recipientNone{padding:10px;color:#777;font-size:13px}.recipientChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.recipientChip{background:#e8eef3;color:#233a4a;border-radius:16px;padding:6px 9px;font-size:13px}.recipientChip button{border:0;background:transparent;color:#667781;padding:0 0 0 5px;cursor:pointer}
+
+/* v40: Android-style full-height content/WebView host */
+html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
+.shell{position:relative!important;height:100vh!important;width:100vw!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.shell>.toolbar{flex:0 0 56px!important}
+.shell>main#content{position:relative!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;padding:0!important;margin:0!important;overflow:auto!important}
+.shell>.webContentHost{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;z-index:20!important}
+.shell>.webContentHost .embeddedPage,.shell>.webContentHost .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
+.shell>.webContentHost webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
+.toolbarTitle{min-width:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;display:block!important;flex:1 1 auto!important;line-height:56px!important;height:56px!important}
+.sectionProfileTabs,.messageTabs,.homeTabs{flex:0 0 auto}
+.tabSlideViewport{position:relative;overflow:hidden;min-height:120px}
+.tabSlidePage{width:100%;animation-duration:240ms;animation-timing-function:cubic-bezier(.2,.8,.2,1);animation-fill-mode:both}
+.tabSlidePage.forward{animation-name:androidTabForward}
+.tabSlidePage.back{animation-name:androidTabBack}
+@keyframes androidTabForward{from{transform:translateX(100%);opacity:.7}to{transform:translateX(0);opacity:1}}
+@keyframes androidTabBack{from{transform:translateX(-100%);opacity:.7}to{transform:translateX(0);opacity:1}}
+.drawer{transform:translateX(-100%);transition:transform 240ms cubic-bezier(.2,.8,.2,1)}
+.drawer.open{transform:translateX(0)}
+.drawerShade{opacity:0;transition:opacity 240ms ease;pointer-events:none}
+.drawerShade.open{opacity:1;pointer-events:auto}
+.gradesAndroid{background:#fff;min-height:100%;padding-bottom:24px}
+.gradeOverallCard{padding:16px;border-bottom:1px solid #d8dde1;background:#fff}
+.gradeOverallCard .label{font-size:12px;color:#6b747c;text-transform:uppercase}
+.gradeOverallCard .value{font-size:28px;color:#22303e;margin-top:4px}
+.gradePeriod{border-bottom:1px solid #d5dade;background:#fff}
+.gradePeriodHeader,.gradeCategoryHeader{display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;border:0;text-align:left}
+.gradePeriodHeader{padding:14px 16px;background:#56616b;color:#fff}
+.gradeCategoryHeader{padding:12px 16px;background:#f0f2f3;color:#33414d}
+.gradeCategoryHeader .weight{font-size:12px;color:#68737d;margin-left:auto;margin-right:12px}
+.gradeChevron{display:inline-block;width:18px;text-align:center;transition:transform 180ms ease}
+.gradeCategory.collapsed .gradeChevron,.gradePeriod.collapsed .gradeChevron{transform:rotate(-90deg)}
+.gradeCategoryBody{overflow:hidden;max-height:5000px;transition:max-height 220ms ease}
+.gradeCategory.collapsed .gradeCategoryBody{max-height:0}
+
+.gradePeriod>div[id]{overflow:hidden;max-height:10000px;transition:max-height:220ms ease}
+.gradePeriod.collapsed>div[id]{max-height:0}
+
+/* v40: web hosts nested inside the main content area (home/dashboard) */
+.shell>main#content .webContentHost{position:absolute!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;z-index:20!important;overflow:hidden!important;background:#fff!important}
+.shell>main#content .webContentHost .dashboardHybrid,.shell>main#content .webContentHost .embeddedPage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important}

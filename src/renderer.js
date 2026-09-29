@@ -48,10 +48,10 @@ function shell(){
   ['home','Home','⌂'],['courses','Courses','▣'],['groups','Groups','♧'],['resources','Resources','▤'],['grades','Grades','✓'],['calendar','Calendar','□'],['people','People','♙'],
   ['settings','Settings','⚙'],['logout','Logout','↪']
  ];
- const drawerPage=state.drawerPage==='courses'||state.drawerPage==='grades'?`
+ const drawerPage=state.drawerPage==='courses'||state.drawerPage==='groups'||state.drawerPage==='grades'?`
    <div class="drawerSub">
-    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${state.drawerPage==='grades'?'Grades':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
-    <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':'courses'}…</div></div>
+    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${state.drawerPage==='grades'?'Grades':state.drawerPage==='groups'?'Groups':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
+    <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
  <header class="toolbar">${state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span>${state.tab==='messages'&&!state.courseView&&!state.embeddedTitle?`<button id="composeMessage" class="iconButton toolbarPlus" aria-label="Compose message">+</button>`:`<button id="toolbarMore" class="iconButton">⋮</button>`}</header>
@@ -98,7 +98,7 @@ function bind(){
 
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
-    if(id==='courses'||id==='grades'){
+    if(id==='courses'||id==='groups'||id==='grades'){
       state.drawerPage=id;render();document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open');loadCourseSubmenu();return;
     }
     closeDrawerThen(async()=>{
@@ -143,30 +143,17 @@ async function hydrateCourseImages(root=document){
 async function loadCourseSubmenu(){
  const c=document.getElementById('courseSubList');if(!c)return;
  try{
+   const page=state.drawerPage;
    const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('No logged-in user ID.');
-   // Android SectionRepository.listAllSections(userId) is the source for both
-   // the Courses submenu and the Grades section selector.
-   const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});
-   const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
-   c.innerHTML=arr.length?arr.map((s,i)=>{
-     const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';
-     const sectionTitle=s.section_title||s.sectionTitle||'';
-     const image=normalizeImageUrl(s.course_theme||s.courseTheme||s.image||s.course_image||'');
-     const admin=String(s.admin||'')==='1'||s.admin===true;
-     return `<button class="courseSubItem" data-course-sub="${i}">
-       <span class="courseImage">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span></span>
-       <span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span>
-       ${admin?'<span class="courseAdmin" aria-label="Administrator">★</span>':''}
-     </button>`;
-   }).join(''):'<div class="drawerEmpty">No courses found.</div>';
-   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{
-     const course=window.__schoologyCourses[+b.dataset.courseSub];
-     if(state.drawerPage==='grades'){
-       state.drawerPage=null;state.tab='grades';state.courseView='course';state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);state.screen='app';render();showCourse(course,'grades');
-     }else{
-       state.drawerPage=null;state.tab='courses';state.screen='app';render();showCourse(course);
-     }
-   });
+   if(page==='groups'){
+     const x=await A.api({path:`users/${uid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];window.__schoologyGroups=arr;
+     c.innerHTML=arr.length?arr.map((g,i)=>`<button class="courseSubItem" data-group-sub="${i}"><span class="courseImage"><span class="courseImageFallback">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span class="courseText"><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span class="courseAdmin">★</span>':''}</button>`).join(''):'<div class="drawerEmpty">No groups found.</div>';
+     document.querySelectorAll('[data-group-sub]').forEach(b=>b.onclick=()=>{const g=window.__schoologyGroups[+b.dataset.groupSub];closeDrawerThen(()=>{state.tab='home';state.currentGroup=null;state.toolbarTitle=g?.name||'Group';render();showGroup(g)});});
+     return;
+   }
+   const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
+   c.innerHTML=arr.length?arr.map((s,i)=>{const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';const sectionTitle=s.section_title||s.sectionTitle||'';const image=normalizeImageUrl(s.course_theme||s.courseTheme||s.image||s.course_image||'');return `<button class="courseSubItem" data-course-sub="${i}"><span class="courseImage">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span></span><span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span></button>`}).join(''):'<div class="drawerEmpty">No courses found.</div>';
+   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const course=window.__schoologyCourses[+b.dataset.courseSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab=page==='grades'?'grades':'courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);state.screen='app';render();showCourse(course,page==='grades'?'grades':'materials')});});
    await hydrateCourseImages(c);
  }catch(e){c.innerHTML=`<div class="drawerError">${esc(e.message)}</div>`}
 }
@@ -412,7 +399,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
 }
 function showEmbeddedWeb(url,title){
   const c=document.getElementById('content');if(!c)return;
-  c.classList.add('webContentHost');
+  c.classList.remove('webContentHost');
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
@@ -459,7 +446,7 @@ async function loadCourseTab(course,tab){
  if(tab==='updates'){
    const x=await A.api({path:`sections/${sid}/updates`,params:{start:0,limit:20}});
    const arr=x.update||x.updates||[];
-   el.innerHTML=arr.length?arr.map(u=>`<article class="sectionUpdate"><b>${esc(u.title||u.body||u.message||'Update')}</b><small>${esc(u.created||u.timestamp||'')}</small></article>`).join(''):'<div class="empty"><h2>No updates</h2></div>';
+   el.innerHTML=arr.length?arr.map(u=>`<article class="sectionUpdate"><b>${esc(u.title||u.body||u.message||'Update')}</b><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty"><h2>No updates</h2></div>';
    return;
  }
  if(tab==='upcoming'){
@@ -485,6 +472,7 @@ function animateTab(el,direction='forward'){
  void el.offsetWidth;
  el.classList.add('tabSlidePage',direction==='back'?'back':'forward');
 }
+function formatSchoologyDate(v){if(v===null||v===undefined||v==='')return '';const n=Number(v);const d=(Number.isFinite(n)&&n>0)?new Date(n*1000):new Date(String(v).replace(' ','T'));if(Number.isNaN(d.getTime()))return String(v);return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 async function loadSectionGrades(course){
  const el=document.getElementById('sectionProfileContent')||document.getElementById('gradesContent');if(!el)return;
@@ -568,7 +556,7 @@ async function showGroup(group,activeTab='updates'){
   const load=async(tab)=>{
     state.groupTab=tab;document.querySelectorAll('[data-group-tab]').forEach(b=>b.classList.toggle('active',b.dataset.groupTab===tab));
     try{
-      if(tab==='updates'){const x=await A.api({path:`groups/${gid}/updates`,params:{start:0,limit:20}});const a=x.update||x.updates||[];gc.innerHTML=a.length?a.map(u=>`<article class="activityCard"><b>${esc(u.title||u.display_name||'Update')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(u.created||u.timestamp||'')}</small></article>`).join(''):'<div class="empty">No updates.</div>';}
+      if(tab==='updates'){const x=await A.api({path:`groups/${gid}/updates`,params:{start:0,limit:20}});const a=x.update||x.updates||[];gc.innerHTML=a.length?a.map(u=>`<article class="activityCard"><b>${esc(u.title||u.display_name||'Update')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty">No updates.</div>';}
       else if(tab==='upcoming'){const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));gc.innerHTML=renderUpcoming(a);}
       else if(tab==='discussions'){const x=await A.api({path:`groups/${gid}/discussions`,params:{limit:50}});const a=x.discussion||x.discussions||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||'Discussion')}</b><small>${esc(d.created||d.timestamp||'')}</small></button>`).join(''):'<div class="empty">No discussions.</div>';}
       else if(tab==='albums'){const x=await A.api({path:`groups/${gid}/albums`,params:{limit:50}});const a=x.album||x.albums||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||d.name||'Album')}</b></button>`).join(''):'<div class="empty">No albums.</div>';}
@@ -587,7 +575,7 @@ function showOfflineStorage(){
 async function loadMessageThread(m){
   try{
     const id=m?.id||m?.message_id||m?.messageId; if(!id)throw new Error('Message ID is missing.');
-    const folder=state.messageFolder||'inbox'; const x=await A.api({path:`messages/${id}`,params:{with_attachments:'TRUE',keep_unread:'TRUE'}});
+    const folder=state.messageFolder||'inbox'; const x=await A.api({path:`messages/${state.messageFolder||'inbox'}/${id}`,params:{with_attachments:'TRUE',keep_unread:'TRUE'}});
     const raw=x?.message||x?.messages||x?.data?.message||x?.data?.messages||[]; const msgs=Array.isArray(raw)?raw:(raw?.message||raw?.messages||[]); const users={};
     const ids=[...new Set(msgs.map(v=>Number(v.author_id||v.authorId)).filter(Boolean))];
     await Promise.all(ids.map(async uid=>{try{const u=await A.api({path:`users/${uid}`,params:{}});users[uid]=u?.user||u}catch{}}));
@@ -618,7 +606,7 @@ async function loadTab(){
  try{
   if(state.tab==='home'){
     const tabs=[`<button data-home-tab="recent" class="homeTab ${state.homeTab==='recent'?'active':''}">Recent Activity</button>`,state.courseDashboardEnabled?`<button data-home-tab="dashboard" class="homeTab ${state.homeTab==='dashboard'?'active':''}">Course Dashboard</button>`:'',`<button data-home-tab="upcoming" class="homeTab ${state.homeTab==='upcoming'?'active':''}">Upcoming</button>`].join('');
-    c.innerHTML=`<div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section>`;
+    c.innerHTML=`<div class="homeTabViewport"><div class="homeTabs">${tabs}</div><section id="homeTabContent" class="activity"></section></div>`;
     document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{const order=['recent','dashboard','upcoming'];const oldIndex=order.indexOf(state.homeTab),newIndex=order.indexOf(b.dataset.homeTab);state.homeTabDirection=newIndex>=oldIndex?'forward':'back';state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
     await loadHomeTab();
   }else if(state.tab==='courses'){state.toolbarTitle='Courses';
@@ -664,7 +652,7 @@ async function loadTab(){
       }else if(tab==='badges'){
         try{const x=await A.api({path:`users/${puid}/badges`,params:{}});const arr=x.badge||x.badges||x.items||[];pc.innerHTML=arr.length?`<div class="badgeGrid">${arr.map(b=>`<article class="badgeCard"><b>${esc(b.name||b.title||'Badge')}</b><small>${esc(b.description||'')}</small></article>`).join('')}</div>`:'<div class="empty">No badges.</div>'}catch(e){pc.innerHTML='<div class="empty">No badges.</div>'}
       }else{
-        try{const x=await A.api({path:`users/${puid}/updates`,params:{start:0,limit:20}});const arr=x.update||x.updates||[];pc.innerHTML=arr.length?arr.map(u=>`<article class="activityCard"><b>${esc(user.name_display||'')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(u.created||u.timestamp||'')}</small></article>`).join(''):'<div class="empty">No updates.</div>'}catch(e){pc.innerHTML='<div class="empty">No updates.</div>'}
+        try{const x=await A.api({path:`users/${puid}/updates`,params:{start:0,limit:20}});const arr=x.update||x.updates||[];pc.innerHTML=arr.length?arr.map(u=>`<article class="activityCard"><b>${esc(user.name_display||'')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty">No updates.</div>'}catch(e){pc.innerHTML='<div class="empty">No updates.</div>'}
       }
     };
     document.querySelectorAll('[data-profile-tab]').forEach(b=>b.onclick=()=>loadProfileTab(b.dataset.profileTab));
@@ -762,7 +750,7 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.classList.add('webContentHost');c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    c.classList.remove('webContentHost');c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
       dw.addEventListener('new-window',e=>{e.preventDefault();try{dw.src=e.url}catch{}});

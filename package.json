@@ -1,6 +1,6 @@
 {
   "name": "schoology-windows-port",
-  "version": "2025.04.0-port.29",
+  "version": "2025.04.0-port.30",
   "description": "Cross-platform Schoology client port based on the supplied Schoology Android 2026.06 source architecture",
   "main": "src/main.js",
   "scripts": {
@@ -17,7 +17,10 @@
   "dependencies": {
     "jsqr": "^1.4.0"
   },
-  "author": "Schoology Windows Port",
+  "author": {
+    "name": "Schoology Windows Port",
+    "email": "schoology-windows-port@users.noreply.github.com"
+  },
   "build": {
     "appId": "com.schoology.app",
     "productName": "Schoology",
@@ -44,7 +47,11 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "Schoology-${version}-Setup-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Schoology-${version}-Portable-${arch}.${ext}"
     }
   }
 }

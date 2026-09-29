@@ -16,7 +16,21 @@ function externalSelect(){
   return `<div class="login"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="selected">${esc(name)}</div><button id="browserLogin" class="primary">Log in through your browser</button><button id="nativeLogin" class="secondary">Log in with a username and password</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`
 }
 function qr(){return `<div class="qr"><button id="back" class="back">‹</button><h1>QR Code Login</h1><p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><div class="qrbox"></div><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
-function shell(){const tabs=[['home','Home'],['courses','Courses'],['calendar','Calendar'],['grades','Grades'],['messages','Messages'],['notifications','Notifications'],['resources','Resources'],['profile','Profile']];return `<div class="shell"><header><img src="../assets/ic_launcher.png"><span>Schoology</span><button id="logout">Sign out</button></header><nav>${tabs.map(t=>`<button class="tab ${state.tab===t[0]?'active':''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</nav><main id="content"><div class="loading">Loading…</div></main></div>`}
+function shell(){
+ const drawerItems=[
+  ['profile','Profile','◉'],['messages','Messages','✉'],['notifications','Notifications','●'],['requests','Requests','♧'],
+  ['home','Home','⌂'],['courses','Courses','▣'],['groups','Groups','♧'],['resources','Resources','▤'],['grades','Grades','✓'],['calendar','Calendar','□'],['people','People','♙'],
+  ['settings','Settings','⚙'],['logout','Logout','↪']
+ ];
+ return `<div class="shell">
+ <header class="toolbar"><button id="menuButton" class="iconButton" aria-label="Navigation menu">☰</button><span class="toolbarTitle">${state.tab==='home'?'Home':state.tab[0].toUpperCase()+state.tab.slice(1)}</span><button id="toolbarMore" class="iconButton">⋮</button></header>
+ <main id="content"><div class="loading">Loading…</div></main>
+ <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
+   <button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
+   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon}</span><span>${label}</span></button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon}</span><span>${label}</span></button>`).join('')}</div>
+ </aside>
+ </div>`
+}
 function bind(){
   const schoolBtn=document.getElementById('schoolLogin');if(schoolBtn)schoolBtn.onclick=()=>{state.error='';state.q='';state.schools=[];state.screen='search';render();document.getElementById('schoolSearch')?.focus()};
   const accountBtn=document.getElementById('continueSchoology');if(accountBtn)accountBtn.onclick=()=>{state.error='';state.school=null;state.screen='credentials';render();document.getElementById('user')?.focus()};
@@ -54,9 +68,55 @@ function bind(){
   const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();loadTab()});
   const lo=document.getElementById('logout');if(lo)lo.onclick=async()=>{await A.logout();state.auth=null;state.school=null;state.screen='login';state.tab='home';render()}
+  const drawer=document.getElementById('drawer'),shade=document.getElementById('drawerShade');
+  const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open)};
+  document.getElementById('menuButton')?.addEventListener('click',()=>setDrawer(true));
+  shade?.addEventListener('click',()=>setDrawer(false));
+  document.getElementById('profileButton')?.addEventListener('click',()=>{setDrawer(false);state.tab='profile';render();loadTab()});
+  document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
+    const id=b.dataset.drawer;setDrawer(false);
+    if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.screen='login';state.tab='home';render();return}
+    if(['home','courses','calendar','grades','messages','notifications','resources','profile','groups','people'].includes(id)){state.tab=id;render();loadTab()}
+  }));
 }
 async function afterLogin(){stopQR();state.screen='app';render();await loadTab()}
-async function loadTab(){const c=document.getElementById('content');if(!c)return;c.innerHTML='<div class="loading">Loading…</div>';try{if(state.tab==='home'){const u=await A.api({path:'users/me'});c.innerHTML=`<section class="welcome"><h1>Welcome, ${esc(u.name_display||u.name||'')}</h1><p>Schoology</p></section>`}else if(state.tab==='courses'){const x=await A.api({path:'users/me/sections',params:{limit:100}});const arr=x.section||x.sections||[];c.innerHTML=`<h2>Courses</h2><div class="cards">${arr.map(s=>`<button class="card"><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></button>`).join('')||'<p>No courses found.</p>'}</div>`}else{c.innerHTML=`<h2>${state.tab[0].toUpperCase()+state.tab.slice(1)}</h2><p>This Schoology module is connected to the Android-compatible API layer.</p>`}}catch(e){c.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
+async function loadTab(){
+ const c=document.getElementById('content');if(!c)return;
+ c.innerHTML='<div class="loading">Loading…</div>';
+ const uid=state.auth?.userId||state.auth?.user?.id;
+ try{
+  if(state.tab==='home'){
+    // Android HomePagerFragment -> UpdatesFragment(recent) and CourseDashboard.
+    const recent=await A.api({path:'recent',params:{start:0,limit:20}});
+    const updates=recent?.update||recent?.updates||recent?.update_list||[];
+    c.innerHTML=`<div class="homeTabs"><button class="homeTab active">Recent Activity</button><button class="homeTab">${state.auth?.courseDashboardEnabled?'Course Dashboard':'Upcoming'}</button><button class="homeTab">Upcoming</button></div><section class="activity">${updates.length?updates.map(x=>`<article class="activityCard"><div class="activityTitle">${esc(x.title||x.body||x.message||'Schoology update')}</div><div class="activityMeta">${esc(x.created||x.timestamp||'')}</div></article>`).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>'}</section>`;
+  }else if(state.tab==='courses'){
+    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];
+    c.innerHTML=`<section class="page"><h1>Courses</h1><div class="cards">${arr.map(s=>`<button class="card"><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></button>`).join('')||'<p>No courses found.</p>'}</div></section>`;
+  }else if(state.tab==='calendar'){
+    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${uid}/events`,params:{limit:50}});const arr=x.event||x.events||[];
+    c.innerHTML=`<section class="page"><h1>Calendar</h1>${arr.length?arr.map(e=>`<article class="eventCard"><b>${esc(e.title||'Event')}</b><small>${esc(e.start||e.start_date||'')}</small></article>`).join(''):'<div class="empty"><h2>No upcoming events</h2></div>'}</section>`;
+  }else if(state.tab==='grades'){
+    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${uid}/grades`});c.innerHTML=`<section class="page"><h1>Grades</h1><pre class="jsonView">${esc(JSON.stringify(x,null,2))}</pre></section>`;
+  }else if(state.tab==='groups'){
+    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${uid}/groups`});const arr=x.group||x.groups||[];c.innerHTML=`<section class="page"><h1>Groups</h1><div class="cards">${arr.map(g=>`<button class="card"><b>${esc(g.name||g.title||'Group')}</b></button>`).join('')||'<p>No groups found.</p>'}</div></section>`;
+  }else if(state.tab==='messages'){
+    const x=await A.api({path:'messages/inbox',params:{limit:50}});const arr=x.message||x.messages||[];c.innerHTML=`<section class="page"><h1>Messages</h1>${arr.map(m=>`<article class="messageCard"><b>${esc(m.subject||'Message')}</b><small>${esc(m.created||'')}</small></article>`).join('')||'<div class="empty">No messages.</div>'}</section>`;
+  }else if(state.tab==='notifications'){
+    const x=await A.api({path:'notifications'});const arr=x.notification||x.notifications||[];c.innerHTML=`<section class="page"><h1>Notifications</h1>${arr.map(n=>`<article class="messageCard">${esc(n.title||n.message||'Notification')}</article>`).join('')||'<div class="empty">No notifications.</div>'}</section>`;
+  }else if(state.tab==='resources'){
+    c.innerHTML='<section class="page"><h1>Resources</h1><p>Resources</p></section>';
+  }else if(state.tab==='people'){
+    c.innerHTML='<section class="page"><h1>People</h1><p>People</p></section>';
+  }else if(state.tab==='profile'){
+    const u=state.auth?.user||{};c.innerHTML=`<section class="page profilePage"><h1>${esc(u.name_display||u.name||'Profile')}</h1><p>${esc(u.username||u.email||'')}</p></section>`;
+  }
+ }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
+}
 let qrStream=null,qrBusy=false,qrLastAttempt=0;
 function stopQR(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}qrBusy=false}
 function decodeFrame(ctx,w,h){

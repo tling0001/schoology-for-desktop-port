@@ -45,7 +45,7 @@ function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
   oauth.oauth_signature=crypto.createHmac('sha1',key).update(base).digest('base64');
   return 'OAuth '+['oauth_consumer_key','oauth_token','oauth_nonce','oauth_timestamp','oauth_signature_method','oauth_version'].map(k=>k+'="'+String(oauth[k])+'"').join(', ')+', oauth_signature="'+enc(oauth.oauth_signature)+'"';
 }
-function request(method,url,body={},opts={}){
+function request(method,url,body={},opts={},redirectDepth=0){
   return new Promise((resolve,reject)=>{
     const u=new URL(url);
     const isGet=method.toUpperCase()==='GET';
@@ -55,19 +55,41 @@ function request(method,url,body={},opts={}){
       'User-Agent':ANDROID_OKHTTP_UA,
       'Accept':'application/json'
     };
-    if(opts.clientIdentity) {
+    if(opts.clientIdentity){
       headers['X-Schoology-Client']='Android';
       headers['X-Schoology-App-Version']='2026.06.0';
     }
     if(opts.headers) Object.assign(headers,opts.headers);
-    if(opts.sign){headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');headers.Cookie=MOBILE_COOKIE;}
+    if(opts.sign){
+      headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');
+      headers.Cookie=MOBILE_COOKIE;
+    }
     if(!isGet){headers['Content-Type']='application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
     const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method,headers},r=>{
-      let out='';r.setEncoding('utf8');r.on('data',c=>out+=c);r.on('end',()=>resolve({status:r.statusCode||0,headers:r.headers,text:out}))
+      let out='';r.setEncoding('utf8');r.on('data',c=>out+=c);r.on('end',()=>{
+        const code=r.statusCode||0;
+        const location=r.headers.location;
+        // Android uses OkHttp, which follows HTTP redirects. Electron's Node
+        // https client does not, so reproduce that behavior here. Re-sign the
+        // redirected request because Android's OAuth interceptor sees each
+        // redirected request as a new request.
+        if(location && [301,302,303,307,308].includes(code) && redirectDepth<6){
+          let next;
+          try{next=new URL(location,u).toString()}catch(e){return reject(e)}
+          let nextMethod=method;
+          let nextBody=body;
+          if(code===303 || ((code===301||code===302)&&method.toUpperCase()!=='GET'&&method.toUpperCase()!=='HEAD')){
+            nextMethod='GET'; nextBody={};
+          }
+          request(nextMethod,next,nextBody,opts,redirectDepth+1).then(resolve,reject);
+          return;
+        }
+        resolve({status:code,headers:r.headers,text:out})
+      })
     });
     req.setTimeout(20000,()=>req.destroy(new Error('Schoology request timed out')));
     req.on('error',reject);if(data)req.write(data);req.end();
-  });
+  })
 }
 async function syncServerTime(){
   const r=await request('GET',`https://${WEB_HOST}/oauth/timestamp`);
@@ -103,7 +125,18 @@ async function exchangeToken(t){
   const r=await request('GET',`https://${API_HOST}/v1/oauth/access_token`,{}, {sign:true,clientIdentity:true,authToken:t.oauth_token,tokenSecret:t.oauth_token_secret});
   if(r.status<200||r.status>=300)throw new Error('Access token failed: '+r.status+' '+r.text);
   const x=parseBody(r.text);if(!x.oauth_token||!x.oauth_token_secret)throw new Error('Schoology returned an invalid access token.');
-  const auth={oauth_token:x.oauth_token,oauth_token_secret:x.oauth_token_secret,createdAt:Date.now()};saveAuth(auth);return auth;
+  const auth={oauth_token:x.oauth_token,oauth_token_secret:x.oauth_token_secret,createdAt:Date.now()};
+  // Android's AbstractLoginFlow immediately resolves the current User and
+  // stores ACCOUNT_USERID before MenuActivity/HomePagerFragment is shown.
+  try{
+    const userResp=await request('GET',`https://${API_HOST}/v1/users/me`,{}, {sign:true,clientIdentity:true,authToken:x.oauth_token,tokenSecret:x.oauth_token_secret});
+    if(userResp.status>=200&&userResp.status<300){
+      const user=JSON.parse(userResp.text);
+      if(user && user.id!=null) auth.userId=Number(user.id);
+      auth.user=user;
+    }
+  }catch(_e){}
+  saveAuth(auth);return auth;
 }
 async function api(pathname,method='GET',params={}){
   const a=loadAuth();if(!a)throw new Error('Not signed in');

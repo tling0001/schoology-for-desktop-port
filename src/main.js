@@ -178,6 +178,48 @@ async function prepareWebSession(){
   return true;
 }
 
+async function downloadAuthenticatedFile(info){
+  const a=loadAuth(); if(!a)throw new Error('Not signed in');
+  if(!info?.url)throw new Error('File URL is missing.');
+  let raw=String(info.url);
+  let u;
+  try{u=new URL(raw,`https://${API_HOST}`)}catch{throw new Error('Schoology returned an invalid file URL.')}
+  const base=path.basename(u.pathname)||'Schoology-file';
+  const requested=String(info.filename||base).replace(/[\\/:*?"<>|]+/g,'_').trim()||base;
+  const safeName=requested.slice(0,180);
+  const ext=path.extname(safeName);
+  const finalName=ext?safeName:safeName;
+  const tmpDir=path.join(app.getPath('temp'),'Schoology');
+  fs.mkdirSync(tmpDir,{recursive:true});
+  const target=path.join(tmpDir,`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${finalName}`);
+  await new Promise((resolve,reject)=>{
+    const doGet=(url,depth=0)=>{
+      if(depth>6)return reject(new Error('Too many redirects while downloading the Schoology file.'));
+      const uu=new URL(url);
+      const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'*/*'};
+      headers.Authorization=makeOAuthHeader('GET',uu.toString(),a.oauth_token,a.oauth_token_secret);
+      headers.Cookie=MOBILE_COOKIE;
+      const req=https.request({hostname:uu.hostname,path:uu.pathname+uu.search,method:'GET',headers},res=>{
+        const code=res.statusCode||0;
+        if([301,302,303,307,308].includes(code)&&res.headers.location){
+          res.resume();
+          return doGet(new URL(res.headers.location,uu).toString(),depth+1);
+        }
+        if(code<200||code>=300){
+          const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>reject(new Error(`Schoology file download failed (HTTP ${code}): ${Buffer.concat(chunks).toString('utf8').slice(0,500)}`)));return;
+        }
+        const out=fs.createWriteStream(target);
+        res.pipe(out);
+        out.on('finish',()=>out.close(resolve));
+        out.on('error',e=>{try{out.close()}catch{};reject(e)});
+      });
+      req.on('error',reject);req.setTimeout(60000,()=>req.destroy(new Error('Schoology file download timed out')));req.end();
+    };
+    doGet(u.toString());
+  });
+  return {path:target,filename:finalName,mime:String(info.mime||'application/octet-stream')};
+}
+
 async function submitAssignmentFile(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.assignmentId||!info?.filePath)throw new Error('Submission information is incomplete.');
@@ -385,6 +427,17 @@ app.whenReady().then(()=>{
   ipcMain.handle('fetch-image',(_,u)=>fetchSchoologyImage(u));
   ipcMain.handle('prepare-web-session',()=>prepareWebSession());
   ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));
+  ipcMain.handle('download-file',(_,x)=>downloadAuthenticatedFile(x));
+  ipcMain.handle('launch-course-app',async(_,x)=>{
+    const a=loadAuth(); if(!a)throw new Error('Not signed in');
+    let url=String(x||''); if(!url)throw new Error('Course app launch URL is missing.');
+    if(!/^https?:\/\//i.test(url))url=`https://${WEB_HOST}${url.startsWith('/')?'':'/'}${url}`;
+    const r=await request('GET',url,{}, {sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+    if(r.status<200||r.status>=300)throw new Error(`Course app launch failed (HTTP ${r.status}): ${r.text}`);
+    let j={};try{j=JSON.parse(r.text)}catch{throw new Error('Schoology returned an invalid course-app launch response.')}
+    return j;
+  });
+  ipcMain.handle('open-downloaded-file',(_,x)=>shell.openPath(String(x?.path||'')));
   ipcMain.handle('open-external',(_,u)=>shell.openExternal(u));
   ipcMain.handle('pick-file',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile']});return r.canceled?null:r.filePaths[0]});
   create();

@@ -186,3 +186,37 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .groupList{background:#002137}.groupImage{width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex:0 0 72px;background:#2e66a3;margin-right:16px}.groupImage span{font-size:28px}.groupListItem>b,.groupListItem>span:nth-child(2){flex:1}.groupListItem small{display:block;color:#fff;margin-top:4px}.groupRow{width:100%;padding:14px 16px;border:0;border-bottom:1px solid #ddd;background:#fff;text-align:left}.groupRow b,.groupRow small{display:block}.groupRow small{color:#888;margin-top:5px}
 .courseAppIcon{width:56px;height:56px;flex:0 0 56px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-right:12px}.courseAppIcon img{width:56px;height:56px;object-fit:contain}.courseAppIcon span{font-size:24px;color:#2e66a3}
 .dashboardHybrid{height:calc(100vh - 152px)!important}.dashboardHybrid webview{height:100%!important}
+
+/* v38: Android message pager/thread, full-screen hybrid pages, and file opening */
+.shell #content:has(.embeddedPage),.shell #content:has(.dashboardHybrid){padding:0!important;height:calc(100vh - 56px)!important;min-height:0!important;overflow:hidden}
+.shell #content:has(.embeddedPage) .embeddedPage,.shell #content:has(.dashboardHybrid) .dashboardHybrid{height:100%!important;min-height:0!important}
+.shell #content:has(.embeddedPage) webview,.shell #content:has(.dashboardHybrid) webview{display:block!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
+.dashboardHybrid{height:100%!important;width:100%;padding:0!important;margin:0!important;overflow:hidden;background:#fff}
+.messagesAndroidPage{background:#fff;min-height:100%;padding:0!important}
+.messageTabs{height:48px;display:flex;background:#fff;border-bottom:1px solid #d9dde0}
+.messageTab{height:48px;flex:1;border:0;background:#fff;color:#66727c;font-size:14px;position:relative}
+.messageTab.active{color:#002137;font-weight:500}
+.messageTab.active:after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:#002137}
+.messageList{background:#fff}
+.messageListItem{width:100%;min-height:78px;display:flex;align-items:center;gap:12px;border:0;border-bottom:1px solid #e1e4e6;background:#fff;text-align:left;padding:10px 14px;position:relative;color:#333;cursor:pointer}
+.messageListItem.unread{background:#f5f7f8}
+.messageListAvatar,.messageListAvatar img{width:48px;height:48px;min-width:48px;border-radius:50%;object-fit:cover}
+.messageListAvatar{display:flex;align-items:center;justify-content:center;background:#e7ebee;color:#566b7a;font-size:19px;overflow:hidden}
+.messageListText{min-width:0;display:flex;flex-direction:column;flex:1}
+.messageListText b{font-size:15px;font-weight:600;color:#333;line-height:1.25}
+.messageListText strong{font-size:15px;font-weight:400;color:#333;line-height:1.3;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.messageListText small{font-size:12px;color:#888;margin-top:4px}
+.messageUnreadDot{width:8px;height:8px;border-radius:50%;background:#2e66a3;flex:0 0 8px;margin-right:3px}
+.messageDetail{height:calc(100vh - 56px)!important;overflow:auto;background:#f4f5f5!important;padding:0!important}
+.messageThreadItem{background:#fff;border-bottom:1px solid #dfe3e6;padding:14px 16px 18px}
+.messageThreadHeader{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.messageThreadAvatar{width:48px;height:48px;min-width:48px;border-radius:50%;object-fit:cover;background:#e7ebee}
+.messageThreadAvatarFallback{width:48px;height:48px;min-width:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e7ebee;color:#566b7a;font-size:19px}
+.messageThreadHeader b{display:block;font-size:15px;color:#333;font-weight:600}
+.messageThreadHeader small{display:block;font-size:12px;color:#888;margin-top:3px}
+.messageThreadBody{font-size:15px;line-height:1.55;color:#333;white-space:pre-wrap;word-break:break-word;padding-left:58px}
+.messageAttachments{padding:10px 0 0 58px;display:flex;flex-direction:column;gap:7px}
+.messageAttachment{border:0;background:#eef2f5;color:#2e66a3;text-align:left;padding:9px 10px;border-radius:2px;cursor:pointer;word-break:break-word}
+.messageThreadLoading{text-align:center;padding:50px;color:#888}
+.activityUser{color:#333!important;opacity:1!important;visibility:visible!important;display:inline-block!important;font-weight:600!important}
+.activityHeader{color:#333!important}

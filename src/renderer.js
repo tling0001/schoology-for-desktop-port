@@ -5,9 +5,34 @@ if(!A){
   throw new Error('Schoology preload bridge is unavailable');
 }
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function messageDetail(){const m=state.message||{};return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton">‹</button><span class="toolbarTitle">Messages</span><button class="iconButton">⋮</button></header><main class="messageDetail"><h1>${esc(m.subject||'Message')}</h1><div class="messageSender">${esc(m.sender?.name||m.sender_name||m.from||'Schoology')}</div><div class="messageDate">${esc(m.created||m.timestamp||'')}</div><div class="messageBody">${esc(m.body||m.message||m.content||'')}</div></main></div>`}
+function messageDetail(){
+ const m=state.message||{}; const thread=state.messageThread;
+ const msgs=thread?.messages||[]; const users=thread?.users||{};
+ const subject=m.subject||msgs[0]?.subject||'Message';
+ const cards=msgs.length?msgs.map(msg=>{
+   const uid=Number(msg.author_id||msg.authorId||0); const u=users[uid]||{};
+   const me=uid && Number(state.auth?.userId||state.auth?.user?.id||0)===uid;
+   const name=me?'You':(u.name_display||u.nameDisplay||u.display_name||u.name||'Schoology');
+   const avatar=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||'');
+   const ts=msg.last_updated||msg.lastUpdated||msg.created||msg.timestamp;
+   const date=ts?(typeof ts==='number'||/^\d+$/.test(String(ts))?new Date(Number(ts)*1000).toLocaleString():String(ts)):'';
+   const body=msg.message||msg.body||'';
+   const attachments=renderMessageAttachments(msg.attachments||msg.attachment||{});
+   return `<article class="messageThreadItem"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div><b>${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${esc(body)}</div>${attachments}</article>`;
+ }).join(''):`<div class="messageThreadLoading">Loading message…</div>`;
+ return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">‹</button><span class="toolbarTitle">${esc(subject)}</span><button id="messageMore" class="iconButton" aria-label="More">⋮</button></header><main class="messageDetail">${thread?cards:'<div class="loading">Loading message…</div>'}</main></div>`;
+}
+function renderMessageAttachments(a){
+ const out=[];
+ const files=a?.files?.file||a?.files?.list||a?.files||a?.['file-attachment']||[];
+ const list=Array.isArray(files)?files:(files&&typeof files==='object'?(files.file||files.list||[]):[]);
+ for(const f of list){const url=f.resolveDownloadUrl||f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath; if(!url)continue; const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim(); const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream'; out.push(`<button class="messageAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}">📎 ${esc(title)}</button>`)}
+ const links=a?.links?.link||a?.links||[]; const ll=Array.isArray(links)?links:(links?.link||[]); for(const l of ll){const url=l.url||l.linkURL||l.href;if(url)out.push(`<button class="messageAttachment" data-open-url="${esc(url)}">🔗 ${esc(l.title||l.linkTitle||url)}</button>`)}
+ const embeds=a?.embeds?.embed||a?.embeds||[]; const ee=Array.isArray(embeds)?embeds:(embeds?.embed||[]); for(const e of ee){if(e.embed_code||e.embedCode)out.push(`<button class="messageAttachment" data-embed-html="${esc(e.embed_code||e.embedCode)}">▧ Embedded content</button>`)}
+ return out.length?`<div class="messageAttachments">${out.join('')}</div>`:'';
+}
 function render(){let h=state.message?messageDetail():state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;bind();return h}
 function login(){return `<div class="login"><img class="logo" src="../assets/logo_schoology.png"><div class="loginBody"><button id="schoolLogin" class="primary">Log in through your School</button><button id="continueSchoology" class="secondary">Log in using schoology.com</button><button id="qrLogin" class="qrButton">Sign in with a QR code</button></div><div class="loginBottom">I need help signing in</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function schoolSearchScreen(){return `<div class="login"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" autofocus placeholder="Enter your School or domain" value="${esc(state.q)}"><span>⌕</span></div>${state.loading?'<div class="searchStatus">Searching…</div>':''}${state.schools.length?`<div class="suggestions">${state.schools.map((s,i)=>`<button class="suggestion" data-school="${i}"><b>${esc(s.title||'')}</b><small>${esc([s.id,s.domain,s.location].filter(Boolean).join(' • '))}</small></button>`).join('')}</div>`:''}${!state.loading&&state.q&&state.schools.length===0&&!state.error?'<div class="searchStatus">No schools found.</div>':''}</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
@@ -82,7 +107,12 @@ function bind(){
 
   document.querySelectorAll('[data-home-tab]').forEach(b=>b.onclick=()=>{state.homeTab=b.dataset.homeTab;document.querySelectorAll('[data-home-tab]').forEach(x=>x.classList.toggle('active',x===b));loadHomeTab()});
   document.querySelectorAll('[data-message]').forEach(b=>b.onclick=()=>{const i=+b.dataset.message;const m=window.__schoologyMessages?.[i];if(m){state.message=m;render();}});
-  document.getElementById('messageBack')?.addEventListener('click',()=>{state.message=null;render();loadTab()});
+  document.getElementById('messageBack')?.addEventListener('click',()=>{state.message=null;state.messageThread=null;render();loadTab()});
+  document.querySelectorAll('[data-message-tab]').forEach(b=>b.onclick=()=>{state.messageTab=b.dataset.messageTab;loadTab()});
+  document.querySelectorAll('[data-message]').forEach(b=>b.onclick=async()=>{const i=+b.dataset.message;const m=window.__schoologyMessages?.[i];if(!m)return;state.message=m;state.messageFolder=state.messageTab;state.messageThread=null;render();await loadMessageThread(m)});
+  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await A.downloadFile({url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
+  document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>showEmbeddedWeb(b.dataset.openUrl,'Link'));
+  document.querySelectorAll('[data-embed-html]').forEach(b=>b.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(b.dataset.embedHtml),'Embedded content'));
   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const i=+b.dataset.courseSub;const c=window.__schoologyCourses?.[i];state.drawerPage=null;state.tab='courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(c)||courseTitleOf(c);state.screen='app';render();showCourse(c)});
 }
 async function afterLogin(){
@@ -364,14 +394,18 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
     if(String(f.type)==='folder'){loadFolder(course,f.id,true,f.title||'Folder');return}
     if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
     if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(f.type))){(async()=>{try{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${f.id}`,f.title||'Assessment')}catch(e){alert(e.message)}})();return}
-    const fileUrl=f.web_url||f.url||f.file_url||f.fileUrl||f.download_url||f.downloadUrl;
-    if(fileUrl){showEmbeddedWeb(normalizeImageUrl(fileUrl),f.title||'File');return}
+    const fileUrl=f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath||f.file_url||f.fileUrl||f.download_url||f.downloadUrl||f.url;
+    if(fileUrl){(async()=>{try{const r=await A.downloadFile({url:fileUrl,filename:f.filename||f.fileName||f.title||'Schoology file',mime:f.filemime||f.fileMIME||f.converted_filemime||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}})();return}
   });
 }
 function showEmbeddedWeb(url,title){
   const c=document.getElementById('content');if(!c)return;
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
+  const w=document.getElementById('schoologyWebview'); if(!w)return;
+  w.addEventListener('new-window',e=>{e.preventDefault();try{w.src=e.url}catch{}});
+  w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^schoology:\/\/course(?:s)?\//i.test(u)){e.preventDefault();const m=u.match(/^schoology:\/\/course(?:s)?\/(\d+)/i);if(m){A.api({path:`sections/${m[1]}`,params:{}}).then(x=>{state.embeddedTitle=null;showCourse(x?.section||x)}).catch(()=>{})}}});
+  w.addEventListener('did-fail-load',e=>{if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)});
 }
 async function loadCourseApps(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
@@ -393,9 +427,10 @@ async function loadCourseApps(course){
     if(!href){el.innerHTML='<div class="error apiError">This course app did not provide a launch URL.</div>';return}
     try{
       await A.prepareWebSession();
-      // The Android app launches the returned app URL in its app/browser context.
-      if(/^https?:\/\//i.test(href))showEmbeddedWeb(href,a.title||'Course App');
-      else showEmbeddedWeb(`https://app.schoology.com${href}`,a.title||'Course App');
+      const launch=await A.launchCourseApp(href);
+      const url=launch?.url||launch?.launchTokenUrl||launch?.data?.url||launch?.data?.launchTokenUrl;
+      if(!url)throw new Error('Schoology did not return a course-app launch URL.');
+      showEmbeddedWeb(url,a.title||'Course App');
     }catch(e){el.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);
@@ -415,7 +450,7 @@ async function loadCourseTab(course,tab){
    return;
  }
  if(tab==='upcoming'){
-   const x=await A.api({path:`sections/${sid}/events`,params:{start:formatApiDate(new Date()),limit:20}});
+   const x=await A.api({path:`sections/${sid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:20}});
    let arr=x.event||x.events||[];
    arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
    el.innerHTML=renderUpcoming(arr);
@@ -520,6 +555,18 @@ function showOfflineStorage(){
  c.innerHTML=`<section class="settingsPage offlinePage"><div class="settingsGroup"><h2>Offline Storage</h2><div class="settingRow"><span><b>Downloaded Materials</b><small>Manage Schoology materials saved for offline use.</small></span><span>›</span></div><div class="settingRow"><span><b>Storage Used</b><small>Local offline files are managed by the Schoology app.</small></span></div></div><div class="settingsGroup"><button id="offlineClear" class="settingRow settingButton"><span><b>Clear Offline Storage</b></span><span>›</span></button></div></section>`;
  document.getElementById('offlineClear')?.addEventListener('click',()=>{if(confirm('Clear downloaded Schoology materials?')){alert('Offline storage cleared.');}});
 }
+async function loadMessageThread(m){
+  try{
+    const id=m?.id||m?.message_id||m?.messageId; if(!id)throw new Error('Message ID is missing.');
+    const folder=state.messageFolder||'inbox'; const x=await A.api({path:`messages/${folder}/${id}`,params:{with_attachments:'TRUE',keep_unread:'TRUE'}});
+    const msgs=x.message||x.messages||[]; const users={};
+    const ids=[...new Set(msgs.map(v=>Number(v.author_id||v.authorId)).filter(Boolean))];
+    await Promise.all(ids.map(async uid=>{try{const u=await A.api({path:`users/${uid}`,params:{}});users[uid]=u?.user||u}catch{}}));
+    state.messageThread={messages:msgs,users}; render(); await hydrateMediaImages(document.querySelector('.messageDetail'));
+    if(folder==='inbox')try{await A.api({path:`messages/inbox/${id}`,method:'PUT',params:{message_status:'read'}})}catch{}
+  }catch(e){state.messageThread={messages:[],users:{},error:e.message};render();const el=document.querySelector('.messageDetail');if(el)el.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`}
+}
+
 async function loadTab(){
  const c=document.getElementById('content');if(!c)return;
  c.innerHTML='<div class="loading">Loading…</div>';
@@ -595,9 +642,12 @@ async function loadTab(){
     window.__schoologyUserGradeSections=ss;
     document.querySelectorAll('[data-user-grade-section]').forEach(b=>b.onclick=()=>{const ss=window.__schoologyUserGradeSections[+b.dataset.userGradeSection];showCourse({id:ss.section_id,section_title:ss.section_title||ss.course_title,course_title:ss.course_title},'grades')});
   }else if(state.tab==='messages'){
-    const x=await A.api({path:'messages/inbox',params:{limit:50}});const arr=x.message||x.messages||[];window.__schoologyMessages=arr;
-    c.innerHTML=`<section class="page messagePage"><h1>Messages</h1>${arr.map((m,i)=>`<button class="messageCard clickable" data-message="${i}"><b>${esc(m.subject||'Message')}</b><small>${esc(m.created||m.timestamp||'')}</small><span class="messageChevron">›</span></button>`).join('')||'<div class="empty">No messages.</div>'}</section>`;
-    document.querySelectorAll('[data-message]').forEach(b=>b.onclick=()=>{const m=window.__schoologyMessages[+b.dataset.message];state.message=m;render()});
+    const endpoint=state.messageTab==='sent'?'messages/sent':'messages/inbox';
+    const x=await A.api({path:endpoint,params:{limit:50}});const arr=x.message||x.messages||[];window.__schoologyMessages=arr;
+    const ids=[...new Set(arr.map(m=>state.messageTab==='sent'?(m.recipient_ids||m.recipientIds||'').split(',')[0]:(m.author_id||m.authorId)).map(Number).filter(Boolean))];
+    const users={}; await Promise.all(ids.map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});users[id]=u?.user||u}catch{}})); window.__schoologyMessageUsers=users;
+    c.innerHTML=`<section class="messagesAndroidPage"><div class="messageTabs"><button class="messageTab ${state.messageTab==='inbox'?'active':''}" data-message-tab="inbox">Inbox</button><button class="messageTab ${state.messageTab==='sent'?'active':''}" data-message-tab="sent">Sent</button></div><div class="messageList">${arr.map((m,i)=>{const uid=Number(state.messageTab==='sent'?(m.recipient_ids||m.recipientIds||'').split(',')[0]:(m.author_id||m.authorId));const u=users[uid]||{};const me=Number(state.auth?.userId||state.auth?.user?.id||0)===uid;const name=me?'You':(u.name_display||u.nameDisplay||u.display_name||u.name||'Schoology');const avatar=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||'');const ts=m.last_updated||m.lastUpdated||m.created||m.timestamp;const date=ts?(typeof ts==='number'||/^\\d+$/.test(String(ts))?new Date(Number(ts)*1000).toLocaleString():String(ts)):'';return `<button class="messageListItem ${m.message_status==='unread'?'unread':''}" data-message="${i}"><span class="messageListAvatar">${avatar?`<img data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`${esc(String(name).charAt(0))}`}</span><span class="messageListText"><b>${esc(name)}</b><strong>${esc(m.subject||'Message')}</strong><small>${esc(date)}</small></span>${m.message_status==='unread'?'<span class="messageUnreadDot"></span>':''}</button>`}).join('')||'<div class="empty">No messages.</div>'}</div></section>`;
+    await hydrateMediaImages(c);
   }else if(state.tab==='notifications'){
     const x=await A.api({path:'notifications'});const arr=x.notification||x.notifications||[];c.innerHTML=`<section class="page"><h1>Notifications</h1>${arr.map(n=>`<article class="messageCard">${esc(n.title||n.message||'Notification')}</article>`).join('')||'<div class="empty">No notifications.</div>'}</section>`;
   }else if(state.tab==='resources'){
@@ -624,9 +674,9 @@ async function loadHomeTab(){
     await Promise.all(userIds.slice(0,20).map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});userMap[id]=u?.user||u}catch{}}));
     state.activityUsers=userMap;
     c.innerHTML=updates.length?updates.map(x=>{
-      const uid=x.user_id||x.uid;
+      const uid=x.user_id||x.uid||x.author_id||x.authorId;
       const u=userMap[uid]||{};
-      const name=x.display_name||u.name_display||u.display_name||u.name||x.user_name||x.author_name||'Schoology';
+      const name=x.display_name||x.author_name||u.name_display||u.display_name||u.name||x.user_name||x.author_name||'Schoology';
       const body=x.body||x.message||x.description||x.title||'';
       const created=x.created||x.timestamp||x.created_at||'';
       const avatar=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||u.photo_url||x.user_photo||x.photo_url||'');
@@ -662,22 +712,22 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>
-      <div class="dashboardFallback"><div class="dashboardGrid">${arr.map((s,i)=>{const im=normalizeImageUrl(s.course_theme||s.courseTheme||s.image||'');return `<button class="dashboardCard" data-dashboard-course="${i}"><div class="dashboardThumb">${im?`<img data-course-image-url="${esc(im)}" alt="" style="display:none">`:''}<span class="dashboardThumbFallback" ${im?'style="display:none"':''}>${esc((s.section_title||s.title||'C').charAt(0))}</span></div><div><b>${esc(s.section_title||s.title||'Course')}</b><small>${esc(s.course_title||'')}</small></div></button>`}).join('')||'<div class="empty"><h2>No courses</h2></div>'}</div></div>`;
-    document.querySelectorAll('[data-dashboard-course]').forEach(b=>b.onclick=()=>showCourse(window.__schoologyDashboardCourses[+b.dataset.dashboardCourse])); await hydrateCourseImages(c);
+    c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    const dw=document.getElementById('courseDashboardWebview');
+    if(dw){
+      dw.addEventListener('new-window',e=>{e.preventDefault();try{dw.src=e.url}catch{}});
+      dw.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^schoology:\/\/course(?:s)?\//i.test(u)){e.preventDefault();const m=u.match(/^schoology:\/\/course(?:s)?\/(\d+)/i);if(m){A.api({path:`sections/${m[1]}`,params:{}}).then(x=>showCourse(x?.section||x)).catch(()=>{})}}});
+      dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
+    }
   }else{
-    // Android HomePagerFragment uses UpcomingFragment.i5("users", 0L).
-    // Its UpcomingAdapter renders assignments/assessments/discussions (not a
-    // generic events dashboard), with date grouping and an item icon.
+    // Android UpcomingFragment.i5("users", 0L) calls UserCalls.getRecentEvents(),
+    // which requests events after today's date with start_date (not `start`).
     const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/events`,params:{start:formatApiDate(new Date()),limit:20}});
-    let arr=x.event||x.events||[];
-    arr=arr.filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));
-    c.innerHTML=arr.length?`<div class="upcomingList">${arr.map(e=>{
-      const type=String(e.type||'');
-      const icon=type==='assignment'?'📝':(type.startsWith('assessment')||type==='managed_assessment'?'▣':(type==='discussion'?'💬':'▤'));
-      return `<article class="upcomingAssignment"><div class="assignmentIcon">${icon}</div><div class="assignmentInfo"><b>${esc(e.title||'Assignment')}</b><small>${esc(e.start||e.start_date||'')}</small></div></article>`;
-    }).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+    const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:20}});
+    const arr=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));
+    const sorted=arr.slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
+    c.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'📝':type==='assessment'?'▣':(type==='assessment_v2'||type==='managed_assessment'?'▣':type==='discussion'?'💬':type==='external_tool'?'▤':'◷');const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon">${icon}</span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+    document.querySelectorAll('[data-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.upcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id)showAssignment(e.section_id,e.assignment_id);else if(e.web_url)showEmbeddedWeb(e.web_url,e.title||'Upcoming');});
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }

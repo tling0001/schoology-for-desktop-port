@@ -7,6 +7,7 @@ if(!A){
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
 let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function closeDrawerThen(fn){const drawer=document.getElementById('drawer'),shade=document.getElementById('drawerShade');drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;fn?.()},280)}
 function messageDetail(){
  const m=state.message||{}; const thread=state.messageThread;
  const msgs=thread?.messages||[]; const users=thread?.users||{};
@@ -88,7 +89,6 @@ function bind(){
 
   const shade=document.getElementById('drawerShade'),drawer=document.getElementById('drawer');
   const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null};
-  const closeDrawerThen=(fn)=>{drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;fn?.()},280)};
   document.getElementById('menuButton')?.addEventListener('click',()=>setDrawer(true));
   shade?.addEventListener('click',()=>setDrawer(false));
 
@@ -388,7 +388,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
     if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
     if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(f.type))){(async()=>{try{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${f.id}`,f.title||'Assessment')}catch(e){alert(e.message)}})();return}
     (async()=>{try{
-      let data=f; let fileUrl=f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath||f.file_url||f.fileUrl||f.download_url||f.downloadUrl||f.location||f.url;
+      let data=f; let fileUrl=f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath||f.file_url||f.fileUrl||f.download_url||f.downloadUrl||f.location||f.url; if(!fileUrl){const aa=f.attachments||f.attachment||{};const ff=aa.files?.file||aa.files||aa.file||[];const af=Array.isArray(ff)?ff[0]:ff;fileUrl=af?.converted_download_path||af?.convertedDownloadPath||af?.download_path||af?.downloadPath||af?.resolveDownloadUrl||af?.url||'';if(af)data={...f,...af};}
       if(String(f.type)==='document'){
         const d=await A.api({path:`sections/${sid}/documents/${f.id}`,params:{}}); data=d?.document||d; const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
       }
@@ -400,6 +400,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
 function showEmbeddedWeb(url,title){
   const c=document.getElementById('content');if(!c)return;
   c.classList.remove('webContentHost');
+  c.classList.add('embeddedContentActive');
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
@@ -750,7 +751,7 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.classList.remove('webContentHost');c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    c.classList.remove('webContentHost');c.classList.add('dashboardContentActive');c.innerHTML=`<section class="dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
       dw.addEventListener('new-window',e=>{e.preventDefault();try{dw.src=e.url}catch{}});

@@ -20,7 +20,7 @@ let serverTimeOffset=0;
 
 function loadAuth(){try{return JSON.parse(fs.readFileSync(storeFile,'utf8'))}catch{return null}}
 function saveAuth(v){fs.mkdirSync(path.dirname(storeFile),{recursive:true});fs.writeFileSync(storeFile,JSON.stringify(v,null,2),'utf8')}
-function enc(v){return encodeURIComponent(String(v)).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}
+function enc(v){return encodeURIComponent(String(v)).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g,'+')}
 function parseBody(s){return Object.fromEntries(String(s||'').split('&').filter(Boolean).map(x=>{const i=x.indexOf('=');const k=i<0?x:x.slice(0,i);const v=i<0?'':x.slice(i+1);return [decodeURIComponent(k.replace(/\+/g,' ')),decodeURIComponent(v.replace(/\+/g,' '))]}))}
 function oauthTimestamp(){return Math.floor(Date.now()/1000)+serverTimeOffset}
 function sortedOAuthBaseParams(method,url,oauth,extra=[]){
@@ -29,29 +29,21 @@ function sortedOAuthBaseParams(method,url,oauth,extra=[]){
   for(const [k,v] of new URLSearchParams(u.search)) pairs.push([k,v]);
   for(const [k,v] of Object.entries(oauth)) pairs.push([k,String(v)]);
   for(const [k,v] of extra) pairs.push([k,String(v)]);
-  pairs.sort((a,b)=>{const ak=enc(a[0]),bk=enc(b[0]);if(ak!==bk)return ak<bk?-1:1;const av=enc(a[1]),bv=enc(b[1]);return av< bv?-1:av>bv?1:0});
-  return pairs.map(([k,v])=>enc(k)+'='+enc(v)).join('&');
-}
-function oauthHeader(method,url,tokenSecret='',qrData=''){
-  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(12).toString('hex'),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
-  const token=arguments.length>2 && tokenSecret!==null ? tokenSecret : '';
-  if(token) oauth.oauth_token=arguments.length>2 ? (arguments[5]||'') : '';
-  // Caller supplies the token separately below; keeping this helper explicit avoids
-  // accidentally signing the POST body as OAuth headers.
-  return oauth;
+  pairs.sort((a,b)=>{if(a[0]!==b[0])return a[0]<b[0]?-1:1;if(a[1]!==b[1])return a[1]<b[1]?-1:1;return 0});
+  return pairs.map(([k,v])=>k+'='+v).join('&');
 }
 function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
-  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(12).toString('hex'),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
+  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
   // Android OAuthRequestSigner always includes oauth_token; for the initial
   // request-token request its value is explicitly the empty string.
   oauth.oauth_token=authToken==null?'':String(authToken);
   const extra=qrData?[['scanned_qr_data',qrData]]:[];
   const normalized=sortedOAuthBaseParams(method,url,oauth,extra);
   const u=new URL(url);
-  const base=method.toUpperCase()+'&'+enc(u.origin+u.pathname)+'&'+enc(normalized);
+  const base=method.toUpperCase()+'&'+enc(u.protocol+'//'+u.host+u.pathname)+'&'+enc(normalized);
   const key=enc(CONSUMER_SECRET)+'&'+enc(authSecret||'');
   oauth.oauth_signature=crypto.createHmac('sha1',key).update(base).digest('base64');
-  return 'OAuth '+Object.entries(oauth).map(([k,v])=>k+'="'+enc(v)+'"').join(', ');
+  return 'OAuth '+['oauth_consumer_key','oauth_token','oauth_nonce','oauth_timestamp','oauth_signature_method','oauth_version'].map(k=>k+'="'+String(oauth[k])+'"').join(', ')+', oauth_signature="'+enc(oauth.oauth_signature)+'"';
 }
 function request(method,url,body={},opts={}){
   return new Promise((resolve,reject)=>{
@@ -82,8 +74,8 @@ async function syncServerTime(){
   if(r.status>=200&&r.status<300){const t=parseInt(r.text.trim(),10);if(Number.isFinite(t))serverTimeOffset=t-Math.floor(Date.now()/1000)}
 }
 async function getRequestToken(){
-  const r=await request('GET',`https://${API_HOST}/v1/oauth/request_token`,{}, {sign:true,clientIdentity:true});
-  if(r.status<200||r.status>=300)throw new Error('Request token failed: '+r.status+' '+r.text);
+  const r=await request('GET',`https://${API_HOST}/v1/oauth/request_token`,{}, {sign:true});
+  if(r.status<200||r.status>=300)throw new Error('Request token failed: '+r.status+' '+r.text+' [Android OAuth GET /v1/oauth/request_token]');
   return parseBody(r.text);
 }
 async function authorizeCredentials(user,password,schoolId){

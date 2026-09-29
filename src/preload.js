@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('schoology',{
   logout:()=>ipcRenderer.invoke('logout'),
   schoolSearch:q=>ipcRenderer.invoke('school-search',q),
   api:x=>ipcRenderer.invoke('api',x),
+  prepareWebSession:()=>ipcRenderer.invoke('prepare-web-session'),
+  fetchImage:u=>ipcRenderer.invoke('fetch-image',u),
+  submitAssignmentFile:x=>ipcRenderer.invoke('submit-assignment-file',x),
   openExternal:u=>ipcRenderer.invoke('open-external',u),
   pickFile:()=>ipcRenderer.invoke('pick-file'),
   decodeQR:(data,width,height)=>{

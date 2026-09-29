@@ -50,7 +50,7 @@ function request(method,url,body={},opts={},redirectDepth=0){
     const u=new URL(url);
     const isGet=method.toUpperCase()==='GET';
     if(isGet){for(const [k,v] of Object.entries(body||{}))u.searchParams.set(k,String(v))}
-    const data=!isGet?querystring.stringify(body||{}):'';
+    const data=!isGet && opts.json?JSON.stringify(body||{}):(!isGet?querystring.stringify(body||{}):'');
     const headers={
       'User-Agent':ANDROID_OKHTTP_UA,
       'Accept':'application/json'
@@ -64,7 +64,7 @@ function request(method,url,body={},opts={},redirectDepth=0){
       headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');
       headers.Cookie=MOBILE_COOKIE;
     }
-    if(!isGet){headers['Content-Type']='application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
+    if(!isGet){headers['Content-Type']=opts.json?'application/json':'application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
     const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method,headers},r=>{
       let out='';r.setEncoding('utf8');r.on('data',c=>out+=c);r.on('end',()=>{
         const code=r.statusCode||0;
@@ -137,6 +137,76 @@ async function exchangeToken(t){
     }
   }catch(_e){}
   saveAuth(auth);return auth;
+}
+async function fetchSchoologyImage(imageUrl){
+  const a=loadAuth(); if(!a) return null;
+  let u;
+  try{u=new URL(imageUrl,'https://app.schoology.com')}catch{return null}
+  const cookies=await session.defaultSession.cookies.get({url:u.toString()}).catch(()=>[]);
+  const cookieHeader=cookies.map(c=>`${c.name}=${c.value}`).join('; ');
+  return new Promise((resolve,reject)=>{
+    const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'GET',headers:{
+      'User-Agent':ANDROID_WEBVIEW_UA,'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      ...(cookieHeader?{Cookie:cookieHeader}:{}),Referer:'https://app.schoology.com/'
+    }},res=>{
+      const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>{
+        const code=res.statusCode||0;
+        if(code<200||code>=300){resolve(null);return}
+        const type=String(res.headers['content-type']||'image/png').split(';')[0];
+        resolve(`data:${type};base64,${Buffer.concat(chunks).toString('base64')}`);
+      });
+    });
+    req.on('error',reject);req.setTimeout(15000,()=>req.destroy());req.end();
+  });
+}
+async function prepareWebSession(){
+  const a=loadAuth();
+  if(!a) throw new Error('Not signed in');
+  // Android SchoologyCookieProvider starts a legacy session for the web
+  // domain and installs every returned cookie plus the fixed s_mobile cookie
+  // before HybridWebSession loads Course Dashboard.
+  const r=await request('GET',`https://${API_HOST}/v1/sessionstart`,{for_domain:'app.schoology.com'},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+  if(r.status<200||r.status>=300)throw new Error('Schoology web session failed: '+r.status+' '+r.text);
+  let j={};try{j=JSON.parse(r.text)}catch{}
+  const cookies=Array.isArray(j.cookie)?j.cookie:Array.isArray(j.cookies)?j.cookies:[];
+  for(const c of cookies){
+    if(c?.key&&c?.value){
+      try{await session.defaultSession.cookies.set({url:'https://app.schoology.com',name:String(c.key),value:String(c.value),domain:c.domain||undefined,path:c.path||'/',secure:true})}catch(e){console.error('Unable to install Schoology web cookie',e)}
+    }
+  }
+  try{await session.defaultSession.cookies.set({url:'https://app.schoology.com',name:'s_mobile',value:'03447c0175ac0c7299a5508fde9569fc',path:'/',secure:true})}catch{}
+  return true;
+}
+
+async function submitAssignmentFile(info){
+  const a=loadAuth(); if(!a)throw new Error('Not signed in');
+  if(!info?.sectionId||!info?.assignmentId||!info?.filePath)throw new Error('Submission information is incomplete.');
+  // The 2026 Android client uploads the attachment through FileServiceAPI,
+  // then submits the returned file id through AssignmentApi.
+  const filePath=info.filePath;
+  const stat=fs.statSync(filePath);
+  const filename=path.basename(filePath);
+  const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
+  const file=fs.readFileSync(filePath);
+  const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
+  const post=Buffer.from(`\r\n--${boundary}--\r\n`);
+  const body=Buffer.concat([pre,file,post]);
+  const u=new URL(`https://${API_HOST}/file`);
+  const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length};
+  headers['X-Schoology-Client']='Android';headers['X-Schoology-App-Version']='2026.06.0';
+  headers.Authorization=makeOAuthHeader('POST',u.toString(),a.oauth_token,a.oauth_token_secret);
+  headers.Cookie=MOBILE_COOKIE;
+  const uploaded=await new Promise((resolve,reject)=>{
+    const req=https.request({hostname:u.hostname,path:u.pathname,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});
+    req.on('error',reject);req.write(body);req.end();
+  });
+  if(uploaded.status<200||uploaded.status>=300)throw new Error('File upload failed: '+uploaded.status+' '+uploaded.text);
+  let j={};try{j=JSON.parse(uploaded.text)}catch{}
+  const fileId=j.file_id||j.id||j.file?.id||j.file?.file_id;
+  if(!fileId)throw new Error('Schoology did not return an uploaded file ID.');
+  const r=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+  if(r.status<200||r.status>=300)throw new Error('Assignment submission failed: '+r.status+' '+r.text);
+  return true;
 }
 async function api(pathname,method='GET',params={}){
   const a=loadAuth();if(!a)throw new Error('Not signed in');
@@ -312,6 +382,9 @@ app.whenReady().then(()=>{
     return Array.isArray(j.school)?j.school:[];
   });
   ipcMain.handle('api',(_,x)=>api(x.path,x.method||'GET',x.params||{}));
+  ipcMain.handle('fetch-image',(_,u)=>fetchSchoologyImage(u));
+  ipcMain.handle('prepare-web-session',()=>prepareWebSession());
+  ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));
   ipcMain.handle('open-external',(_,u)=>shell.openExternal(u));
   ipcMain.handle('pick-file',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile']});return r.canceled?null:r.filePaths[0]});
   create();

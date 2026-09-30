@@ -61,9 +61,9 @@ function shell(){
  return `<div class="shell">
  <header class="toolbar">${state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading">Loading…</div></main>
- <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
+ <div id="drawerShade" class="drawerShade ${drawerPage?'submenuShade':''}"></div><aside id="drawer" class="drawer ${drawerPage?'drawerSubMode':''}">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
-   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span>${label}${id==='courses'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span>${label}${id==='courses'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`).join('')}</div>`}
+   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span>${label}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span>${label}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`).join('')}</div>`}
  </aside>
  </div>`
 }
@@ -151,12 +151,12 @@ async function loadCourseSubmenu(){
    const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('No logged-in user ID.');
    if(page==='groups'){
      const x=await A.api({path:`users/${uid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];window.__schoologyGroups=arr;
-     c.innerHTML=arr.length?arr.map((g,i)=>`<button class="courseSubItem" data-group-sub="${i}"><span class="courseImage"><span class="courseImageFallback">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span class="courseText"><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span class="courseAdmin">★</span>':''}</button>`).join(''):'<div class="drawerEmpty">No groups found.</div>';
-     document.querySelectorAll('[data-group-sub]').forEach(b=>b.onclick=()=>{const g=window.__schoologyGroups[+b.dataset.groupSub];closeDrawerThen(()=>{state.tab='home';state.currentGroup=null;state.toolbarTitle=g?.name||'Group';render();showGroup(g)});});
+     c.innerHTML=arr.length?arr.map((g,i)=>{const gi=normalizeImageUrl(g.picture_url||g.pictureUrl||g.picture||g.image||'');return `<button class="courseSubItem" data-group-sub="${i}"><span class="courseThumb groupThumb">${gi?`<img data-course-image-url="${esc(gi)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span class="courseText"><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span class="courseAdmin">★</span>':''}<span class="disclosure">›</span></button>`}).join(''):'<div class="drawerEmpty">No groups found.</div>';
+     document.querySelectorAll('[data-group-sub]').forEach(b=>b.onclick=()=>{const g=window.__schoologyGroups[+b.dataset.groupSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab='groups';state.currentGroup=g;state.toolbarTitle=g?.name||'Group';render();showGroup(g);syncToolbar();});});
      return;
    }
    const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
-   c.innerHTML=arr.length?arr.map((s,i)=>{const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';const sectionTitle=s.section_title||s.sectionTitle||'';const image=normalizeImageUrl(s.profile_url||s.profileUrl||s.course_profile_url||s.courseProfileUrl||s.course_theme||s.courseTheme||s.image||s.course_image||'');return `<button class="courseSubItem" data-course-sub="${i}"><span class="courseImage">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span></span><span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span></button>`}).join(''):'<div class="drawerEmpty">No courses found.</div>';
+   c.innerHTML=arr.length?arr.map((s,i)=>{const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';const sectionTitle=s.section_title||s.sectionTitle||'';const image=normalizeImageUrl(s.profile_url||s.profileUrl||s.course_profile_url||s.courseProfileUrl||s.course_theme||s.courseTheme||s.image||s.course_image||'');return `<button class="courseSubItem" data-course-sub="${i}"><span class="courseThumb">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span></span><span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span><span class="disclosure">›</span></button>`}).join(''):'<div class="drawerEmpty">No courses found.</div>';
    document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const course=window.__schoologyCourses[+b.dataset.courseSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab=page==='grades'?'grades':'courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);state.screen='app';render();showCourse(course,page==='grades'?'grades':'materials')});});
    await hydrateCourseImages(c);
  }catch(e){c.innerHTML=`<div class="drawerError">${esc(e.message)}</div>`}
@@ -185,7 +185,7 @@ function courseTitleOf(course){return course?.course_title||course?.courseTitle|
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
 function syncToolbar(){
   const header=document.querySelector('.toolbar');if(!header)return;
-  const needs=!!(state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message) && !(state.courseView && !state.assignmentView && !state.embeddedTitle);
+  const needs=!!(state.assignmentView||state.embeddedTitle||state.profileUser||state.composeMessage||state.message) && !(state.courseView && !state.assignmentView && !state.embeddedTitle);
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
   if(needs&&!existing){const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();}
@@ -340,8 +340,13 @@ async function showAssignment(sectionId,assignmentId){
     const myEnrollment=(enrollResp.enrollment||enrollResp.enrollments||[])[0]||{};
     const isTeacher=String(myEnrollment.admin??sectionResp.admin??at.admin??(state.selectedCourse?.admin||0))==='1';
     const flag=v=>v===true||v===1||v==='1'||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='yes';
-    const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission);
-    const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion);
+    let gradeItem=at;
+    try{
+      const gi=await A.api({path:`sections/${sectionId}/grade_items/${assignmentId}`,params:{}});
+      gradeItem=gi?.assignment||gi?.grade_item||gi?.gradeItem||gi||at;
+    }catch{}
+    const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission)||flag(gradeItem.allow_dropbox)||flag(gradeItem.allowDropbox)||flag(gradeItem.allow_submission)||flag(gradeItem.allowSubmission);
+    const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion)||flag(gradeItem.allow_discussion)||flag(gradeItem.allowDiscussion);
     state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentData=at; state.assignmentEnrollmentId=myEnrollment.id||null;
     const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button>${allowComments?`<button class="assignmentTab" data-assignment-tab="comments">Comments</button>`:''}${canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
     c.innerHTML=`<section class="assignmentAndroidPage"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section>`;
@@ -544,15 +549,28 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
   el.innerHTML=parent+(items.length?`<div class="materialList">${rows}</div>`:'<div class="empty"><h2>This folder is empty</h2></div>');
   window.__schoologyFolderItems=items;
   document.getElementById('materialBack')?.addEventListener('click',()=>navigateBack());
-  document.querySelectorAll('[data-material-index]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-material-index]').forEach(b=>b.onclick=async()=>{
     const f=window.__schoologyFolderItems[+b.dataset.materialIndex];
     if(String(f.type)==='folder'){loadFolder(course,f.id,true,f.title||'Folder').catch(e=>showSchoologyRequestError(e,()=>loadFolder(course,f.id,false,f.title||'Folder')));return}
     if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
+    if(String(f.type).toLowerCase()==='link'||String(f.type).toLowerCase()==='web_content'||String(f.type).toLowerCase()==='external_tool'){
+      const target=f.url||f.web_url||f.webUrl||f.href||f.launch_url||f.launchUrl||f.location;
+      if(target){await A.prepareWebSession();showEmbeddedWeb(target,f.title||'Link');return}
+    }
     if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(f.type))){(async()=>{try{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${f.id}`,f.title||'Assessment')}catch(e){alert(e.message)}})();return}
     (async()=>{try{
       let data=f; let fileUrl=f.download_path||f.downloadPath||f.converted_download_path||f.convertedDownloadPath||f.file_url||f.fileUrl||f.download_url||f.downloadUrl||f.location||f.url; if(!fileUrl){const aa=f.attachments||f.attachment||{};const ff=aa.files?.file||aa.files||aa.file||[];const af=Array.isArray(ff)?ff[0]:ff;fileUrl=af?.converted_download_path||af?.convertedDownloadPath||af?.download_path||af?.downloadPath||af?.resolveDownloadUrl||af?.url||'';if(af)data={...f,...af};}
       if(String(f.type)==='document'){
-        const d=await A.api({path:`sections/${sid}/documents/${f.id}`,params:{}}); data=d?.document||d; const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
+        const d=await A.api({path:`sections/${sid}/documents/${f.id}`,params:{}});
+        data=d?.document||d;
+        const tmpl=data.template||data.document||{};
+        const docType=String(data.document_type||data.documentType||data.template_document_type||data.templateDocumentType||tmpl.document_type||tmpl.documentType||'').toLowerCase();
+        const linkUrl=data.url||data.web_url||data.webUrl||data.href||tmpl.url||tmpl.web_url||tmpl.webUrl||tmpl.href||'';
+        if(docType==='link'||docType==='external_tool'||docType==='embed'||linkUrl){
+          const target=linkUrl||data.location||data.launch_url||data.launchUrl;
+          if(target){await A.prepareWebSession();showEmbeddedWeb(target,data.title||f.title||'Link');return}
+        }
+        const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
       const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||data.converted_extension||data.convertedExtension||f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const r=await A.downloadFile({url:fileUrl,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
@@ -596,7 +614,7 @@ function showEmbeddedWeb(url,title){
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
   w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
-  w.addEventListener('will-navigate',async e=>{const u=String(e.url||'');if(await routeSchoologyLink(u)){e.preventDefault();}});
+  w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^(schoology:|https?:\/\/)(?:[^/]+\.schoology\.com|lms\.lausd\.net)(?:\/|$)/i.test(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
   w.addEventListener('did-fail-load',e=>{if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)});
 }
 async function loadAttendanceTab(course){
@@ -655,19 +673,21 @@ async function loadCourseUpdates(course,el){
  const sid=course.id||course.section_id||course.sectionId;
  const uid=state.auth?.userId||state.auth?.user?.id;
  if(!sid)throw new Error('Course section ID is missing.');
- let start=0,limit=20,all=[];
+ let start=0,limit=20,all=[];let authorUsers={};
  let next=true,loading=false;
  const render=async()=>{
    const cards=all.map(u=>{
      const id=u.id||u.update_id||u.updateId;
-     const author='Schoology';
+     const au=authorUsers[Number(u.user_id||u.uid||u.author_id||u.authorId)]||{};
+     const author=u.display_name||u.author_name||au.name_display||au.display_name||au.name||'Schoology';
+     const avatar=normalizeImageUrl(au.picture_url||au.pictureUrl||au.picture||au.photo_url||u.user_photo||u.photo_url||'');
      const body=u.body||u.message||'';
      const comments=Number(u.num_comments??u.comment_count??u.comments_count??0);
      const likes=Number(u.likes??u.like_count??0);
      const liked=!!(u.user_liked??u.liked??u.is_liked);
      const canDelete=uid&&String(u.uid||u.user_id||u.author_id||'')===String(uid);
      return `<article class="androidActivityCard sectionFullUpdate" data-update-card="${esc(id)}">
-       <div class="activityHeader"><img class="activityAvatar activityAvatarImage" src="../assets/logo_schoology.png" alt="Schoology"><span class="activityUser">${esc(author)}</span>${canDelete?`<button class="updateDeleteButton" data-update-delete="${esc(id)}" aria-label="Delete update">⋮</button>`:''}</div>
+       <div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(author).charAt(0))}</span>`}<span class="activityUser">${esc(author)}</span>${canDelete?`<button class="updateDeleteButton" data-update-delete="${esc(id)}" aria-label="Delete update">⋮</button>`:''}</div>
        <div class="activityBody">${body}</div>
        ${renderAttachments(u.attachments||u.attachment||u.files||{})}
        ${u.poll||u.pollUpdateModel?`<div class="updatePoll"><b>Poll</b></div>`:''}
@@ -700,6 +720,8 @@ async function loadCourseUpdates(course,el){
    try{
      const x=await A.api({path:`sections/${sid}/updates`,params:{start,limit,with_attachments:'TRUE',richtext:1}});
      const rows=x.update||x.updates||x.update_list||[];
+     const ids=[...new Set(rows.map(u=>u.user_id||u.uid||u.author_id||u.authorId).filter(Boolean).map(Number))];
+     await Promise.all(ids.map(async id=>{if(authorUsers[id])return;try{const q=await A.api({path:`users/${id}`,params:{}});authorUsers[id]=q?.user||q}catch{}}));
      all=all.concat(rows);
      next=!!(x.links?.next||x.link?.next||(rows.length>=limit));
      start+=rows.length;
@@ -856,12 +878,24 @@ async function showGroup(group,activeTab='updates'){
   state.currentGroup=group;state.groupTab=activeTab;state.courseView=null;state.selectedCourse=null;state.toolbarTitle=group.name||group.title||'Group';syncToolbar();
   const c=document.getElementById('content');if(!c)return;
   const gid=group.id||group.group_id;
-  c.innerHTML=`<section class="groupProfilePage"><div class="groupTabs">${['updates','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''}" data-group-tab="${id}">${({updates:'Updates',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${esc(String(group.name||group.title||'G').charAt(0))}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><p>${esc(group.school_name||'')}</p></div></div><div id="groupTabContent"></div></section>`;
+  c.innerHTML=`<section class="groupProfilePage"><div class="groupTabs">${['updates','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''}" data-group-tab="${id}">${({updates:'Updates',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${group.picture_url||group.pictureUrl?`<img src="${esc(normalizeImageUrl(group.picture_url||group.pictureUrl))}" alt="">`:`<span>${esc(String(group.name||group.title||'G').charAt(0))}</span>`}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><p>${esc(group.school_name||'')}</p></div></div><div id="groupTabContent"></div></section>`;
   const gc=document.getElementById('groupTabContent');
   const load=async(tab)=>{
     state.groupTab=tab;document.querySelectorAll('[data-group-tab]').forEach(b=>b.classList.toggle('active',b.dataset.groupTab===tab));
     try{
-      if(tab==='updates'){const x=await A.api({path:`groups/${gid}/updates`,params:{start:0,limit:20}});const a=x.update||x.updates||[];gc.innerHTML=a.length?a.map(u=>`<article class="activityCard"><b>${esc(u.title||u.display_name||'Update')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty">No updates.</div>';}
+      if(tab==='updates'){
+        const x=await A.api({path:`groups/${gid}/updates`,params:{start:0,limit:20,with_attachments:'TRUE',richtext:1}});
+        const a=x.update||x.updates||x.update_list||[];
+        const ids=[...new Set(a.map(u=>u.user_id||u.uid||u.author_id||u.authorId).filter(Boolean).map(Number))], users={};
+        await Promise.all(ids.map(async id=>{try{const q=await A.api({path:`users/${id}`,params:{}});users[id]=q?.user||q}catch{}}));
+        gc.innerHTML=a.length?a.map(u=>{
+          const au=users[Number(u.user_id||u.uid||u.author_id||u.authorId)]||{};
+          const name=u.display_name||u.author_name||au.name_display||au.display_name||au.name||'Schoology';
+          const avatar=normalizeImageUrl(au.picture_url||au.pictureUrl||au.picture||au.photo_url||'');
+          return `<article class="androidActivityCard groupFullUpdate"><div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(name).charAt(0))}</span>`}<span class="activityUser">${esc(name)}</span></div><div class="activityBody">${u.body||u.message||''}</div>${renderAttachments(u.attachments||u.attachment||u.files||{})}<div class="activityMeta">${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</div><div class="activityActions"><button>Comment${u.num_comments?` (${esc(u.num_comments)})`:''}</button><button>${u.liked?'Unlike':'Like'}${u.likes?` (${esc(u.likes)})`:''}</button></div></article>`;
+        }).join(''):'<div class="empty">No updates.</div>';
+        await hydrateMediaImages(gc);
+      }
       else if(tab==='upcoming'){const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));gc.innerHTML=renderUpcoming(a);}
       else if(tab==='discussions'){const x=await A.api({path:`groups/${gid}/discussions`,params:{limit:50}});const a=x.discussion||x.discussions||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||'Discussion')}</b><small>${esc(d.created||d.timestamp||'')}</small></button>`).join(''):'<div class="empty">No discussions.</div>';}
       else if(tab==='albums'){const x=await A.api({path:`groups/${gid}/albums`,params:{limit:50}});const a=x.album||x.albums||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||d.name||'Album')}</b></button>`).join(''):'<div class="empty">No albums.</div>';}
@@ -979,34 +1013,42 @@ async function loadTab(){
     const user=state.profileUser;
     state.toolbarTitle='Profile';
     const image=normalizeImageUrl(user.picture_url||user.pictureUrl||user.picture||user.photo_url||'');
-    c.innerHTML=`<section class="profileAndroidPage">
-      <div class="profileTabs">
+    const profileLandscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
+    c.innerHTML=`<section class="profileAndroidPage ${profileLandscape?'profileLandscapePage':''}">
+      <div class="profileHeader"><img data-media-image-url="${esc(image)}" class="profileHeaderImage" style="display:none"><span class="profileHeaderFallback">${esc(String(user.name_display||user.name||'U').charAt(0))}</span><div><h1>${esc(user.name_display||user.name||'Profile')}</h1><p>${esc(user.school_name||user.school?.school_name||'')}</p></div></div>
+      ${profileLandscape?`<div class="profileLandscapePanes">
+        <section class="profilePane"><h2>Updates</h2><div id="profilePaneUpdates" class="profilePaneContent"></div></section>
+        <section class="profilePane"><h2>Info</h2><div id="profilePaneInfo" class="profilePaneContent"></div></section>
+        <section class="profilePane"><h2>Badges</h2><div id="profilePaneBadges" class="profilePaneContent"></div></section>
+      </div>`:`<><div class="profileTabs">
         <button class="profileTab ${state.profileTab==='updates'?'active':''}" data-profile-tab="updates">Updates</button>
         <button class="profileTab ${state.profileTab==='info'?'active':''}" data-profile-tab="info">Info</button>
         <button class="profileTab ${state.profileTab==='badges'?'active':''}" data-profile-tab="badges">Badges</button>
-      </div>
-      <div class="profileHeader"><img data-media-image-url="${esc(image)}" class="profileHeaderImage" style="display:none"><span class="profileHeaderFallback">${esc(String(user.name_display||user.name||'U').charAt(0))}</span><div><h1>${esc(user.name_display||user.name||'Profile')}</h1><p>${esc(user.school_name||user.school?.school_name||'')}</p></div></div>
-      <div id="profileTabContent"></div>
+      </div><div id="profileTabContent"></div></>`}
     </section>`;
     const pc=document.getElementById('profileTabContent');
     const loadProfileTab=async(tab)=>{
       state.profileTab=tab;document.querySelectorAll('[data-profile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.profileTab===tab));
+      const target=document.getElementById(profileLandscape?`profilePane${tab.charAt(0).toUpperCase()+tab.slice(1)}`:'profileTabContent'); if(!target)return;
+      const pane=target;
       if(tab==='info'){
         const rows=[['Email',user.primary_email||user.primaryEmail||''],['Username',user.username||''],['First Name',user.first_name||user.firstName||''],['Last Name',user.last_name||user.lastName||'']];
-        pc.innerHTML=`<div class="profileInfoList">${rows.filter(r=>r[1]).map(r=>`<div class="profileInfoRow"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')||'<div class="empty">No profile information available.</div>'}</div>`;
+        pane.innerHTML=`<div class="profileInfoList">${rows.filter(r=>r[1]).map(r=>`<div class="profileInfoRow"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')||'<div class="empty">No profile information available.</div>'}</div>`;
       }else if(tab==='badges'){
-        try{const x=await A.api({path:`users/${puid}/badges`,params:{}});const arr=x.badge||x.badges||x.items||[];pc.innerHTML=arr.length?`<div class="badgeGrid">${arr.map(b=>`<article class="badgeCard"><b>${esc(b.name||b.title||'Badge')}</b><small>${esc(b.description||'')}</small></article>`).join('')}</div>`:'<div class="empty">No badges.</div>'}catch(e){pc.innerHTML='<div class="empty">No badges.</div>'}
+        try{const x=await A.api({path:`users/${puid}/badges`,params:{}});const arr=x.badge||x.badges||x.items||[];pane.innerHTML=arr.length?`<div class="badgeGrid">${arr.map(b=>`<article class="badgeCard"><b>${esc(b.name||b.title||'Badge')}</b><small>${esc(b.description||'')}</small></article>`).join('')}</div>`:'<div class="empty">No badges.</div>'}catch(e){pane.innerHTML='<div class="empty">No badges.</div>'}
       }else{
-        try{const x=await A.api({path:`users/${puid}/updates`,params:{start:0,limit:20}});const arr=x.update||x.updates||[];pc.innerHTML=arr.length?arr.map(u=>`<article class="activityCard"><b>${esc(user.name_display||'')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty">No updates.</div>'}catch(e){pc.innerHTML='<div class="empty">No updates.</div>'}
+        try{const x=await A.api({path:`users/${puid}/updates`,params:{start:0,limit:20}});const arr=x.update||x.updates||[];pane.innerHTML=arr.length?arr.map(u=>`<article class="activityCard"><b>${esc(user.name_display||'')}</b><div class="activityBody">${u.body||u.message||''}</div><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty">No updates.</div>'}catch(e){pane.innerHTML='<div class="empty">No updates.</div>'}
       }
     };
     document.querySelectorAll('[data-profile-tab]').forEach(b=>b.onclick=()=>loadProfileTab(b.dataset.profileTab));
-    await loadProfileTab(state.profileTab);await hydrateMediaImages(c);
+    if(profileLandscape){await Promise.all(['updates','info','badges'].map(loadProfileTab));}
+    else await loadProfileTab(state.profileTab);
+    await hydrateMediaImages(c);
   }else if(state.tab==='groups'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];
     window.__schoologyGroups=arr;
-    c.innerHTML=`<section class="groupsAndroidPage"><h1>Groups</h1><div class="groupList">${arr.map((g,i)=>`<button class="groupListItem" data-group-index="${i}"><span class="groupImage"><span>${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span>★</span>':''}</button>`).join('')||'<div class="empty">No groups found.</div>'}</div></section>`;
+    c.innerHTML=`<section class="groupsAndroidPage"><h1>Groups</h1><div class="groupList">${arr.map((g,i)=>{const gi=normalizeImageUrl(g.picture_url||g.pictureUrl||g.picture||g.image||'');return `<button class="groupListItem" data-group-index="${i}"><span class="groupImage">${gi?`<img data-course-image-url="${esc(gi)}" alt="" style="display:none">`:''}<span class="groupImageFallback">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span>★</span>':''}</button>`}).join('')||'<div class="empty">No groups found.</div>'}</div></section>`; await hydrateCourseImages(c);
     document.querySelectorAll('[data-group-index]').forEach(b=>b.onclick=()=>showGroup(window.__schoologyGroups[+b.dataset.groupIndex]));
   }else if(state.tab==='calendar'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
@@ -1088,7 +1130,7 @@ async function loadHomeTab(){
     const userMap={};
     await Promise.all(userIds.slice(0,20).map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});userMap[id]=u?.user||u}catch{}}));
     state.activityUsers=userMap;state.__activityById=Object.fromEntries(updates.map(u=>[String(u.id),u]));
-    c.classList.add('recentActivityScroll');
+    c.classList.add('recentActivityScroll');c.style.overflowY='auto';c.style.height='100%';c.style.minHeight='0';
     c.innerHTML=updates.length?updates.map(x=>{
       const uid=x.user_id||x.uid||x.author_id||x.authorId;
       const u=userMap[uid]||{};
@@ -1128,14 +1170,14 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.classList.remove('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    c.classList.remove('dashboardContentActive');c.classList.add('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
-      const sizeDashboard=()=>{const cr=c.getBoundingClientRect();const h=Math.max(0,Math.round(window.innerHeight-cr.top));const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.height=h+'px';sec.style.minHeight=h+'px';sec.style.maxHeight=h+'px';sec.style.padding='0';sec.style.margin='0';sec.style.flex='0 0 '+h+'px'}dw.style.height=h+'px';dw.style.minHeight=h+'px';dw.style.maxHeight=h+'px';dw.style.width='100%';dw.style.display='block';};
+      const sizeDashboard=()=>{const h=Math.max(0,Math.round(window.innerHeight-56));c.style.position='absolute';c.style.left='0';c.style.right='0';c.style.top='56px';c.style.bottom='0';c.style.height=h+'px';c.style.overflow='hidden';const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.height=h+'px';sec.style.minHeight=h+'px';sec.style.maxHeight=h+'px';sec.style.padding='0';sec.style.margin='0';sec.style.flex='0 0 '+h+'px'}dw.style.height=h+'px';dw.style.minHeight=h+'px';dw.style.maxHeight=h+'px';dw.style.width='100%';dw.style.display='block';};
       sizeDashboard();requestAnimationFrame(sizeDashboard);window.addEventListener('resize',sizeDashboard,{passive:true});
       dw.addEventListener('dom-ready',sizeDashboard);
       dw.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{dw.src=e.url}catch{}});
-      dw.addEventListener('will-navigate',async e=>{const u=String(e.url||'');if(await routeSchoologyLink(u)){e.preventDefault();}});
+      dw.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^(schoology:|https?:\/\/)(?:[^/]+\.schoology\.com|lms\.lausd\.net)(?:\/|$)/i.test(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
       dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
     }
   }else{

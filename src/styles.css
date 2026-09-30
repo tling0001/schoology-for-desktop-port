@@ -439,3 +439,33 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .drawer.noSlide{transition:none!important}.recentActivityScroll{overflow-y:auto!important;min-height:0!important;height:100%!important}.calendarAndroidPage{background:#fff;min-height:100%;display:flex;flex-direction:column}.calendarMonthHeader{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #dfe3e6;color:#34424c}.calendarMonthHeader button{border:0;background:none;font-size:28px;color:#5e6a72}.calendarWeekLabels{display:grid;grid-template-columns:repeat(7,1fr);padding:8px 8px 4px;color:#7b858c;font-size:11px;text-align:center}.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#dfe3e6;margin:0 8px}.calendarDay{min-height:64px;border:0;background:#fff;text-align:left;padding:5px;display:flex;flex-direction:column;gap:2px;overflow:hidden}.calendarDay.outside{background:#f5f6f7;color:#b2b8bc}.calendarDay.today b{background:#2e66a3;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center}.calendarDay span{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#4e5b63}.calendarUpcomingHeader{font-size:15px;font-weight:500;padding:15px 16px 8px;color:#34424c}.calendarEventList{overflow:auto}.calendarEventRow{display:flex;gap:14px;width:100%;text-align:left;border:0;border-bottom:1px solid #e0e4e7;background:#fff;padding:11px 16px}.calendarEventDate{width:88px;flex:0 0 88px;color:#7b858c;font-size:12px}.calendarEventRow span:not(.calendarEventDate){display:flex;flex-direction:column}.calendarEventRow small{margin-top:3px;color:#8a949b}
 
 #menuButton svg{width:24px;height:24px;display:block}.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important}.homeRightPane #homeTabContent.recentActivityScroll,.homeTabViewport #homeTabContent.recentActivityScroll{flex:1 1 auto!important;min-height:0!important}.calendarAndroidPage{overflow:hidden}.calendarEventList{flex:1 1 auto;min-height:0;overflow-y:auto}
+
+/* v57 Android landscape/profile, drawer, activity, dashboard and resource-link fixes */
+.disclosure{margin-left:auto!important;float:none!important;width:32px!important;flex:0 0 32px!important;text-align:center!important;font-size:25px!important;color:#cbd5db!important}
+.courseSubItem .disclosure{margin-left:auto!important}
+.courseSubItem .courseThumb{width:64px;height:64px;flex:0 0 64px;border-radius:2px;background:#e7ebee;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-right:16px}
+.courseSubItem .courseThumb img{width:100%;height:100%;object-fit:cover;display:block!important}
+.courseSubItem .courseThumb img[style*="display:none"]{display:block!important}
+.groupThumb img{width:100%;height:100%;object-fit:cover}
+.groupThumb .courseImageFallback:has(+ img){display:none}
+.groupImage{overflow:hidden!important;position:relative}
+.groupImage img{width:100%;height:100%;object-fit:cover;display:block}
+.groupImageFallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.drawerSubMode{transform:translateX(0)!important;transition:none!important}
+.drawerShade.submenuShade{display:none!important;opacity:0!important;pointer-events:none!important}
+.profileLandscapePage{height:100%;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.profileLandscapePage .profileHeader{flex:0 0 auto}
+.profileLandscapePanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:#d9dee2;flex:1 1 auto;min-height:0;overflow:hidden}
+.profilePane{background:#fff;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.profilePane h2{flex:0 0 48px;margin:0;padding:14px 16px;font-size:15px;font-weight:500;border-bottom:1px solid #ddd;color:#34424c}
+.profilePaneContent{flex:1 1 auto;min-height:0;overflow-y:auto}
+.profilePaneContent .activityCard,.profilePaneContent .profileInfoList,.profilePaneContent .badgeGrid{margin:0}
+@media (min-aspect-ratio:4/3){
+ .shell>main#content.dashboardContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;flex:none!important}
+ .dashboardContentActive .dashboardHybrid{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
+ .dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important}
+ .homeTabViewport #homeTabContent.recentActivityScroll,.homeRightPane #homeTabContent.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;display:block!important}
+}
+@media (max-aspect-ratio:4/3){
+ .homeTabViewport #homeTabContent.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;display:block!important}
+}

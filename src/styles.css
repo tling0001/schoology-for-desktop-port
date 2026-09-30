@@ -416,3 +416,14 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .courseUpdateComposerInner h2{margin:0 0 12px}
 .courseUpdateComposerInner textarea{width:100%;min-height:150px;box-sizing:border-box;resize:vertical;border:1px solid #cfd6dd;border-radius:4px;padding:10px;font:inherit}
 .courseUpdateComposerInner>div{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+
+/* v52: course tab changes keep the SectionProfile shell mounted. */
+.courseLandscapePage .sectionProfileContent{min-height:0!important;flex:1 1 auto!important;overflow:auto!important}
+.submissionComposerOverlay{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px}
+.submissionComposer{width:min(620px,92vw);background:#fff;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:0 18px 18px}
+.submissionComposer header{height:56px;display:flex;align-items:center;border-bottom:1px solid #ddd}.submissionComposer header b{flex:1;font-size:17px}.submissionComposer header button{border:0;background:transparent;color:#2b5d88;cursor:pointer}
+.submissionComposer textarea{display:block;width:100%;min-height:180px;margin:14px 0;border:1px solid #cfd6dd;padding:10px;resize:vertical;box-sizing:border-box;font:15px Arial}.submissionComposer label{display:block;font-size:13px;color:#555;margin-bottom:12px}.submissionComposer>.androidPrimary{border:0;padding:9px 16px;cursor:pointer}
+/* v52: Course Dashboard uses the exact full-height embedded WebView contract. */
+.shell>main#content:has(.dashboardHybrid){height:calc(100vh - 56px)!important;min-height:0!important;max-height:none!important;padding:0!important;margin:0!important;overflow:hidden!important;display:block!important}
+.shell>main#content:has(.dashboardHybrid)>.embeddedPage.dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important}
+.shell>main#content:has(.dashboardHybrid) webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important}

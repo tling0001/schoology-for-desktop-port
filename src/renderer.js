@@ -184,7 +184,7 @@ function courseTitleOf(course){return course?.course_title||course?.courseTitle|
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
 function syncToolbar(){
   const header=document.querySelector('.toolbar');if(!header)return;
-  const needs=!!(state.courseView||state.folderStack.length||state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message);
+  const needs=!!(state.folderStack.length||state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message);
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
   if(needs&&!existing){const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();}
@@ -272,32 +272,39 @@ async function getCourseNavigationPermissions(sectionId,userId){
 async function showCourse(course,activeTab='materials'){
  const c=document.getElementById('content');if(!c)return;
  if(!course){loadTab();return}
+ const sid=course.id||course.section_id||course.sectionId;
+ const sameCourse=state.courseView==='course'&&state.selectedCourse&&String(state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId)===String(sid)&&!!c.querySelector('.courseLandscapePage');
+ // Android keeps the SectionProfilePagerFragment alive while switching tabs. Only
+ // replace the tab content; the apps/upcoming split and course header remain mounted.
+ if(sameCourse){
+   const tab=activeTab;
+   const buttons=[...c.querySelectorAll('[data-course-tab]')];
+   const target=buttons.find(b=>b.dataset.courseTab===tab);
+   if(target){buttons.forEach(b=>b.classList.toggle('active',b===target));}
+   state.courseTab=tab;state.toolbarTitle=target?.textContent||state.toolbarTitle;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;syncToolbar();
+   await loadCourseTab(course,tab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
+   return;
+ }
  state.selectedCourse=course;state.courseView='course';state.courseTab=activeTab;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;
  state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);syncToolbar();
- const sid=course.id||course.section_id||course.sectionId;
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const navPerms=await getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null);
- const canGradebook=!!navPerms?.sectionGradesPut;
- const canGrades=!!navPerms?.userGradesGet;
- const attendanceEnabled=!!navPerms?.attendanceGet;
- const tabs=[['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),['courseapp','Course App']];
+ const canGradebook=!!navPerms?.sectionGradesPut, canGrades=!!navPerms?.userGradesGet, attendanceEnabled=!!navPerms?.attendanceGet;
  const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
+ const tabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
  let effectiveTab=activeTab;
  if(effectiveTab==='grades'&&canGradebook)effectiveTab='gradebook';
  if(effectiveTab==='gradebook'&&!canGradebook)effectiveTab='grades';
  if(effectiveTab==='attendance'&&!attendanceEnabled)effectiveTab='materials';
  if(landscape&&effectiveTab==='upcoming')effectiveTab='materials';
+ if(landscape&&effectiveTab==='courseapp')effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
    <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading">Loading…</div></div></aside>
    <section class="courseMainPane">
-    <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''} ${id==='upcoming'?'courseUpcomingTab':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
-    <div class="sectionProfileHeader">
-      <img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt="">
-      <span class="sectionProfileFallback">${esc(title.charAt(0))}</span>
-      <div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div>
-    </div>
+    <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
+    <div class="sectionProfileHeader"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback">${esc(title.charAt(0))}</span><div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div></div>
     <div class="sectionProfileRule"></div>
     <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading">Loading…</div></div>
    </section>
@@ -305,12 +312,12 @@ async function showCourse(course,activeTab='materials'){
  </section>`;
  hydrateCourseImages(c);
  document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{
-   state.toolbarTitle=b.textContent||'Course';showCourse(course,b.dataset.courseTab);
+   const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';
+   document.querySelectorAll('[data-course-tab]').forEach(x=>x.classList.toggle('active',x===b));
+   state.folderStack=[];state.currentFolderId=0;syncToolbar();
+   loadCourseTab(course,id).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
  });
- loadCourseTab(course,effectiveTab).catch(e=>{
-   const el=document.getElementById('sectionProfileContent');
-   if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;
- });
+ loadCourseTab(course,effectiveTab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
  loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
  loadCourseApps(course,document.getElementById('courseAppsSideContent')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
  installCourseLayoutWatcher();
@@ -331,9 +338,11 @@ async function showAssignment(sectionId,assignmentId){
     const attachments=at.attachments||at.attachment||{};
     const myEnrollment=(enrollResp.enrollment||enrollResp.enrollments||[])[0]||{};
     const isTeacher=String(myEnrollment.admin??sectionResp.admin??at.admin??(state.selectedCourse?.admin||0))==='1';
-    const canSubmit=at.allow_dropbox===1||at.allow_dropbox==='1'||at.allowDropbox===true||at.allow_dropbox===true;
+    const flag=v=>v===true||v===1||v==='1'||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='yes';
+    const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission);
+    const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion);
     state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentData=at; state.assignmentEnrollmentId=myEnrollment.id||null;
-    const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button><button class="assignmentTab" data-assignment-tab="comments">Comments</button>${canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
+    const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button>${allowComments?`<button class="assignmentTab" data-assignment-tab="comments">Comments</button>`:''}${canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
     c.innerHTML=`<section class="assignmentAndroidPage"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section>`;
     const renderInfo=()=>{
       const el=document.getElementById('assignmentTabContent');if(!el)return;
@@ -438,10 +447,33 @@ function showSubmissionMenu(){
   menu.innerHTML='<button id="uploadSubmissionAction">Upload Submission</button><button id="textSubmissionAction">Create Text Submission</button>';
   document.body.appendChild(menu);
   const b=document.getElementById('assignmentPlus');const r=b?.getBoundingClientRect();if(r){menu.style.top=(r.bottom+6)+'px';menu.style.right=(window.innerWidth-r.right)+'px';}
-  document.getElementById('uploadSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();document.getElementById('chooseSubmissionFile')?.click()});
-  document.getElementById('textSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();document.getElementById('submissionText')?.focus()});
+  document.getElementById('uploadSubmissionAction')?.addEventListener('click',async()=>{state.submissionMenu=false;menu.remove();await chooseAndSubmitAssignmentFile()});
+  document.getElementById('textSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();openTextSubmissionComposer()});
 }
 
+async function chooseAndSubmitAssignmentFile(){
+ const v=state.assignmentView;if(!v||!state.assignmentCanSubmit)return;
+ try{
+   const picked=await A.pickFile();
+   if(!picked)return;
+   const filePath=typeof picked==='string'?picked:picked.path;
+   if(!filePath)throw new Error('The selected file could not be accessed.');
+   const filename=typeof picked==='object'&&picked.name?picked.name:filePath.split(/[\\/]/).pop();
+   const mime=typeof picked==='object'?picked.mime:'';
+   await A.submitAssignmentFile({sectionId:v.sectionId,assignmentId:v.assignmentId,filePath,filename,mime});
+   await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false);
+ }catch(e){alert('Unable to submit file: '+e.message)}
+}
+function openTextSubmissionComposer(){
+ const v=state.assignmentView;if(!v)return;
+ const old=document.getElementById('textSubmissionComposer');old?.remove();
+ const wrap=document.createElement('div');wrap.id='textSubmissionComposer';wrap.className='submissionComposerOverlay';
+ wrap.innerHTML=`<section class="submissionComposer"><header><b>Create Text Submission</b><button id="cancelTextSubmission">Cancel</button></header><textarea id="submissionText" placeholder="Enter your submission…"></textarea><label><input id="submissionDraft" type="checkbox"> Save as draft</label><button id="postTextSubmission" class="androidPrimary">Submit</button></section>`;
+ document.body.appendChild(wrap);
+ document.getElementById('cancelTextSubmission')?.addEventListener('click',()=>wrap.remove());
+ document.getElementById('postTextSubmission')?.addEventListener('click',async()=>{const text=document.getElementById('submissionText')?.value||'';if(!text.trim()){alert('Enter a submission before posting.');return}try{const a=state.assignmentData||{};const gradeItemId=a.grade_item_id||a.gradeItemId||a.gradeitem_id||v.assignmentId;await A.submitAssignmentText({sectionId:v.sectionId,gradeItemId,text,draft:document.getElementById('submissionDraft')?.checked});wrap.remove();await openAssignmentSubmissions(v.sectionId,v.assignmentId,a,false)}catch(e){alert('Unable to submit text: '+e.message)}});
+ document.getElementById('submissionText')?.focus();
+}
 function renderAttachments(a){
   if(!a)return '';
   const out=[];
@@ -509,6 +541,24 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
 }
 
 function openWithPressTransition(el,fn){if(!el){fn();return;}el.classList.add('pressTransition');setTimeout(()=>{el.classList.remove('pressTransition');fn()},110)}
+async function routeSchoologyLink(rawUrl){
+ let u;try{u=new URL(rawUrl)}catch{return false}
+ const scheme=u.protocol.toLowerCase()==='schoology:';
+ let host=u.hostname.toLowerCase(), path=u.pathname.replace(/\/+$/,'');
+ // URL parses schoology://course/123 as hostname=course, pathname=/123.
+ if(scheme)path=`/${host}${path}`;
+ const webHost=u.hostname.toLowerCase();
+ const isSchoolHost=webHost==='lms.lausd.net'||webHost.endsWith('.schoology.com');
+ if(!scheme&&!isSchoolHost)return false;
+ const mCourse=path.match(/^\/course(?:s)?\/(\d+)(?:\/materials(?:\/gp\/(\d+))?)?$/i);
+ const mSection=path.match(/^\/section(?:s)?\/(\d+)$/i);
+ const mAssignment=path.match(/^\/assignment(?:s)?\/(\d+)$/i);
+ const mCourseAssignment=path.match(/^\/course(?:s)?\/(\d+)\/assignment(?:s)?\/(\d+)$/i);
+ if(mCourse||mSection){const sid=Number((mCourse||mSection)[1]);try{const x=await A.api({path:`sections/${sid}`,params:{}});state.embeddedTitle=null;showCourse(x?.section||x,'materials');return true}catch(e){alert('Unable to open course: '+e.message);return true}}
+ if(mCourseAssignment){showAssignment(Number(mCourseAssignment[1]),Number(mCourseAssignment[2]));return true}
+ if(mAssignment){const sid=state.assignmentView?.sectionId||state.selectedCourse?.id||state.selectedCourse?.section_id||state.selectedCourse?.sectionId;if(sid){showAssignment(sid,Number(mAssignment[1]));return true}return false}
+ return false;
+}
 function showEmbeddedWeb(url,title){
   const c=document.getElementById('content');if(!c)return;
   c.classList.remove('webContentHost');
@@ -516,8 +566,8 @@ function showEmbeddedWeb(url,title){
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
-  w.addEventListener('new-window',e=>{e.preventDefault();try{w.src=e.url}catch{}});
-  w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^schoology:\/\/course(?:s)?\//i.test(u)){e.preventDefault();const m=u.match(/^schoology:\/\/course(?:s)?\/(\d+)/i);if(m){A.api({path:`sections/${m[1]}`,params:{}}).then(x=>{state.embeddedTitle=null;showCourse(x?.section||x)}).catch(()=>{})}}});
+  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
+  w.addEventListener('will-navigate',async e=>{const u=String(e.url||'');if(await routeSchoologyLink(u)){e.preventDefault();}});
   w.addEventListener('did-fail-load',e=>{if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)});
 }
 async function loadAttendanceTab(course){
@@ -1032,8 +1082,8 @@ async function loadHomeTab(){
     c.classList.remove('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
-      dw.addEventListener('new-window',e=>{e.preventDefault();try{dw.src=e.url}catch{}});
-      dw.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^schoology:\/\/course(?:s)?\//i.test(u)){e.preventDefault();const m=u.match(/^schoology:\/\/course(?:s)?\/(\d+)/i);if(m){A.api({path:`sections/${m[1]}`,params:{}}).then(x=>showCourse(x?.section||x)).catch(()=>{})}}});
+      dw.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{dw.src=e.url}catch{}});
+      dw.addEventListener('will-navigate',async e=>{const u=String(e.url||'');if(await routeSchoologyLink(u)){e.preventDefault();}});
       dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
     }
   }else{

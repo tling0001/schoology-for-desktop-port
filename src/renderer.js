@@ -10,6 +10,10 @@ let qrBusy=false;
 let qrLastAttempt=0;
 let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function alert(message){showAppDialog('Schoology',String(message));}
+function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
+function showUpdateDialog(u){showAppDialog('Update available',`Schoology Desktop Port v${u.version} is available. It has been downloaded and verified.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{try{await A.installUpdate(u.path)}catch(e){showAppDialog('Unable to install update',e.message||String(e))}}}])}
+
 window.closeDrawerThen=function closeDrawerThen(fn){const drawer=document.getElementById('drawer'),shade=document.getElementById('drawerShade');drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;if(typeof fn==='function')fn()},280)};const closeDrawerThen=(fn)=>window.closeDrawerThen(fn);
 function messageDetail(){
  const m=state.message||{}; const thread=state.messageThread;
@@ -59,11 +63,11 @@ function shell(){
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
- <header class="toolbar">${state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
+ <header class="toolbar">${state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading">Loading…</div></main>
  <div id="drawerShade" class="drawerShade ${drawerPage?'submenuShade':''}"></div><aside id="drawer" class="drawer ${drawerPage?'drawerSubMode':''}">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
-   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span>${label}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span>${label}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</span></button>`).join('')}</div>`}
+   <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span class="drawerLabel">${label}</span>${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span class="drawerLabel">${label}</span>${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`).join('')}</div>`}
  </aside>
  </div>`
 }
@@ -152,7 +156,8 @@ async function loadCourseSubmenu(){
    if(page==='groups'){
      const x=await A.api({path:`users/${uid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];window.__schoologyGroups=arr;
      c.innerHTML=arr.length?arr.map((g,i)=>{const gi=normalizeImageUrl(g.picture_url||g.pictureUrl||g.picture||g.image||'');return `<button class="courseSubItem" data-group-sub="${i}"><span class="courseThumb groupThumb">${gi?`<img data-course-image-url="${esc(gi)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span class="courseText"><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span class="courseAdmin">★</span>':''}<span class="disclosure">›</span></button>`}).join(''):'<div class="drawerEmpty">No groups found.</div>';
-     document.querySelectorAll('[data-group-sub]').forEach(b=>b.onclick=()=>{const g=window.__schoologyGroups[+b.dataset.groupSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab='groups';state.currentGroup=g;state.toolbarTitle=g?.name||'Group';render();showGroup(g);syncToolbar();});});
+     await hydrateCourseImages(c);
+     document.querySelectorAll('[data-group-sub]').forEach(b=>b.onclick=()=>{const g=window.__schoologyGroups[+b.dataset.groupSub];if(!g)return;closeDrawerThen(()=>{state.drawerPage=null;state.tab='groups';state.currentGroup=g;state.toolbarTitle=g?.name||'Group';render();showGroup(g);syncToolbar();});});
      return;
    }
    const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
@@ -207,8 +212,6 @@ function syncToolbar(){
     slot.innerHTML='<button id="courseUpdatePlus" class="iconButton toolbarImageButton" aria-label="Post update"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
     document.getElementById('courseUpdatePlus')?.addEventListener('click',()=>state.selectedCourse&&openCourseUpdateComposer(state.selectedCourse));
   }else if(state.courseView&&!state.assignmentView&&!state.embeddedTitle&&!state.currentGroup&&!state.profileUser&&state.courseTab==='materials'){
-    slot.innerHTML='<button id="courseDownload" class="iconButton toolbarImageButton" aria-label="Make available offline"><img src="../assets/icons/ic_action_download.png" alt=""></button>';
-    document.getElementById('courseDownload')?.addEventListener('click',()=>alert('Make available offline is an Android Schoology offline-sync action. The official toolbar control is shown, but desktop offline synchronization is not yet implemented.'));
   }else if(state.tab==='messages'&&!state.courseView&&!state.embeddedTitle&&!state.message){
     slot.innerHTML='<button id="composeMessage" class="iconButton toolbarPlus" aria-label="Compose message">+</button>';
     document.getElementById('composeMessage')?.addEventListener('click',()=>showComposeMessage());
@@ -905,12 +908,6 @@ async function showGroup(group,activeTab='updates'){
   document.querySelectorAll('[data-group-tab]').forEach(b=>b.onclick=()=>load(b.dataset.groupTab));
   await load(activeTab);
 }
-function showOfflineStorage(){
- state.toolbarTitle='Offline Storage Settings';
- const c=document.getElementById('content');if(!c)return;
- c.innerHTML=`<section class="settingsPage offlinePage"><div class="settingsGroup"><h2>Offline Storage</h2><div class="settingRow"><span><b>Downloaded Materials</b><small>Manage Schoology materials saved for offline use.</small></span><span>›</span></div><div class="settingRow"><span><b>Storage Used</b><small>Local offline files are managed by the Schoology app.</small></span></div></div><div class="settingsGroup"><button id="offlineClear" class="settingRow settingButton"><span><b>Clear Offline Storage</b></span><span>›</span></button></div></section>`;
- document.getElementById('offlineClear')?.addEventListener('click',()=>{if(confirm('Clear downloaded Schoology materials?')){alert('Offline storage cleared.');}});
-}
 async function loadMessageThread(m){
   try{
     const id=m?.id||m?.message_id||m?.messageId; if(!id)throw new Error('Message ID is missing.');
@@ -1100,10 +1097,10 @@ async function loadTab(){
     c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
     document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
   }else if(state.tab==='settings'){
-    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="offlineStorage" class="settingRow settingButton"><span><b>Offline Storage Settings</b><small>Manage downloaded course materials</small></span><span>›</span></button><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button></div><div class="settingsVersion">Version: 2026.06.0</div></section>`;
+    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button></div><div class="settingsVersion">Version: 2026.06.0</div></section>`;
     document.getElementById('notifToggle')?.addEventListener('change',e=>{document.getElementById('notifSummary').textContent=e.target.checked?'Enabled':'Disabled'});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info')}catch(e){alert(e.message)}});
-    document.getElementById('offlineStorage')?.addEventListener('click',()=>showOfflineStorage());document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b)b.disabled=true;try{const r=await A.checkForUpdates(true);if(!r)alert('You are up to date.')}catch(e){alert('Unable to check for updates: '+e.message)}finally{if(b)b.disabled=false}});
+    document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b)b.disabled=true;try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b)b.disabled=false}});
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }
@@ -1231,3 +1228,5 @@ async function startQR(){
 
 // Restore the persisted Android-style OAuth session on application launch.
 (async()=>{try{const saved=await A.authState();if(saved?.oauth_token&&saved?.oauth_token_secret){state.auth=saved;await afterLogin();return}}catch(e){console.warn('Saved Schoology session could not be restored:',e)}render()})();
+
+A.onUpdateAvailable?.(u=>showUpdateDialog(u));

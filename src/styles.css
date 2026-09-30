@@ -144,7 +144,6 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .upcomingList{background:#fff}.upcomingAssignment{width:100%;border:0;border-bottom:1px solid #e1e1e1;background:#fff;display:flex;align-items:center;text-align:left;padding:13px 16px;min-height:68px;cursor:pointer}.assignmentIcon{width:42px;font-size:20px}.assignmentInfo{flex:1}.assignmentInfo b{display:block;color:#333;font-size:15px;font-weight:500}.assignmentInfo small{display:block;color:#888;font-size:12px;margin-top:4px}.rowChevron{color:#999;font-size:24px}
 .androidActivityCard{background:#fff;border-bottom:1px solid #ddd;padding:13px 12px}.activityHeader{display:flex;align-items:center;gap:9px}.activityHeader img,.activityAvatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#56607d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}.activityUser{font-size:14px;font-weight:500;color:#333}.activityBody{padding:10px 2px 7px;font-size:15px;line-height:1.45;color:#333}.activityBody img{max-width:100%;height:auto}.activityMeta{font-size:11px;color:#888}.activityActions{display:flex;gap:22px;padding-top:9px}.activityActions button{border:0;background:none;padding:0;color:#6b737b;font-size:13px;cursor:pointer}
 .embeddedPage{height:100%;width:100%;background:#fff}.embeddedPage webview{display:block;width:100%;height:100%;border:0}
-.offlinePage .settingRow{cursor:pointer}
 
 .dashboardHybrid webview{width:100%;height:100%;border:0;display:block}.dashboardFallback{padding:8px 10px;background:#fff}.dashboardFallback:before{content:"Course Dashboard";display:block;font-size:18px;color:#333;padding:10px 4px}.dashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboardCard{background:#fff;border:1px solid #ddd;border-radius:3px;text-align:left;padding:0;overflow:hidden;cursor:pointer}.dashboardThumb{height:86px;background:#e8ecef;position:relative}.dashboardThumb img{width:100%;height:100%;object-fit:cover;display:block}.dashboardThumbFallback{width:100%;height:100%;align-items:center;justify-content:center;background:#56607d;color:#fff;font-size:28px}.dashboardCard>div:last-child{padding:10px}.dashboardCard b,.dashboardCard small{display:block}.dashboardCard b{font-size:14px;color:#333}.dashboardCard small{font-size:11px;color:#888;margin-top:4px}
 
@@ -469,3 +468,22 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 @media (max-aspect-ratio:4/3){
  .homeTabViewport #homeTabContent.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;display:block!important}
 }
+
+/* Desktop Port v58: in-app errors/update dialogs */
+.appDialogOverlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;padding:24px}
+.appDialogOverlay.open{display:flex}
+.appDialog{width:min(440px,calc(100vw - 48px));background:#fff;border-radius:4px;box-shadow:0 12px 36px rgba(0,0,0,.28);padding:22px;color:#263238}
+.appDialog h2{margin:0 0 12px;font-size:20px;font-weight:500}
+.appDialogMessage{font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;color:#4d565c}
+.appDialogActions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.appDialogActions button{border:0;background:#2e66a3;color:#fff;padding:9px 16px;border-radius:3px;cursor:pointer;font-size:14px}
+.appDialogActions button:first-child{background:transparent;color:#2e66a3}
+.drawerItem .drawerLabel{flex:1;min-width:0}
+.drawerItem .disclosure{float:none;margin-left:auto;flex:0 0 28px;width:28px;text-align:right;pointer-events:none}
+.drawerItem>span{pointer-events:none}
+.drawerShade.submenuShade{opacity:0!important;pointer-events:none!important}
+.courseSubItem>span,.courseSubItem img{pointer-events:none}
+.courseSubItem .disclosure{margin-left:auto;flex:0 0 28px;text-align:right;float:none;pointer-events:none}
+.groupHeader>div:last-child{flex:1;min-width:0}
+.groupHero{flex:0 0 64px}
+.groupHeader h1,.groupHeader p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

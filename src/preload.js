@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('schoology',{
   submitAssignmentText:x=>ipcRenderer.invoke('submit-assignment-text',x),
   updateAssignmentGrade:x=>ipcRenderer.invoke('update-assignment-grade',x),
   checkForUpdates:()=>ipcRenderer.invoke('check-for-updates'),
+  installUpdate:file=>ipcRenderer.invoke('install-update',file),
+  onUpdateAvailable:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('update-available',h);return()=>ipcRenderer.removeListener('update-available',h)},
   downloadFile:x=>ipcRenderer.invoke('download-file',x),
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),

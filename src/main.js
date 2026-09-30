@@ -202,7 +202,7 @@ async function prepareWebSession(){
   return true;
 }
 
-async function downloadAuthenticatedFile(info){
+async function downloadAuthenticatedFile(info, sender){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.url)throw new Error('File URL is missing.');
   let raw=String(info.url);
@@ -233,6 +233,13 @@ async function downloadAuthenticatedFile(info){
         if(code<200||code>=300){
           const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>reject(new Error(`Schoology file download failed (HTTP ${code}): ${Buffer.concat(chunks).toString('utf8').slice(0,500)}`)));return;
         }
+        const progressId=String(info.progressId||'');
+        const total=Number(res.headers['content-length']||0);
+        let received=0;
+        const sendProgress=(done=false)=>{try{if(sender&&!sender.isDestroyed())sender.send('file-download-progress',{id:progressId,received,total,done})}catch{}};
+        sendProgress(false);
+        res.on('data',chunk=>{received+=chunk.length;sendProgress(false)});
+        res.on('end',()=>sendProgress(true));
         let resolvedName=safeName;
         if(!path.extname(resolvedName)){
           const cd=String(res.headers['content-disposition']||'');
@@ -266,7 +273,8 @@ async function submitAssignmentFile(info){
   const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
   const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
   const post=Buffer.from(`\r\n--${boundary}--\r\n`), body=Buffer.concat([pre,file,post]);
-  const uploadUrl=new URL(`https://${API_HOST}/file`); uploadUrl.searchParams.set('name',filename);
+  // Android FileServiceApi @o("file") is mounted on the v1 API base URL.
+  const uploadUrl=new URL(`https://${API_HOST}/v1/file`); uploadUrl.searchParams.set('name',filename);
   const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0'};
   headers.Authorization=makeOAuthHeader('POST',uploadUrl.toString(),a.oauth_token,a.oauth_token_secret);
   const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(body);req.end()});
@@ -508,7 +516,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('update-assignment-grade',(_,x)=>updateAssignmentGrade(x));
   ipcMain.handle('check-for-updates',()=>checkForUpdates(true));
   ipcMain.handle('install-update',(_,file)=>installUpdate(file));
-  ipcMain.handle('download-file',(_,x)=>downloadAuthenticatedFile(x));
+  ipcMain.handle('download-file',(event,x)=>downloadAuthenticatedFile(x,event.sender));
   ipcMain.handle('launch-course-app',async(_,x)=>{
     const a=loadAuth(); if(!a)throw new Error('Not signed in');
     const appId=Number(x?.appId ?? x);

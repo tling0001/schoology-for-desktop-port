@@ -71,6 +71,18 @@ function shell(){
  </aside>
  </div>`
 }
+function setDownloadButtonState(button,active,label='Downloading…'){
+  if(!button)return;
+  if(active){button.dataset.downloadBusy='1';button.disabled=true;button.classList.add('downloadBusy');button.dataset.originalHtml=button.innerHTML;button.innerHTML=`<span class="downloadProgressWrap"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>${esc(label)}</span></span>`;}
+  else{button.disabled=false;button.classList.remove('downloadBusy');if(button.dataset.originalHtml!=null)button.innerHTML=button.dataset.originalHtml;delete button.dataset.originalHtml;delete button.dataset.downloadBusy;}
+}
+async function downloadWithFeedback(button,params){
+  const progressId='dl-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+  setDownloadButtonState(button,true);
+  const stop=A.onFileDownloadProgress?.(d=>{if(!d||d.id!==progressId)return;if(d.total){const pct=Math.min(100,Math.round((d.received/d.total)*100));const wrap=button.querySelector('.downloadProgressWrap span:last-child');if(wrap)wrap.textContent=`Downloading… ${pct}%`;}});
+  try{return await A.downloadFile({...params,progressId});}
+  finally{stop?.();setDownloadButtonState(button,false);}
+}
 function bind(){
   document.getElementById('composeMessage')?.addEventListener('click',()=>showComposeMessage());
   document.getElementById('toolbarBack')?.addEventListener('click',()=>navigateBack());
@@ -121,7 +133,7 @@ function bind(){
   document.getElementById('messageBack')?.addEventListener('click',()=>{state.message=null;state.messageThread=null;render();loadTab()});
   document.querySelectorAll('[data-message-tab]').forEach(b=>b.onclick=()=>{state.messageTab=b.dataset.messageTab;loadTab()});
   document.querySelectorAll('[data-message]').forEach(b=>b.onclick=async()=>{const i=+b.dataset.message;const m=window.__schoologyMessages?.[i];if(!m)return;state.message=m;state.messageFolder=state.messageTab;state.messageThread=null;render();await loadMessageThread(m)});
-  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await A.downloadFile({url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
+  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await downloadWithFeedback(b,{url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
   document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Link')));
   document.querySelectorAll('[data-embed-html]').forEach(b=>b.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(b.dataset.embedHtml),'Embedded content'));
   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const i=+b.dataset.courseSub;const c=window.__schoologyCourses?.[i];state.drawerPage=null;state.tab='courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(c)||courseTitleOf(c);state.screen='app';render();showCourse(c)});
@@ -275,6 +287,7 @@ async function getCourseNavigationPermissions(sectionId,userId){
 
 async function showCourse(course,activeTab='materials',forceRebuild=false){
  const c=document.getElementById('content');if(!c)return;
+ const renderToken=++courseRenderToken;
  if(!course){loadTab();return}
  const sid=course.id||course.section_id||course.sectionId;
  const sameCourse=!forceRebuild&&state.courseView==='course'&&state.selectedCourse&&String(state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId)===String(sid)&&!!c.querySelector('.courseLandscapePage');
@@ -294,6 +307,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const navPerms=await getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null);
+ if(renderToken!==courseRenderToken||state.courseView!=='course'||state.selectedCourse!==course)return;
  const canGradebook=!!navPerms?.sectionGradesPut, canGrades=!!navPerms?.userGradesGet, attendanceEnabled=!!navPerms?.attendanceGet;
  const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
  const tabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
@@ -580,7 +594,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
-      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||data.converted_extension||data.convertedExtension||f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const r=await A.downloadFile({url:fileUrl,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
+      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||data.converted_extension||data.convertedExtension||f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const r=await downloadWithFeedback(b,{url:fileUrl,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
     }catch(e){alert('Unable to open file: '+e.message)}})();return
   });
   }catch(e){showSchoologyRequestError(e,()=>loadFolder(course,folderId,false,title));}
@@ -675,7 +689,34 @@ async function loadCourseUpcomingPane(course){
  document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=arr.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const esid=e.section_id??e.sectionId??sid;if(String(e.type||'')==='assignment'&&aid)openWithPressTransition(b,()=>showAssignment(esid,aid));else if(e.web_url||e.webUrl)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming'));else if(e.type==='discussion'&&e.id)openWithPressTransition(b,()=>showEmbeddedWeb(`https://app.schoology.com/section/${esid}/discussion/view/${e.id}`,e.title||'Discussion'));});
 }
 let courseLayoutMediaQuery=null;
-function installCourseLayoutWatcher(){const mq=window.matchMedia('(min-aspect-ratio: 4/3)');const handler=()=>{if(state.courseView==='course'&&state.selectedCourse&&!state.assignmentView)showCourse(state.selectedCourse,state.courseTab||'materials',true)};if(courseLayoutMediaQuery===mq)return;courseLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyCourseLayoutChange);window.__schoologyCourseLayoutChange=handler;mq.addEventListener?.('change',handler);courseLayoutMediaQuery=mq}
+let lastWindowLayout='';
+let resizeRefreshTimer=null;
+let courseRenderToken=0;
+function currentWindowLayout(){return window.matchMedia('(min-aspect-ratio: 4/3)').matches?'landscape':'portrait'}
+function installCourseLayoutWatcher(){
+  const mq=window.matchMedia('(min-aspect-ratio: 4/3)');
+  const handler=()=>{
+    const layout=currentWindowLayout();
+    if(layout===lastWindowLayout)return;
+    lastWindowLayout=layout;
+    clearTimeout(resizeRefreshTimer);
+    resizeRefreshTimer=setTimeout(()=>{
+      if(state.assignmentView||state.embeddedTitle)return;
+      if(state.courseView==='course'&&state.selectedCourse){showCourse(state.selectedCourse,state.courseTab||'materials',true);return;}
+      if(state.tab==='profile'&&state.screen==='app'&&state.profileUser){render();loadTab();}
+    },60);
+  };
+  if(courseLayoutMediaQuery===mq)return;
+  courseLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyCourseLayoutChange);
+  window.__schoologyCourseLayoutChange=handler;
+  mq.addEventListener?.('change',handler);
+  lastWindowLayout=currentWindowLayout();
+  window.removeEventListener('resize',window.__schoologyResizeRefresh);
+  window.__schoologyResizeRefresh=()=>handler();
+  window.addEventListener('resize',window.__schoologyResizeRefresh,{passive:true});
+  courseLayoutMediaQuery=mq;
+}
+
 async function loadCourseUpdates(course,el){
  const sid=course.id||course.section_id||course.sectionId;
  const uid=state.auth?.userId||state.auth?.user?.id;
@@ -1014,7 +1055,7 @@ async function loadTab(){
     const user=state.profileUser;
     state.toolbarTitle='Profile';
     const image=normalizeImageUrl(user.picture_url||user.pictureUrl||user.picture||user.photo_url||'');
-    const profileLandscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
+    const profileLandscape=currentWindowLayout()==='landscape';
     c.innerHTML=`<section class="profileAndroidPage ${profileLandscape?'profileLandscapePage':''}">
       <div class="profileHeader"><img data-media-image-url="${esc(image)}" class="profileHeaderImage" style="display:none"><span class="profileHeaderFallback">${esc(String(user.name_display||user.name||'U').charAt(0))}</span><div><h1>${esc(user.name_display||user.name||'Profile')}</h1><p>${esc(user.school_name||user.school?.school_name||'')}</p></div></div>
       ${profileLandscape?`<div class="profileLandscapePanes">
@@ -1119,7 +1160,7 @@ async function loadTab(){
     c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button></div><div class="settingsVersion">Version: 2026.06.0</div></section>`;
     document.getElementById('notifToggle')?.addEventListener('change',e=>{document.getElementById('notifSummary').textContent=e.target.checked?'Enabled':'Disabled'});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info')}catch(e){alert(e.message)}});
-    document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b)b.disabled=true;try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b)b.disabled=false}});
+    document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }
@@ -1251,7 +1292,9 @@ async function startQR(){
   }catch(e){stopQR();state.error='Unable to access the camera. Enable camera access for Schoology and try again.';render()}
 }
 
+installCourseLayoutWatcher();
+
 // Restore the persisted Android-style OAuth session on application launch.
-(async()=>{try{const saved=await A.authState();if(saved?.oauth_token&&saved?.oauth_token_secret){state.auth=saved;await afterLogin();return}}catch(e){console.warn('Saved Schoology session could not be restored:',e)}render()})();
+(async()=>{try{const saved=await A.authState();if(saved?.oauth_token&&saved?.oauth_token_secret){state.auth=saved;await afterLogin();window.schoologyAppReady?.();return}}catch(e){console.warn('Saved Schoology session could not be restored:',e)}render();window.schoologyAppReady?.()})();
 
 A.onUpdateAvailable?.(u=>showUpdateDialog(u));

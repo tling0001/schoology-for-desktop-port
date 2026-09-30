@@ -1,6 +1,17 @@
 (function(){
   const app=document.getElementById('app');
+  const splash=document.getElementById('startupSplash');
+  const splashStarted=Date.now();
+  let appReady=false;
+  function hideSplash(){
+    if(appReady)return;
+    appReady=true;
+    const wait=Math.max(0,1000-(Date.now()-splashStarted));
+    setTimeout(()=>{if(splash){splash.classList.add('hidden');setTimeout(()=>splash.remove(),220)}},wait);
+  }
+  window.schoologyAppReady=hideSplash;
   function showError(title,detail){
+    hideSplash();
     if(window.schoologyShowError && document.querySelector('.shell')){ try{window.schoologyShowError(new Error(detail));return;}catch{} }
     if(!app)return;
     app.innerHTML='<div class="fatal"><h2>'+title+'</h2><p>'+detail+'</p><p style="font-size:12px;word-break:break-word">If this persists, the application renderer or Electron preload bridge failed to initialize.</p></div>';

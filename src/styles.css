@@ -388,7 +388,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .shell>main#content>.dashboardHybrid.embeddedPage webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
 
 @media (min-aspect-ratio:4/3){
-  .courseLandscapePage{grid-template-columns:minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .courseLandscapePage{grid-template-columns:20% 60% 20%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
   .courseAppsSidePane{display:block!important}
   .courseMainPane{min-width:0!important;min-height:0!important;overflow:hidden!important}
   .courseUpcomingPane{display:block!important;min-width:0!important;min-height:0!important;overflow:hidden!important}
@@ -499,3 +499,16 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .dashboardContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
 .dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
 .recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:100%!important;min-height:0!important}
+
+/* v60: startup splash remains until the initial renderer load completes, with a one-second minimum. */
+.appStartupSplash{position:fixed;inset:0;z-index:5000;transition:opacity .22s ease;opacity:1}
+.appStartupSplash.hidden{opacity:0;pointer-events:none}
+/* v60: visible progress feedback for authenticated file downloads. */
+.downloadProgressWrap{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-width:0}
+.downloadProgressWrap img{width:20px;height:20px;flex:0 0 20px}
+.materialRow.downloadBusy,.messageAttachment.downloadBusy{opacity:.72}
+.settingProgress{margin-left:12px;display:flex;align-items:center;justify-content:center;flex:0 0 24px}
+.settingProgress img{width:20px;height:20px}
+/* v60: hide horizontal tab scrollbar/arrows on portrait profile tabs. */
+.profileTabs{scrollbar-width:none;overflow-x:auto!important;overflow-y:hidden!important}
+.profileTabs::-webkit-scrollbar{display:none}

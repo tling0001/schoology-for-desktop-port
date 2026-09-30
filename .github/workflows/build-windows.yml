@@ -37,13 +37,13 @@ jobs:
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Windows-Installer-x64
+          name: Schoology-Desktop-Installer-x64
           path: dist/*Setup*.exe
           if-no-files-found: error
       - name: Upload Windows unpacked build
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Windows-Unpacked-x64
+          name: Schoology-Desktop-Unpacked-x64
           path: dist/win-unpacked
           if-no-files-found: error
 
@@ -97,17 +97,17 @@ jobs:
       - name: Download Windows installer
         uses: actions/download-artifact@v4
         with:
-          name: Schoology-Windows-Installer-x64
+          name: Schoology-Desktop-Installer-x64
           path: release-assets/windows
       - name: Download Windows unpacked
         uses: actions/download-artifact@v4
         with:
-          name: Schoology-Windows-Unpacked-x64
+          name: Schoology-Desktop-Unpacked-x64
           path: release-assets/windows/unpacked
       - name: Package Windows unpacked build for release
         run: |
           cd release-assets/windows
-          zip -r Schoology-Windows-Unpacked-x64.zip unpacked
+          zip -r Schoology-Desktop-Unpacked-x64.zip unpacked
           rm -rf unpacked
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
@@ -130,4 +130,4 @@ jobs:
           else
             TAG="v$PACKAGE_VERSION"
           fi
-          gh release create "$TAG" release-assets/windows/* release-assets/macos/* release-assets/linux/*             --repo "$GITHUB_REPOSITORY"             --title "Schoology $TAG"             --generate-notes
+          gh release create "$TAG" release-assets/windows/* release-assets/macos/* release-assets/linux/*             --repo "$GITHUB_REPOSITORY"             --title "Schoology Desktop $TAG"             --generate-notes

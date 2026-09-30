@@ -1,7 +1,7 @@
 {
-  "name": "schoology-windows-port",
-  "version": "2026.06.0-port.55",
-  "description": "Schoology Windows/cross-platform port aligned with the supplied Schoology Android 2026.06.0 source",
+  "name": "schoology-desktop-port",
+  "version": "2026.06.0-port.56",
+  "description": "Schoology Desktop Port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -18,8 +18,8 @@
     "jsqr": "^1.4.0"
   },
   "author": {
-    "name": "Schoology Windows Port",
-    "email": "schoology-windows-port@users.noreply.github.com"
+    "name": "Schoology Desktop Port",
+    "email": "schoology-desktop-port@users.noreply.github.com"
   },
   "build": {
     "appId": "com.schoology.app",

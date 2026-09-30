@@ -37,6 +37,7 @@ function renderMessageAttachments(a){
  const embeds=a?.embeds?.embed||a?.embeds||[]; const ee=Array.isArray(embeds)?embeds:(embeds?.embed||[]); for(const e of ee){if(e.embed_code||e.embedCode)out.push(`<button class="messageAttachment" data-embed-html="${esc(e.embed_code||e.embedCode)}">▧ Embedded content</button>`)}
  return out.length?`<div class="messageAttachments">${out.join('')}</div>`:'';
 }
+const menuImg="<svg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'><path fill='white' d='M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z'/></svg>";
 function render(){let h=state.message?messageDetail():state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;bind();return h}
 function login(){return `<div class="login loginAnimated"><img class="logo" src="../assets/logo_schoology.png"><div class="loginBody"><button id="schoolLogin" class="primary">Log in through your School</button><button id="continueSchoology" class="secondary">Log in using schoology.com</button><button id="qrLogin" class="qrButton">Sign in with a QR code</button></div><div class="loginBottom">I need help signing in</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function schoolSearchScreen(){return `<div class="login loginAnimated"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" autofocus placeholder="Enter your School or domain" value="${esc(state.q)}"><span>⌕</span></div>${state.loading?'<div class="searchStatus">Searching…</div>':''}${state.schools.length?`<div class="suggestions">${state.schools.map((s,i)=>`<button class="suggestion" data-school="${i}"><b>${esc(s.title||'')}</b><small>${esc([s.id,s.domain,s.location].filter(Boolean).join(' • '))}</small></button>`).join('')}</div>`:''}${!state.loading&&state.q&&state.schools.length===0&&!state.error?'<div class="searchStatus">No schools found.</div>':''}</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
@@ -58,7 +59,7 @@ function shell(){
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
- <header class="toolbar">${state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu"><img src="../assets/icons/ic_menu.svg" alt=""></button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
+ <header class="toolbar">${state.folderStack.length||state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading">Loading…</div></main>
  <div id="drawerShade" class="drawerShade"></div><aside id="drawer" class="drawer">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
@@ -96,8 +97,8 @@ function bind(){
   shade?.addEventListener('click',()=>setDrawer(false));
 
   document.getElementById('profileButton')?.addEventListener('click',()=>{closeDrawerThen(()=>{state.profileUser=state.auth?.user||null;state.tab='profile';state.toolbarTitle='Profile';render();loadTab()})});
-  document.getElementById('drawerBack')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0)});
-  document.getElementById('joinCourse')?.addEventListener('click',()=>{state.drawerPage=null;render();setTimeout(()=>document.getElementById('drawer')?.classList.add('open'),0)});
+  document.getElementById('drawerBack')?.addEventListener('click',()=>{const d=document.getElementById('drawer'); if(!d)return; d.classList.add('noSlide'); state.drawerPage=null; render(); requestAnimationFrame(()=>{document.getElementById('drawer')?.classList.add('open'); requestAnimationFrame(()=>document.getElementById('drawer')?.classList.remove('noSlide'))})});
+  document.getElementById('joinCourse')?.addEventListener('click',()=>{state.drawerPage=null;render();document.getElementById('drawer')?.classList.add('open')});
 
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
@@ -184,12 +185,12 @@ function courseTitleOf(course){return course?.course_title||course?.courseTitle|
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
 function syncToolbar(){
   const header=document.querySelector('.toolbar');if(!header)return;
-  const needs=!!(state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message);
+  const needs=!!(state.assignmentView||state.embeddedTitle||state.currentGroup||state.profileUser||state.composeMessage||state.message) && !(state.courseView && !state.assignmentView && !state.embeddedTitle);
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
   if(needs&&!existing){const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();}
-  if(!needs&&!existing&&menu===null){const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.innerHTML='<img src="../assets/icons/ic_menu.svg" alt="">';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
-  if(!needs&&existing){existing.remove();const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.innerHTML='<img src="../assets/icons/ic_menu.svg" alt="">';header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
+  if(!needs&&!existing&&menu===null){const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.innerHTML=`${menuImg}`;header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
+  if(!needs&&existing){existing.remove();const b=document.createElement('button');b.id='menuButton';b.className='iconButton';b.setAttribute('aria-label','Navigation menu');b.innerHTML=`${menuImg}`;header.insertBefore(b,header.firstChild);b.addEventListener('click',()=>{document.getElementById('drawer')?.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')});}
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
@@ -348,7 +349,7 @@ async function showAssignment(sectionId,assignmentId){
       const el=document.getElementById('assignmentTabContent');if(!el)return;
       el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${renderAttachments(attachments)}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
       state.assignmentTab='info';state.assignmentSubpage=null;state.submissionMenu=false;syncToolbar();
-      el.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(await routeSchoologyLink(href)){ev.preventDefault();ev.stopPropagation();}}));
+      el.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||''; if(/^(https?:\/\/)?(lms\.lausd\.net|[^/]+\.schoology\.com)(?:\/|$)/i.test(href)||/^schoology:/i.test(href)){ev.preventDefault();ev.stopPropagation(); try{const handled=await routeSchoologyLink(href); if(!handled){const w=window.open(href,'_blank'); if(w)w.opener=null;}}catch(e){alert('Unable to open Schoology link: '+e.message)}}}));
     };
     const select=async(id)=>{
       state.assignmentTab=id; state.submissionMenu=false;
@@ -421,8 +422,11 @@ async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTea
       c.innerHTML=`<section class="gradeDropboxAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc(assignment.max_points!=null?'/ '+assignment.max_points:'')}</span></div><div class="gradeStudentList">${enrollments.map(e=>{const g=gmap[String(e.id)]||{};const r=smap[String(e.uid)];const score=g.grade??g.calculated_grade??'';const status=r?(String(r.draft)==='1'?'Draft':(String(r.late)==='1'?'Late':'Submitted')):'Not submitted';return `<button class="gradeStudentRow" data-grade-student="${esc(e.uid)}" data-grade-enrollment="${esc(e.id)}"><span class="gradeStudentAvatar">${esc(String(e.name_first||e.name_display||'?').charAt(0))}</span><span class="gradeStudentName"><b>${esc((e.name_last||'')+', '+(e.name_first||''))}</b><small>${esc(status)}</small></span><span class="gradeStudentScore">${esc(score===''?'—':score)}</span></button>`}).join('')||'<div class="androidEmptyState">No students found.</div>'}</div></section>`;
       document.querySelectorAll('[data-grade-student]').forEach(b=>b.onclick=()=>openTeacherSubmission(sectionId,assignmentId,assignment,b.dataset.gradeStudent,b.dataset.gradeEnrollment));
     }else{
-      const uid=state.auth?.userId||state.auth?.user?.id;const [grades,subs]=await Promise.all([A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:(state.assignmentEnrollmentId||undefined)}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${assignmentId}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE'}}).catch(()=>({}))]);
-      const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||[];
+      const uid=state.auth?.userId||state.auth?.user?.id;
+      const grades=await A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:(state.assignmentEnrollmentId||undefined)}}).catch(()=>({}));
+      let subs={};
+      for(const submissionKey of [gradeItemId,assignmentId]){ try { const candidate=await A.api({path:`sections/${sectionId}/submissions/${submissionKey}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE'}}); const rr=candidate?.revision||candidate?.revisions||candidate?.data?.revision||candidate?.data?.revisions||[]; if(rr.length || submissionKey===assignmentId){subs=candidate; if(rr.length)break;} } catch(e){} }
+      const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||subs.data?.revision||subs.data?.revisions||[];
       c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
     }
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load submissions.</b><br>${esc(e.message)}</div>`}
@@ -1006,8 +1010,17 @@ async function loadTab(){
     document.querySelectorAll('[data-group-index]').forEach(b=>b.onclick=()=>showGroup(window.__schoologyGroups[+b.dataset.groupIndex]));
   }else if(state.tab==='calendar'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/events`,params:{limit:50}});const arr=x.event||x.events||[];
-    c.innerHTML=`<section class="page"><h1>Calendar</h1>${arr.length?arr.map(e=>`<article class="eventCard"><b>${esc(e.title||'Event')}</b><small>${esc(e.start||e.start_date||'')}</small></article>`).join(''):'<div class="empty"><h2>No upcoming events</h2></div>'}</section>`;
+    const today=state.calendarDate?new Date(state.calendarDate):new Date(); const ym=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const monthStart=new Date(today.getFullYear(),today.getMonth(),1); const monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0);
+    const start=`${ym(monthStart)}-01`; const end=`${ym(monthEnd)}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+    const x=await A.api({path:`users/${uid}/events`,params:{start,end,limit:200}}); const arr=x.event||x.events||[];
+    const byDay={}; for(const e of arr){const raw=e.start||e.start_date||e.date||e.startDate||'';const key=String(raw).slice(0,10);(byDay[key]||(byDay[key]=[])).push(e)}
+    const days=new Date(monthStart.getFullYear(),monthStart.getMonth(),1).getDay(); const total=days+monthEnd.getDate(); const rows=Math.ceil(total/7); const cells=[];
+    for(let i=0;i<rows*7;i++){const n=i-days+1; const inMonth=n>=1&&n<=monthEnd.getDate(); const d=inMonth?new Date(monthStart.getFullYear(),monthStart.getMonth(),n):null; const key=d?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`:''; const evs=key?(byDay[key]||[]):[]; cells.push(`<button class="calendarDay ${d&&n===today.getDate()?'today':''} ${inMonth?'':'outside'}" data-calendar-day="${key}"><b>${inMonth?n:''}</b>${evs.slice(0,2).map(e=>`<span>${esc(e.title||'Event')}</span>`).join('')}</button>`)}
+    const eventRows=Object.keys(byDay).sort().flatMap(k=>byDay[k].map(e=>({e,k}))).filter(({k})=>k>=start&&k<=end).map(({e,k})=>`<button class="calendarEventRow" data-calendar-event="${esc(e.id||'')}"><span class="calendarEventDate">${esc(new Date(k+'T12:00:00').toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}))}</span><span><b>${esc(e.title||'Event')}</b><small>${esc(e.start||e.start_date||'')}</small></span></button>`).join('');
+    c.innerHTML=`<section class="calendarAndroidPage"><header class="calendarMonthHeader"><button id="calendarPrev">‹</button><b>${esc(today.toLocaleDateString([], {month:'long',year:'numeric'}))}</b><button id="calendarNext">›</button></header><div class="calendarWeekLabels">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<span>${d}</span>`).join('')}</div><div class="calendarGrid">${cells.join('')}</div><div class="calendarUpcomingHeader">Upcoming</div><div class="calendarEventList">${eventRows||'<div class="androidEmptyState">No upcoming events</div>'}</div></section>`;
+    document.getElementById('calendarPrev')?.addEventListener('click',()=>{const d=new Date(today.getFullYear(),today.getMonth()-1,1);state.calendarDate=d;loadTab()});
+    document.getElementById('calendarNext')?.addEventListener('click',()=>{const d=new Date(today.getFullYear(),today.getMonth()+1,1);state.calendarDate=d;loadTab()});
   }else if(state.tab==='grades'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=x.section||x.sections||[];
@@ -1037,7 +1050,7 @@ async function loadTab(){
     state.toolbarTitle='Resources';
     await loadResourcesHome(c);
   }else if(state.tab==='people'){
-    const x=await A.api({path:'users',params:{limit:200}});
+    const x=await A.api({path:'users',params:{start:0,limit:200}});
     const raw=x?.user??x?.users??x?.data?.user??x?.data?.users??[];
     const arr=(Array.isArray(raw)?raw:(raw?.user||raw?.users||raw?.items||[])).slice().sort((a,b)=>String(a.name_last||a.last_name||'').localeCompare(String(b.name_last||b.last_name||''))||String(a.name_first||a.first_name||'').localeCompare(String(b.name_first||b.first_name||'')));
     window.__schoologyPeople=arr;
@@ -1075,6 +1088,7 @@ async function loadHomeTab(){
     const userMap={};
     await Promise.all(userIds.slice(0,20).map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});userMap[id]=u?.user||u}catch{}}));
     state.activityUsers=userMap;state.__activityById=Object.fromEntries(updates.map(u=>[String(u.id),u]));
+    c.classList.add('recentActivityScroll');
     c.innerHTML=updates.length?updates.map(x=>{
       const uid=x.user_id||x.uid||x.author_id||x.authorId;
       const u=userMap[uid]||{};
@@ -1117,7 +1131,7 @@ async function loadHomeTab(){
     c.classList.remove('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
-      const sizeDashboard=()=>{const h=Math.max(0,c.getBoundingClientRect().height);const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.height=h+'px';sec.style.minHeight=h+'px';sec.style.maxHeight=h+'px';sec.style.padding='0';sec.style.margin='0'}dw.style.height=h+'px';dw.style.minHeight=h+'px';dw.style.maxHeight=h+'px';};
+      const sizeDashboard=()=>{const cr=c.getBoundingClientRect();const h=Math.max(0,Math.round(window.innerHeight-cr.top));const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.height=h+'px';sec.style.minHeight=h+'px';sec.style.maxHeight=h+'px';sec.style.padding='0';sec.style.margin='0';sec.style.flex='0 0 '+h+'px'}dw.style.height=h+'px';dw.style.minHeight=h+'px';dw.style.maxHeight=h+'px';dw.style.width='100%';dw.style.display='block';};
       sizeDashboard();requestAnimationFrame(sizeDashboard);window.addEventListener('resize',sizeDashboard,{passive:true});
       dw.addEventListener('dom-ready',sizeDashboard);
       dw.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{dw.src=e.url}catch{}});

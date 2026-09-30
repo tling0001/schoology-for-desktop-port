@@ -1,6 +1,7 @@
 (function(){
   const app=document.getElementById('app');
   function showError(title,detail){
+    if(window.schoologyShowError && document.querySelector('.shell')){ try{window.schoologyShowError(new Error(detail));return;}catch{} }
     if(!app)return;
     app.innerHTML='<div class="fatal"><h2>'+title+'</h2><p>'+detail+'</p><p style="font-size:12px;word-break:break-word">If this persists, the application renderer or Electron preload bridge failed to initialize.</p></div>';
   }

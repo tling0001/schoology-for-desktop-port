@@ -4,7 +4,7 @@ A cross-platform Schoology client port based on the supplied **Schoology Android
 
 ## Current version
 
-**2026.06.0-port.44**
+**2026.06.0-port.54**
 
 ## Source alignment
 

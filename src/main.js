@@ -450,6 +450,18 @@ async function loginExternalSchool(info){
   });
 }
 
+
+const UPDATE_REPO='tling0001/schoology-for-desktop-port';
+const UPDATE_INTERVAL_MS=12*60*60*1000, UPDATE_RETRY_MS=5*60*1000, UPDATE_STATE_FILE=path.join(stableUserData,'update-state.json');
+function readUpdateState(){try{return JSON.parse(fs.readFileSync(UPDATE_STATE_FILE,'utf8'))}catch{return {}}}
+function writeUpdateState(v){try{fs.mkdirSync(path.dirname(UPDATE_STATE_FILE),{recursive:true});fs.writeFileSync(UPDATE_STATE_FILE,JSON.stringify(v,null,2),'utf8')}catch{}}
+function localReleaseNumber(){const m=String(app.getVersion()).match(/port\.(\d+)/i);return m?Number(m[1]):0}
+function fetchJson(url){return new Promise((resolve,reject)=>{const u=new URL(url);const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'GET',headers:{'User-Agent':'Schoology-Desktop-Port-Updater','Accept':'application/vnd.github+json'}},res=>{let s='';res.setEncoding('utf8');res.on('data',c=>s+=c);res.on('end',()=>{if((res.statusCode||0)<200||(res.statusCode||0)>=300)return reject(new Error(`Update check failed (HTTP ${res.statusCode})`));try{resolve(JSON.parse(s))}catch{reject(new Error('Update service returned invalid JSON.'))}})});req.setTimeout(15000,()=>req.destroy(new Error('Update check timed out')));req.on('error',reject);req.end()})}
+function downloadUrl(url,target){return new Promise((resolve,reject)=>{const get=(href,depth=0)=>{if(depth>6)return reject(new Error('Too many update redirects.'));const u=new URL(href);const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'GET',headers:{'User-Agent':'Schoology-Desktop-Port-Updater','Accept':'application/octet-stream'}},res=>{const code=res.statusCode||0;if([301,302,303,307,308].includes(code)&&res.headers.location){res.resume();return get(new URL(res.headers.location,u).toString(),depth+1)}if(code<200||code>=300){res.resume();return reject(new Error(`Update download failed (HTTP ${code})`))}const out=fs.createWriteStream(target);res.pipe(out);out.on('finish',()=>out.close(()=>resolve(target)));out.on('error',e=>{try{out.close()}catch{};reject(e)})});req.setTimeout(10*60*1000,()=>req.destroy(new Error('Update download timed out')));req.on('error',reject);req.end()};get(url)})}
+function updateAssetForPlatform(release){const assets=Array.isArray(release?.assets)?release.assets:[];const arch=process.arch;let wanted=[];if(process.platform==='win32')wanted=['Setup-x64.exe'];else if(process.platform==='darwin')wanted=[arch==='arm64'?'arm64.dmg':'x64.dmg'];else if(process.platform==='linux')wanted=[fs.existsSync('/usr/bin/rpm')&&!fs.existsSync('/usr/bin/dpkg')?'x86_64.rpm':'amd64.deb'];return assets.find(a=>wanted.some(s=>String(a.name||'').endsWith(s)))||null}
+async function checkForUpdates(force=false){const now=Date.now(),st=readUpdateState();if(!force&&st.lastSuccessfulCheck&&now-st.lastSuccessfulCheck<UPDATE_INTERVAL_MS)return false;if(net?.isOnline&&!net.isOnline())throw new Error('Computer is offline.');const release=await fetchJson(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`);const tag=String(release.tag_name||'');const remote=Number((tag.match(/(\d+)$/)||[])[1]||0),local=localReleaseNumber();if(!remote||remote<=local||release.draft||release.prerelease){writeUpdateState({lastSuccessfulCheck:now,lastRemoteTag:tag});return false}const asset=updateAssetForPlatform(release);if(!asset){writeUpdateState({lastSuccessfulCheck:now,lastRemoteTag:tag});return false}const tmp=path.join(app.getPath('temp'),String(asset.name).replace(/[^A-Za-z0-9._-]/g,'_'));if(!fs.existsSync(tmp))await downloadUrl(asset.browser_download_url,tmp);writeUpdateState({lastSuccessfulCheck:now,lastRemoteTag:tag});const answer=await dialog.showMessageBox(win,{type:'info',buttons:['Install Update','Later'],defaultId:0,cancelId:1,title:'Schoology Update Available',message:`Schoology v${remote} is available.`,detail:'The update has been downloaded. Install it now?'});if(answer.response===0){if(process.platform==='win32'){const {spawn}=require('child_process');spawn(tmp,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();app.quit()}else await shell.openPath(tmp)}return true}
+let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{await checkForUpdates(false);if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_INTERVAL_MS)}catch(e){console.log('Schoology update check deferred:',e.message);if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_RETRY_MS)}};const st=readUpdateState();const due=!st.lastSuccessfulCheck||Date.now()-st.lastSuccessfulCheck>=UPDATE_INTERVAL_MS;setTimeout(()=>{if(due)run();else updateTimer=setTimeout(run,Math.max(1000,UPDATE_INTERVAL_MS-(Date.now()-st.lastSuccessfulCheck)))},8000)}
+
 function create(){
   win=new BrowserWindow({show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
@@ -494,7 +506,8 @@ app.whenReady().then(()=>{
   ipcMain.handle('download-file',(_,x)=>downloadAuthenticatedFile(x));
   ipcMain.handle('launch-course-app',async(_,x)=>{
     const a=loadAuth(); if(!a)throw new Error('Not signed in');
-    const appId=Number(x?.appId ?? x); if(!Number.isFinite(appId))throw new Error('Resource app ID is missing.');
+    const appId=Number(x?.appId ?? x);
+    if(!Number.isFinite(appId)){const href=String(x?.launchUrl||x?.href||'');if(/^https?:\/\//i.test(href))return {url:href};throw new Error('Resource app launch target is missing.');}
     const u=new URL(`https://${API_HOST}/v2/resources/applications/${appId}/launch`);
     const r=await request('GET',u.toString(),{}, {sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
     if(r.status<200||r.status>=300)throw new Error(`Resource app launch failed (HTTP ${r.status}): ${r.text}`);
@@ -505,5 +518,6 @@ app.whenReady().then(()=>{
   ipcMain.handle('open-external',(_,u)=>shell.openExternal(u));
   ipcMain.handle('pick-file',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile']});return r.canceled?null:r.filePaths[0]});
   create();
+  scheduleUpdateChecks();
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});

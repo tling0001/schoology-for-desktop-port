@@ -1,7 +1,7 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.06.0-port.58",
-  "description": "Schoology Desktop Port aligned with the supplied Schoology Android 2026.06.0 source",
+  "version": "2026.06.0-port.59",
+  "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -23,7 +23,7 @@
   },
   "build": {
     "appId": "com.schoology.app",
-    "productName": "Schoology Desktop Port",
+    "productName": "Schoology",
     "artifactName": "Schoology-${version}-${arch}.${ext}",
     "directories": {
       "output": "dist"
@@ -58,5 +58,5 @@
       "hardenedRuntime": false
     }
   },
-  "productName": "Schoology Desktop Port"
+  "productName": "Schoology"
 }

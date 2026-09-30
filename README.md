@@ -1,4 +1,4 @@
-# Schoology Desktop Port
+# Schoology
 
 Desktop port aligned with the supplied Schoology Android 2026.06.0 source.
 

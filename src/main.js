@@ -273,6 +273,7 @@ async function submitAssignmentFile(info){
   if(uploaded.status<200||uploaded.status>=300)throw new Error('File upload failed: '+uploaded.status+' '+uploaded.text);
   let j={};try{j=JSON.parse(uploaded.text)}catch{} const fileId=j.fileMetadataId;
   if(!fileId)throw new Error('Schoology did not return fileMetadataId.');
+  // Android AssignmentApi: POST section/{sectionId}/assignment/{assignmentId}/submission.
   const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
   if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text); return true;
 }

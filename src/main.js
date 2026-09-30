@@ -374,8 +374,20 @@ async function loginExternalSchool(info){
   const shouldIntercept=(url)=>{
     try{
       const u=new URL(url);
-      const initial=u.searchParams.has('sgyInitialPage');
-      return initial || hostMatchesSuffix(u.hostname,expectedHost) || hostMatchesSuffix(u.hostname,defaultDomain);
+      const host=u.hostname.toLowerCase();
+      // External SSO providers (Microsoft, Google, etc.) are intermediate
+      // pages. Android completes this flow only after the WebView reaches a
+      // Schoology-owned session page. For LAUSD the district LMS host is also
+      // an accepted completion host.
+      const schoologyHost=hostMatchesSuffix(host,'schoology.com');
+      const lausdHost=host==='lms.lausd.net' || hostMatchesSuffix(host,'lms.lausd.net');
+      const expectedSchoolHost=expectedHost &&
+        (hostMatchesSuffix(host,expectedHost) && (
+          hostMatchesSuffix(expectedHost,'schoology.com') ||
+          expectedHost==='lms.lausd.net' ||
+          hostMatchesSuffix(expectedHost,'lms.lausd.net')
+        ));
+      return schoologyHost || lausdHost || !!expectedSchoolHost;
     }catch{return false}
   };
 
@@ -458,7 +470,15 @@ app.whenReady().then(()=>{
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));
   ipcMain.handle('login-school-browser',(_,info)=>loginThroughSchoolBrowser(info));
   ipcMain.handle('login-external-school',(_,info)=>loginExternalSchool(info));
-  ipcMain.handle('logout',()=>{try{fs.unlinkSync(storeFile)}catch{};return true});
+  ipcMain.handle('logout',async()=>{
+  try{fs.unlinkSync(storeFile)}catch{}
+  // Match Android CleanupTask/ApplicationUtil.b(): logout must clear the
+  // WebView cookie jar, not only the persisted OAuth credentials. Otherwise
+  // a stale SESS cookie can be reused by an external Microsoft SSO flow.
+  try{await session.defaultSession.clearStorageData({storages:['cookies','localstorage','sessionstorage','serviceworkers','cachestorage']})}catch(e){console.error('Unable to clear Schoology web session on logout:',e)}
+  try{await session.defaultSession.clearCache()}catch{}
+  return true
+});
   ipcMain.handle('school-search',async(_,q)=>{
     const r=await request('GET',`https://${API_HOST}/v1/login/school_search`,{query:q},{clientIdentity:true});
     if(r.status<200||r.status>=300)throw new Error('School search failed: '+r.status+' '+r.text);

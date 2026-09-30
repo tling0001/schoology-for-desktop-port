@@ -202,6 +202,9 @@ function syncToolbar(){
   }else if(state.assignmentView&&state.assignmentIsTeacher&&state.assignmentSubpage==='teacherSubmission'){
     slot.innerHTML='<button id="assignmentSaveGrade" class="iconButton" aria-label="Save grade">✓</button>';
     document.getElementById('assignmentSaveGrade')?.addEventListener('click',()=>document.getElementById('saveTeacherGrade')?.click());
+  }else if(state.courseView&&!state.assignmentView&&!state.embeddedTitle&&!state.currentGroup&&!state.profileUser&&state.courseTab==='updates'){
+    slot.innerHTML='<button id="courseUpdatePlus" class="iconButton toolbarImageButton" aria-label="Post update"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
+    document.getElementById('courseUpdatePlus')?.addEventListener('click',()=>state.selectedCourse&&openCourseUpdateComposer(state.selectedCourse));
   }else if(state.courseView&&!state.assignmentView&&!state.embeddedTitle&&!state.currentGroup&&!state.profileUser&&state.courseTab==='materials'){
     slot.innerHTML='<button id="courseDownload" class="iconButton toolbarImageButton" aria-label="Make available offline"><img src="../assets/icons/ic_action_download.png" alt=""></button>';
     document.getElementById('courseDownload')?.addEventListener('click',()=>alert('Make available offline is an Android Schoology offline-sync action. The official toolbar control is shown, but desktop offline synchronization is not yet implemented.'));
@@ -406,9 +409,9 @@ async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTea
       const revisions=subs.revision||subs.revisions||[];const smap={};revisions.forEach(r=>{const uid=String(r.uid||r.user_id||'');if(uid&&!smap[uid])smap[uid]=r});
       enrollments.sort((a,b)=>String(a.name_last||'').localeCompare(String(b.name_last||''))||String(a.name_first||'').localeCompare(String(b.name_first||'')));
       c.innerHTML=`<section class="gradeDropboxAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc(assignment.max_points!=null?'/ '+assignment.max_points:'')}</span></div><div class="gradeStudentList">${enrollments.map(e=>{const g=gmap[String(e.id)]||{};const r=smap[String(e.uid)];const score=g.grade??g.calculated_grade??'';const status=r?(String(r.draft)==='1'?'Draft':(String(r.late)==='1'?'Late':'Submitted')):'Not submitted';return `<button class="gradeStudentRow" data-grade-student="${esc(e.uid)}" data-grade-enrollment="${esc(e.id)}"><span class="gradeStudentAvatar">${esc(String(e.name_first||e.name_display||'?').charAt(0))}</span><span class="gradeStudentName"><b>${esc((e.name_last||'')+', '+(e.name_first||''))}</b><small>${esc(status)}</small></span><span class="gradeStudentScore">${esc(score===''?'—':score)}</span></button>`}).join('')||'<div class="androidEmptyState">No students found.</div>'}</div></section>`;
-      document.querySelectorAll('[data-grade-student]').forEach(b=>b.onclick=()=>openTeacherSubmission(sectionId,gradeItemId,assignment,b.dataset.gradeStudent,b.dataset.gradeEnrollment));
+      document.querySelectorAll('[data-grade-student]').forEach(b=>b.onclick=()=>openTeacherSubmission(sectionId,assignmentId,assignment,b.dataset.gradeStudent,b.dataset.gradeEnrollment));
     }else{
-      const uid=state.auth?.userId||state.auth?.user?.id;const [grades,subs]=await Promise.all([A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:(state.assignmentEnrollmentId||undefined)}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{with_attachments:'TRUE'}}).catch(()=>({}))]);
+      const uid=state.auth?.userId||state.auth?.user?.id;const [grades,subs]=await Promise.all([A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:(state.assignmentEnrollmentId||undefined)}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${assignmentId}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE'}}).catch(()=>({}))]);
       const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||[];
       c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
     }
@@ -420,7 +423,7 @@ async function openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enr
   const c=document.getElementById('assignmentTabContent');if(!c)return;
   c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading">Loading submission…</div></div>';
   try{
-    const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,params:{with_attachments:'TRUE'}}).catch(()=>({}))]);
+    const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${assignmentId}/${userId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE'}}).catch(()=>({}))]);
     const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revs=subs.revision||subs.revisions||[];
     c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
     document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{try{await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment:document.getElementById('teacherGradeComment')?.value||'',commentStatus:document.getElementById('teacherDisplayComment')?.checked});await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId)}catch(e){alert(e.message)}});
@@ -569,6 +572,94 @@ async function loadCourseUpcomingPane(course){
 }
 let courseLayoutMediaQuery=null;
 function installCourseLayoutWatcher(){const mq=window.matchMedia('(min-aspect-ratio: 4/3)');const handler=()=>{if(state.courseView==='course'&&state.selectedCourse&&!state.assignmentView)showCourse(state.selectedCourse,state.courseTab||'materials')};if(courseLayoutMediaQuery===mq)return;courseLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyCourseLayoutChange);window.__schoologyCourseLayoutChange=handler;mq.addEventListener?.('change',handler);courseLayoutMediaQuery=mq}
+async function loadCourseUpdates(course,el){
+ const sid=course.id||course.section_id||course.sectionId;
+ const uid=state.auth?.userId||state.auth?.user?.id;
+ if(!sid)throw new Error('Course section ID is missing.');
+ let start=0,limit=20,all=[];
+ let next=true,loading=false;
+ const render=async()=>{
+   const cards=all.map(u=>{
+     const id=u.id||u.update_id||u.updateId;
+     const author=u.display_name||u.author_name||u.user_name||'Schoology';
+     const body=u.body||u.message||'';
+     const comments=Number(u.num_comments??u.comment_count??u.comments_count??0);
+     const likes=Number(u.likes??u.like_count??0);
+     const liked=!!(u.user_liked??u.liked??u.is_liked);
+     const canDelete=uid&&String(u.uid||u.user_id||u.author_id||'')===String(uid);
+     return `<article class="androidActivityCard sectionFullUpdate" data-update-card="${esc(id)}">
+       <div class="activityHeader"><span class="activityAvatar">${esc(String(author).charAt(0))}</span><span class="activityUser">${esc(author)}</span>${canDelete?`<button class="updateDeleteButton" data-update-delete="${esc(id)}" aria-label="Delete update">⋮</button>`:''}</div>
+       <div class="activityBody">${body}</div>
+       ${renderAttachments(u.attachments||u.attachment||u.files||{})}
+       ${u.poll||u.pollUpdateModel?`<div class="updatePoll"><b>Poll</b></div>`:''}
+       <div class="activityMeta">${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</div>
+       <div class="activityActions"><button data-course-update-comments="${esc(id)}">Comment${comments?` (${comments})`:''}</button><button data-course-update-like="${esc(id)}" data-liked="${liked?'1':'0'}">${liked?'Unlike':'Like'}${likes?` (${likes})`:''}</button></div>
+       <div class="updateCommentsPanel" id="course-update-comments-${esc(id)}" hidden></div>
+     </article>`;
+   }).join('');
+   el.innerHTML=`<div class="courseUpdatesToolbar"><button id="courseUpdateRefresh">Refresh</button><button id="courseUpdatePost">Post Update</button></div>${cards||'<div class="empty"><h2>No updates</h2><p>There are no updates in this course.</p></div>'}${next?'<button id="courseUpdateMore" class="androidMoreButton">Load more</button>':''}`;
+   await hydrateMediaImages(el);
+   el.querySelector('#courseUpdateRefresh')?.addEventListener('click',()=>{start=0;all=[];next=true;loadPage(true)});
+   el.querySelector('#courseUpdatePost')?.addEventListener('click',()=>openCourseUpdateComposer(course));
+   el.querySelector('#courseUpdateMore')?.addEventListener('click',()=>loadPage(false));
+   el.querySelectorAll('[data-course-update-like]').forEach(btn=>btn.onclick=async()=>{
+     const id=btn.dataset.courseUpdateLike,liked=btn.dataset.liked==='1'; if(!id)return;
+     try{
+       await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});
+       const u=all.find(x=>String(x.id||x.update_id)===String(id));if(u){u.user_liked=!liked;u.liked=!liked;u.likes=Number(u.likes||0)+(liked?-1:1);}
+       await render();
+     }catch(e){alert('Unable to update like: '+e.message)}
+   });
+   el.querySelectorAll('[data-course-update-comments]').forEach(btn=>btn.onclick=()=>loadCourseUpdateComments(sid,btn.dataset.courseUpdateComments,btn.closest('.sectionFullUpdate')?.querySelector('.updateCommentsPanel')));
+   el.querySelectorAll('[data-update-delete]').forEach(btn=>btn.onclick=async()=>{
+     if(!confirm('Delete this update?'))return;
+     try{await A.api({path:`sections/${sid}/updates/${btn.dataset.updateDelete}`,method:'DELETE',params:{}});all=all.filter(x=>String(x.id||x.update_id)!==String(btn.dataset.updateDelete));await render()}catch(e){alert('Unable to delete update: '+e.message)}
+   });
+ };
+ const loadPage=async(reset)=>{
+   if(loading)return;loading=true;
+   if(reset){start=0;all=[];next=true}
+   try{
+     const x=await A.api({path:`sections/${sid}/updates`,params:{start,limit,with_attachments:'TRUE',richtext:1}});
+     const rows=x.update||x.updates||x.update_list||[];
+     all=all.concat(rows);
+     next=!!(x.links?.next||x.link?.next||(rows.length>=limit));
+     start+=rows.length;
+     await render();
+   }finally{loading=false}
+ };
+ const loadInitial=()=>loadPage(true);
+ await loadInitial();
+}
+
+async function loadCourseUpdateComments(sectionId,updateId,panel){
+ if(!panel)return;
+ panel.hidden=false;panel.innerHTML='<div class="loading">Loading comments…</div>';
+ try{
+   const x=await A.api({path:`sections/${sectionId}/updates/${updateId}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});
+   const arr=x.comment||x.comments||[];
+   panel.innerHTML=`<div class="updateCommentsList">${arr.map(c=>`<div class="updateComment"><b>${esc(c.display_name||c.user_name||'Schoology')}</b><div>${c.body||c.comment||''}</div><small>${esc(formatSchoologyDate(c.created||c.timestamp||''))}</small></div>`).join('')||'<div class="empty">No comments yet.</div>'}<div class="updateCommentComposer"><textarea placeholder="Write a comment…" id="update-comment-${esc(updateId)}"></textarea><button data-post-update-comment="${esc(updateId)}">Post</button></div></div>`;
+   panel.querySelector('[data-post-update-comment]')?.addEventListener('click',async()=>{
+     const ta=panel.querySelector('textarea'),body=ta?.value.trim();if(!body)return;
+     try{await A.api({path:`sections/${sectionId}/updates/${updateId}/comments`,method:'POST',params:{comment:body,parent_id:0}});await loadCourseUpdateComments(sectionId,updateId,panel)}catch(e){alert('Unable to post comment: '+e.message)}
+   });
+ }catch(e){panel.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}
+}
+
+function openCourseUpdateComposer(course){
+ const sid=course.id||course.section_id||course.sectionId;
+ const old=document.getElementById('courseUpdateComposer');old?.remove();
+ const wrap=document.createElement('div');wrap.id='courseUpdateComposer';wrap.className='courseUpdateComposer';
+ wrap.innerHTML='<div class="courseUpdateComposerInner"><h2>Post Update</h2><textarea id="courseUpdateBody" placeholder="Write an update…"></textarea><div><button id="cancelCourseUpdate">Cancel</button><button id="submitCourseUpdate" class="androidPrimary">Post</button></div></div>';
+ document.body.appendChild(wrap);
+ document.getElementById('cancelCourseUpdate')?.addEventListener('click',()=>wrap.remove());
+ document.getElementById('submitCourseUpdate')?.addEventListener('click',async()=>{
+   const body=document.getElementById('courseUpdateBody')?.value.trim();if(!body)return;
+   try{await A.api({path:`sections/${sid}/updates`,method:'POST',params:{body},signBody:true});wrap.remove();await loadCourseTab(course,'updates')}catch(e){alert('Unable to post update: '+e.message)}
+ });
+ document.getElementById('courseUpdateBody')?.focus();
+}
+
 async function loadCourseTab(course,tab){
  const el=document.getElementById('sectionProfileContent');if(!el)return;
  const sid=course.id||course.section_id||course.sectionId;
@@ -578,9 +669,7 @@ async function loadCourseTab(course,tab){
    return;
  }
  if(tab==='updates'){
-   const x=await A.api({path:`sections/${sid}/updates`,params:{start:0,limit:20}});
-   const arr=x.update||x.updates||[];
-   el.innerHTML=arr.length?arr.map(u=>`<article class="sectionUpdate"><b>${esc(u.title||u.body||u.message||'Update')}</b><small>${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</small></article>`).join(''):'<div class="empty"><h2>No updates</h2></div>';
+   await loadCourseUpdates(course,el);
    return;
  }
  if(tab==='upcoming'){
@@ -884,10 +973,11 @@ async function renderUpcomingInto(c){
  const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:50}});
  const arr=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));
  const sorted=arr.slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
- c.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_menu_resources':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+ const body=c.querySelector('.homeUpcomingList')||c;
+ body.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_menu_resources':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
  document.querySelectorAll('[data-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.upcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id)openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
 }
-async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="loading">Loading…</div>';await renderUpcomingInto(c)}
+async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="homeUpcomingList"><div class="loading">Loading…</div></div>';await renderUpcomingInto(c)}
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
  animateTab(c,state.homeTabDirection||'forward');

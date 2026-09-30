@@ -397,3 +397,22 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
   .courseAppsSideContent,.courseUpcomingContent{height:calc(100% - 48px)!important;min-height:0!important;overflow:auto!important}
 }
 .iconButton img{width:24px;height:24px;display:block;margin:auto}
+
+/* Full Android-style course Updates controls */
+.courseUpdatesToolbar{display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;border-bottom:1px solid #e2e6ea;background:#fff;position:sticky;top:0;z-index:2}
+.courseUpdatesToolbar button,.androidMoreButton{border:1px solid #cfd6dd;background:#fff;border-radius:4px;padding:7px 12px;font:inherit;color:#2b5f8a;cursor:pointer}
+.sectionFullUpdate{position:relative}
+.updateDeleteButton{margin-left:auto;border:0;background:transparent;color:#6b7280;font-size:20px;line-height:1;cursor:pointer;padding:2px 7px}
+.updateCommentsPanel{margin:8px 0 0 42px;padding:10px;border-top:1px solid #e4e7eb;background:#fafbfc}
+.updateComment{padding:8px 0;border-bottom:1px solid #e5e7eb}
+.updateComment:last-child{border-bottom:0}
+.updateComment small{display:block;color:#777;margin-top:3px}
+.updateCommentComposer{display:flex;gap:8px;margin-top:10px}
+.updateCommentComposer textarea{flex:1;min-height:38px;resize:vertical;border:1px solid #cfd6dd;border-radius:4px;padding:7px;font:inherit}
+.updateCommentComposer button{border:1px solid #2f6fa3;background:#2f6fa3;color:#fff;border-radius:4px;padding:6px 12px}
+.updatePoll{margin:8px 0;padding:10px;border:1px solid #d9dee4;border-radius:4px;background:#f7f9fb}
+.courseUpdateComposer{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.courseUpdateComposerInner{width:min(620px,90vw);background:#fff;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:18px}
+.courseUpdateComposerInner h2{margin:0 0 12px}
+.courseUpdateComposerInner textarea{width:100%;min-height:150px;box-sizing:border-box;resize:vertical;border:1px solid #cfd6dd;border-radius:4px;padding:10px;font:inherit}
+.courseUpdateComposerInner>div{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}

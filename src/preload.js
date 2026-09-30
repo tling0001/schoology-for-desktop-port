@@ -34,8 +34,10 @@ contextBridge.exposeInMainWorld('schoology',{
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),
   openExternal:u=>ipcRenderer.invoke('open-external',u),
   pickFile:()=>ipcRenderer.invoke('pick-file'),
+  // QR camera scanning normally uses Chromium's native BarcodeDetector in renderer.js.
+  // Keep jsQR only as a compatibility fallback; its failure must never prevent startup.
   decodeQR:(data,width,height)=>{
-    if(!jsQR) throw new Error('QR decoder is unavailable: '+(qrLoadError||'unknown error'));
+    if(!jsQR) throw new Error('QR fallback decoder is unavailable: '+(qrLoadError||'unknown error'));
     return jsQR(data,width,height,{inversionAttempts:'attemptBoth',greyScaleWeights:{red:0.299,green:0.587,blue:0.114},canOverwriteImage:true});
   },
   qrDecoderAvailable:()=>!!jsQR,

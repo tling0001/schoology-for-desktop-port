@@ -1256,18 +1256,31 @@ async function loadHomeTab(){
 }
 
 function stopQR(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}qrBusy=false}
-function decodeFrame(ctx,w,h){
-  const attempts=[];
-  // Android uses a square framing area. Try that first at a practical size.
+let nativeQrDetector=null;
+function getNativeQrDetector(){
+  if(nativeQrDetector!==null)return nativeQrDetector;
+  try{
+    nativeQrDetector=(typeof BarcodeDetector!=='undefined' && BarcodeDetector.getSupportedFormats)
+      ? new BarcodeDetector({formats:['qr_code']}) : false;
+  }catch(e){nativeQrDetector=false}
+  return nativeQrDetector;
+}
+async function decodeFrame(ctx,w,h){
+  // Prefer Chromium's native QR/barcode decoder. This avoids depending on the
+  // optional jsQR native-module bridge for the normal camera-login path.
+  const detector=getNativeQrDetector();
   const side=Math.min(w,h);
   const sx=Math.max(0,Math.floor((w-side)/2)),sy=Math.max(0,Math.floor((h-side)/2));
-  const size=Math.min(side,900);
+  const size=Math.min(side,1000);
   const work=document.createElement('canvas');work.width=size;work.height=size;
   const wc=work.getContext('2d',{willReadFrequently:true});
   wc.drawImage(ctx.canvas,sx,sy,side,side,0,0,size,size);
-  attempts.push(wc.getImageData(0,0,size,size));
-  // Also try the full camera frame for QR codes outside the exact center.
-  attempts.push(ctx.getImageData(0,0,w,h));
+  if(detector){
+    try{const found=await detector.detect(work);if(found?.length&&found[0]?.rawValue)return found[0].rawValue}catch(e){}
+    try{const found=await detector.detect(ctx.canvas);if(found?.length&&found[0]?.rawValue)return found[0].rawValue}catch(e){}
+  }
+  // Compatibility fallback for Electron builds without BarcodeDetector.
+  const attempts=[wc.getImageData(0,0,size,size),ctx.getImageData(0,0,w,h)];
   for(const img of attempts){
     try{const code=A.decodeQR(img.data,img.width,img.height);if(code?.data)return code.data}catch(e){}
   }
@@ -1285,7 +1298,7 @@ async function startQR(){
       if(!qrBusy&&v.readyState>=2&&v.videoWidth&&(!qrLastAttempt||now-qrLastAttempt>120)){
         qrLastAttempt=now;
         canvas.width=v.videoWidth;canvas.height=v.videoHeight;ctx.drawImage(v,0,0,canvas.width,canvas.height);
-        const data=decodeFrame(ctx,canvas.width,canvas.height);
+        const data=await decodeFrame(ctx,canvas.width,canvas.height);
         if(data){
           qrBusy=true;stopQR();
           try{state.auth=await A.loginQR(data);await afterLogin()}catch(e){state.error=e.message||'Sorry, your code isn’t working. Please try again.';state.screen='qr';render();startQR();return}

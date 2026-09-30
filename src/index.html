@@ -1,43 +1,17 @@
-const {contextBridge,ipcRenderer}=require('electron');
-
-// Keep the Electron authentication bridge alive even if the optional QR decoder
-// cannot be loaded. A failed decoder must never abort the entire preload.
-let jsQR=null;
-let qrLoadError=null;
-try {
-  jsQR=require('jsqr');
-} catch (e) {
-  qrLoadError=String(e && e.message || e);
-  console.error('Schoology QR decoder could not load:', qrLoadError);
-}
-
-contextBridge.exposeInMainWorld('schoology',{
-  authState:()=>ipcRenderer.invoke('auth-state'),
-  loginCredentials:x=>ipcRenderer.invoke('login-credentials',x),
-  loginQR:x=>ipcRenderer.invoke('login-qr',x),
-  loginSchoolBrowser:x=>ipcRenderer.invoke('login-school-browser',x),
-  loginExternalSchool:x=>ipcRenderer.invoke('login-external-school',x),
-  logout:()=>ipcRenderer.invoke('logout'),
-  schoolSearch:q=>ipcRenderer.invoke('school-search',q),
-  api:x=>ipcRenderer.invoke('api',x),
-  prepareWebSession:()=>ipcRenderer.invoke('prepare-web-session'),
-  fetchImage:u=>ipcRenderer.invoke('fetch-image',u),
-  submitAssignmentFile:x=>ipcRenderer.invoke('submit-assignment-file',x),
-  submitAssignmentText:x=>ipcRenderer.invoke('submit-assignment-text',x),
-  updateAssignmentGrade:x=>ipcRenderer.invoke('update-assignment-grade',x),
-  checkForUpdates:()=>ipcRenderer.invoke('check-for-updates'),
-  installUpdate:file=>ipcRenderer.invoke('install-update',file),
-  onUpdateAvailable:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('update-available',h);return()=>ipcRenderer.removeListener('update-available',h)},
-  downloadFile:x=>ipcRenderer.invoke('download-file',x),
-  onFileDownloadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('file-download-progress',h);return()=>ipcRenderer.removeListener('file-download-progress',h)},
-  launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
-  openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),
-  openExternal:u=>ipcRenderer.invoke('open-external',u),
-  pickFile:()=>ipcRenderer.invoke('pick-file'),
-  decodeQR:(data,width,height)=>{
-    if(!jsQR) throw new Error('QR decoder is unavailable: '+(qrLoadError||'unknown error'));
-    return jsQR(data,width,height,{inversionAttempts:'attemptBoth',greyScaleWeights:{red:0.299,green:0.587,blue:0.114},canOverwriteImage:true});
-  },
-  qrDecoderAvailable:()=>!!jsQR,
-  qrDecoderError:()=>qrLoadError
-});
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' https: blob:; connect-src 'self' https: http: blob:;">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schoology</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="androidSplashPage">
+<div class="androidSplash" aria-label="Loading Schoology">
+  <img class="androidSplashLogo" src="../assets/android_loading_logo.png" alt="Schoology">
+  <img class="androidSplashSpinner" src="../assets/android_loading_spinner_72.gif" alt="">
+</div>
+<script src="splash.js"></script>
+</body>
+</html>

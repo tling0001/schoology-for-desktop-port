@@ -503,6 +503,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));
   ipcMain.handle('submit-assignment-text',(_,x)=>submitAssignmentText(x));
   ipcMain.handle('update-assignment-grade',(_,x)=>updateAssignmentGrade(x));
+  ipcMain.handle('check-for-updates',()=>checkForUpdates(true));
   ipcMain.handle('download-file',(_,x)=>downloadAuthenticatedFile(x));
   ipcMain.handle('launch-course-app',async(_,x)=>{
     const a=loadAuth(); if(!a)throw new Error('Not signed in');

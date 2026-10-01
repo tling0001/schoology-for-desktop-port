@@ -2,12 +2,13 @@
   const app=document.getElementById('app');
   const splash=document.getElementById('startupSplash');
   const splashStarted=Date.now();
+  document.body.classList.add('splashVisible');
   let appReady=false;
   function hideSplash(){
     if(appReady)return;
     appReady=true;
     const wait=Math.max(0,1000-(Date.now()-splashStarted));
-    setTimeout(()=>{if(splash){splash.classList.add('hidden');setTimeout(()=>splash.remove(),220)}},wait);
+    setTimeout(()=>{if(splash){splash.classList.add('hidden');document.body.classList.remove('splashVisible');setTimeout(()=>splash.remove(),220)}},wait);
   }
   window.schoologyAppReady=hideSplash;
   function showError(title,detail){

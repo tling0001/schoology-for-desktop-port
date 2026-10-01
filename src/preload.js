@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('schoology',{
   checkForUpdates:()=>ipcRenderer.invoke('check-for-updates'),
   installUpdate:info=>ipcRenderer.invoke('install-update',info),
   onUpdateAvailable:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('update-available',h);return()=>ipcRenderer.removeListener('update-available',h)},
+  onUpdateDownloadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('update-download-progress',h);return()=>ipcRenderer.removeListener('update-download-progress',h)},
+  setWindowChrome:x=>ipcRenderer.invoke('set-window-chrome',x),
   downloadFile:x=>ipcRenderer.invoke('download-file',x),
   onFileDownloadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('file-download-progress',h);return()=>ipcRenderer.removeListener('file-download-progress',h)},
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),

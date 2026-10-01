@@ -12,7 +12,15 @@ let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',aut
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
-function showUpdateDialog(u){showAppDialog('Update available',`Schoology Desktop Port v${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{try{await A.installUpdate(u)}catch(e){showAppDialog('Unable to install update',e.message||String(e))}}}])}
+function showUpdateDialog(u){
+  showAppDialog('Update available',`Schoology Desktop Port v${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{
+    const dlg=showAppDialog('Downloading update','Downloading…',[]);
+    const msg=dlg?.querySelector('.appDialogMessage');
+    if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="updateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="updateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';
+    const off=window.schoology?.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('updateDownloadProgressBar'),txt=document.getElementById('updateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.total?`Downloading… ${d.percent||0}%`:'Downloading…';});
+    try{await A.installUpdate(u);off?.()}catch(e){off?.();dlg?.classList.remove('open');showAppDialog('Unable to install update',e.message||String(e))}
+  }}]);
+}
 
 window.closeDrawerThen=function closeDrawerThen(fn){const drawer=document.getElementById('drawer'),shade=document.getElementById('drawerShade');drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;if(typeof fn==='function')fn()},280)};const closeDrawerThen=(fn)=>window.closeDrawerThen(fn);
 function messageDetail(){
@@ -693,17 +701,21 @@ async function showEmbeddedWeb(url,title){
   c.classList.remove('webContentHost');
   c.classList.add('embeddedContentActive');
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
+  const safeUrl=String(url||'');
   c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
-  try{w.setUserAgent?.('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/157.0.0.0 Mobile Safari/537.36 Schoology/2026.06.0')}catch{}
-  w.addEventListener('dom-ready',()=>{try{w.loadURL(url)}catch(e){console.warn('Embedded Schoology load failed:',e)}} ,{once:true});
-  // Some Electron builds emit dom-ready after the initial navigation only when src is set;
-  // explicitly initiate it as a fallback after the guest view is attached.
-  setTimeout(()=>{try{if(w.getURL()==='about:blank'||!w.getURL())w.loadURL(url)}catch{}},50);
-  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
+  try{w.setUserAgent?.('Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0')}catch{}
+  let loaded=false;
+  const load=()=>{if(loaded||!safeUrl)return;loaded=true;try{w.loadURL(safeUrl)}catch(e){loaded=false;console.warn('Embedded Schoology load failed:',e)}};
+  w.addEventListener('did-attach',()=>setTimeout(load,0),{once:true});
+  w.addEventListener('dom-ready',()=>{if(!loaded)load()},{once:true});
+  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.loadURL(e.url)}catch{}});
   w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^(schoology:|https?:\/\/)(?:[^/]+\.schoology\.com|lms\.lausd\.net)(?:\/|$)/i.test(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
   w.addEventListener('did-fail-load',e=>{if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)});
+  // Electron may expose the guest immediately; initiate the first navigation after the element is attached.
+  setTimeout(load,25);
 }
+
 async function loadAttendanceTab(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
   const sid=course.id||course.section_id||course.sectionId;
@@ -989,7 +1001,7 @@ function renderGrades(rows){return renderGradePeriods(rows,{grading_period:[]},{
 
 async function showGroup(group,activeTab='updates'){
   if(!group)return;
-  state.currentGroup=group;state.groupTab=activeTab;state.courseView=null;state.selectedCourse=null;state.toolbarTitle=group.name||group.title||'Group';syncToolbar();
+  state.currentGroup=group;state.groupTab=activeTab;state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.embeddedTitle=null;state.profileUser=null;state.message=null;state.composeMessage=false;state.toolbarTitle=group.name||group.title||'Group';syncToolbar();
   const c=document.getElementById('content');if(!c)return;
   const gid=group.id||group.group_id;
   c.innerHTML=`<section class="groupProfilePage"><div class="groupTabs">${['updates','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''}" data-group-tab="${id}">${({updates:'Updates',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${group.picture_url||group.pictureUrl?`<img src="${esc(normalizeImageUrl(group.picture_url||group.pictureUrl))}" alt="">`:`<span>${esc(String(group.name||group.title||'G').charAt(0))}</span>`}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><p>${esc(group.school_name||'')}</p></div></div><div id="groupTabContent"></div></section>`;
@@ -1013,11 +1025,16 @@ async function showGroup(group,activeTab='updates'){
       else if(tab==='upcoming'){const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));gc.innerHTML=renderUpcoming(a);}
       else if(tab==='discussions'){const x=await A.api({path:`groups/${gid}/discussions`,params:{limit:50}});const a=x.discussion||x.discussions||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||'Discussion')}</b><small>${esc(d.created||d.timestamp||'')}</small></button>`).join(''):'<div class="empty">No discussions.</div>';}
       else if(tab==='albums'){const x=await A.api({path:`groups/${gid}/albums`,params:{limit:50}});const a=x.album||x.albums||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||d.name||'Album')}</b></button>`).join(''):'<div class="empty">No albums.</div>';}
-      else {const x=await A.api({path:`groups/${gid}/resources`,params:{limit:50}});const a=x.resource||x.resources||x.collection||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||d.name||'Resource')}</b></button>`).join(''):'<div class="empty">No resources.</div>';}
+      else {const x=await A.api({path:`groups/${gid}/resources`,params:{limit:50}});const a=x.resource||x.resources||x.collection||x.items||[];gc.innerHTML=a.length?a.map((d,i)=>`<button class="groupRow groupResourceRow" data-group-resource-index="${i}"><span class="officialMaterialIcon"><img src="../assets/icons/${materialIconForType(d)}" alt="></span><span><b>${esc(d.title||d.name||'Resource')}</b></span><span>›</span></button>`).join(''):'<div class="empty">No resources.</div>';window.__groupResources=a;gc.querySelectorAll('[data-group-resource-index]').forEach(b=>b.onclick=async()=>{const d=window.__groupResources[+b.dataset.groupResourceIndex];try{const t=String(d.type||'').toLowerCase(),dt=String(d.document_type||d.documentType||'').toLowerCase();if(t==='folder'){await showGroupResourceFolder(gid,d.id,d.title||'Folder');return}if(t==='assignment'){showAssignment(gid,d.id);return}if(['link','web_content','external_tool','embed','video'].includes(t)||['link','external_tool','embed','video'].includes(dt)){const u=d.web_url||d.webUrl||d.url||d.href||d.launch_url||d.launchUrl||d.location;if(u){await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Link');return}}let u=d.download_path||d.downloadPath||d.converted_download_path||d.convertedDownloadPath||d.file_url||d.fileUrl||d.download_url||d.downloadUrl||d.location||d.url;if(!u){const aa=d.attachments||d.attachment||{};const ff=aa.files?.file||aa.files||aa.file||[];const f=Array.isArray(ff)?ff[0]:ff;u=f?.converted_download_path||f?.convertedDownloadPath||f?.download_path||f?.downloadPath||f?.url||''}if(!u)throw new Error('Schoology did not provide a resource URL.');const r=await downloadWithFeedback(b,{url:u,filename:d.filename||d.fileName||d.title||d.name||'Schoology file',mime:d.filemime||d.fileMIME||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open resource: '+e.message)}}); }
     }catch(e){gc.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
   };
   document.querySelectorAll('[data-group-tab]').forEach(b=>b.onclick=()=>load(b.dataset.groupTab));
   await load(activeTab);
+}
+async function showGroupResourceFolder(gid,folderId,title){
+  const gc=document.getElementById('groupTabContent');if(!gc)return;
+  gc.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
+  try{const x=await A.api({path:`groups/${gid}/resources/${folderId}`,params:{limit:50}});const a=x.resource||x.resources||x.collection||x.items||[];gc.innerHTML=(a.length?a.map((d,i)=>`<button class="groupRow" data-group-folder-resource="${i}"><span class="officialMaterialIcon"><img src="../assets/icons/${materialIconForType(d)}" alt=""></span><span><b>${esc(d.title||d.name||'Resource')}</b></span><span>›</span></button>`).join(''):'<div class="empty">No resources.</div>');window.__groupFolderResources=a;gc.querySelectorAll('[data-group-folder-resource]').forEach(b=>b.onclick=()=>{const d=window.__groupFolderResources[+b.dataset.groupFolderResource];const u=d.web_url||d.webUrl||d.url||d.href||d.location;if(u)showEmbeddedWeb(u,d.title||d.name||'Resource')});}catch(e){gc.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}
 }
 async function loadMessageThread(m){
   try{
@@ -1298,7 +1315,10 @@ async function loadHomeTab(){
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
       const sizeDashboard=()=>{
-        const parent=c.parentElement;
+        const parent=c.parentElement; const host=c.parentElement?.parentElement;
+        const homeTabContent=c;
+        homeTabContent.style.position='relative';homeTabContent.style.display='block';homeTabContent.style.flex='1 1 auto';homeTabContent.style.height='0';homeTabContent.style.minHeight='0';homeTabContent.style.width='100%';homeTabContent.style.overflow='hidden';
+        if(parent && parent.id==='homeTabContent'){parent.style.position='relative';parent.style.display='block';parent.style.flex='1 1 auto';parent.style.height='0';parent.style.minHeight='0';parent.style.overflow='hidden'}
         c.style.position='relative';c.style.left='0';c.style.right='0';c.style.top='0';c.style.bottom='0';c.style.height='100%';c.style.minHeight='0';c.style.maxHeight='none';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';c.style.flex='1 1 auto';
         if(parent){parent.style.minHeight='0';parent.style.overflow='hidden';parent.style.display='flex';parent.style.flexDirection='column'}
         const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.position='absolute';sec.style.inset='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.flex='none';sec.style.overflow='hidden'}

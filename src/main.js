@@ -259,7 +259,17 @@ async function downloadAuthenticatedFile(info, sender){
         const finalTarget=path.join(tmpDir,`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${resolvedName.slice(0,180)}`);
         const out=fs.createWriteStream(finalTarget);
         res.pipe(out);
-        out.on('finish',()=>{downloadedPath=finalTarget;out.close(()=>resolve(finalTarget));});
+        out.on('finish',()=>{
+          try{
+            const fd=fs.openSync(finalTarget,'r');const head=Buffer.alloc(16);const n=fs.readSync(fd,head,0,16,0);fs.closeSync(fd);
+            const sig=head.subarray(0,n).toString('latin1');
+            let corrected=resolvedName;
+            if(sig.startsWith('%PDF-')&&!/\.pdf$/i.test(corrected)) corrected=corrected.replace(/\.[A-Za-z0-9]{1,8}$/,'')+'.pdf';
+            if(/^<!doctype html|^<html/i.test(sig.trim())) throw new Error('Schoology returned an HTML page instead of the submitted file.');
+            if(corrected!==resolvedName){const correctedTarget=path.join(tmpDir,`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${corrected.slice(0,180)}`);fs.renameSync(finalTarget,correctedTarget);downloadedPath=correctedTarget;}else downloadedPath=finalTarget;
+          }catch(e){try{fs.unlinkSync(finalTarget)}catch{};return reject(e)}
+          out.close(()=>resolve(downloadedPath));
+        });
         out.on('error',e=>{try{out.close()}catch{};reject(e)});
       });
       req.on('error',reject);req.setTimeout(60000,()=>req.destroy(new Error('Schoology file download timed out')));req.end();
@@ -375,10 +385,10 @@ async function loginThroughSchoolBrowser(info){
     child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
     child.webContents.on('will-navigate',handleNavigation);
     child.webContents.on('will-redirect',handleNavigation);
-    child.webContents.on('did-fail-load',(_,code,desc)=>console.error('School login browser failed:',code,desc));
+    child.webContents.on('did-fail-load',(_,code,desc)=>{if(code!==-3)console.error('School login browser failed:',code,desc)});
     child.webContents.on('console-message',(_,level,message,line,source)=>console.log('School login browser:',message,'at',source+':'+line));
     child.on('closed',()=>{if(!settled)reject(new Error('School login window was closed.'))});
-    child.loadURL(loginUrl).catch(e=>finish(e));
+    child.loadURL(loginUrl).catch(e=>{if(e?.code==='ERR_ABORTED'||/ERR_ABORTED|(-3)/i.test(String(e?.message||''))){if(!settled&&!processing)return;return}finish(e)});
   });
 }
 
@@ -530,7 +540,7 @@ let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{con
 function create(){
   const titlebarOptions=process.platform==='darwin'
     ? {titleBarStyle:'hiddenInset'}
-    : {titleBarStyle:'hidden',titleBarOverlay:{color:'#22303e',symbolColor:'#ffffff',height:56}};
+    : {titleBarStyle:'hidden',titleBarOverlay:{color:'#44505d',symbolColor:'#ffffff',height:56}};
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
@@ -539,7 +549,7 @@ function create(){
   win.webContents.on('console-message',(_,level,message,line,source)=>console.log('Renderer:',message,'at',source+':'+line));
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
-  win.once('ready-to-show',()=>{win.show();});
+  win.once('ready-to-show',()=>{try{win.setTitleBarOverlay?.({color:'#44505d',symbolColor:'#ffffff',height:56})}catch{};win.show();});
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }
 app.whenReady().then(()=>{

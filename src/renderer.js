@@ -9,7 +9,7 @@ let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
 let loadTabGeneration=0;
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates'};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
@@ -139,7 +139,7 @@ function bind(){
   const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
 
   const shade=document.getElementById('drawerShade'),drawer=document.getElementById('drawer');
-  const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null};
+  const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null;syncWindowChrome()};
   document.getElementById('menuButton')?.addEventListener('click',()=>setDrawer(true));
   shade?.addEventListener('click',()=>setDrawer(false));
 
@@ -233,7 +233,7 @@ function courseTitleOf(course){return course?.course_title||course?.courseTitle|
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
 function syncToolbar(){
   const header=document.querySelector('.toolbar');if(!header)return;
-  const needs=!!(state.assignmentView||state.embeddedTitle||state.profileUser||state.composeMessage||state.message) && !(state.courseView && !state.assignmentView && !state.embeddedTitle);
+  const needs=!!(state.assignmentView||state.embeddedTitle||state.profileUser||state.composeMessage||state.message||state.resourceCollection) && !(state.courseView && !state.assignmentView && !state.embeddedTitle);
   const existing=header.querySelector('#toolbarBack');
   const menu=header.querySelector('#menuButton');
   if(needs&&!existing){const b=document.createElement('button');b.id='toolbarBack';b.className='iconButton';b.setAttribute('aria-label','Back');b.textContent='‹';b.addEventListener('click',navigateBack);header.insertBefore(b,header.firstChild);if(menu)menu.remove();}
@@ -276,6 +276,10 @@ function navigateBack(){
     if(state.selectedCourse){showCourse(state.selectedCourse,state.courseTab||'materials');}
     else {state.toolbarTitle='Home';state.courseView=null;render();loadTab();}
     return;
+  }
+  if(state.resourceCollection){
+    state.resourceCollection=null;state.toolbarTitle='Resources';state.tab='resources';
+    render();loadResourcesHome(document.getElementById('content'));return;
   }
   if(state.embeddedTitle){
     const ret=state.embeddedReturn;
@@ -704,12 +708,12 @@ async function routeSchoologyLink(rawUrl){
  if(!scheme&&!isSchoolHost)return false;
  const mCourse=path.match(/^\/course(?:s)?\/(\d+)(?:\/materials(?:\/gp\/(\d+))?)?$/i);
  const mSection=path.match(/^\/section(?:s)?\/(\d+)$/i);
- const mAssignment=path.match(/^\/assignment(?:s)?\/(\d+)$/i);
- const mCourseAssignment=path.match(/^\/course(?:s)?\/(\d+)\/assignment(?:s)?\/(\d+)$/i);
+ const mAssignment=path.match(/^\/(?:assignment|assignments)\/(\d+)$/i);
+ const mCourseAssignment=path.match(/^\/course(?:s)?\/(\d+)\/(?:assignment|assignments)\/(\d+)$/i);
  if(mCourse||mSection){const sid=Number((mCourse||mSection)[1]);const gp=(mCourse&&mCourse[2])?Number(mCourse[2]):0;try{const x=await A.api({path:`sections/${sid}`,params:{}});const course=x?.section||x;state.embeddedTitle=null;await showCourse(course,'materials');if(gp)await loadFolder(course,gp,true,'Folder');return true}catch(e){showSchoologyRequestError(e);return true}}
  if(mCourseAssignment){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/course/${Number(mCourseAssignment[1])}/assignment/${Number(mCourseAssignment[2])}`:rawUrl,'Assignment');return true}
  if(mAssignment){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/assignment/${Number(mAssignment[1])}`:rawUrl,'Assignment');return true}
- const mQuiz=path.match(/^\/(?:quiz|assessment|assessment_v2|managed_assessment)(?:\/view)?\/(\d+)$/i);if(mQuiz){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/${path.replace(/^\//,'')}`:rawUrl,'Quiz');return true}
+ const mQuiz=path.match(/^\/(?:quiz|quizzes|assessment|assessments|assessment_v2|managed_assessment)(?:\/view)?\/(\d+)$/i);if(mQuiz){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/${path.replace(/^\//,'')}`:rawUrl,'Quiz');return true}
  const mMaterials=path.match(/^\/(?:course|section)\/(?:s)?(\d+)\/materials(?:\/(?:folder|gp)\/(\d+))?$/i);if(mMaterials){try{const x=await A.api({path:`sections/${Number(mMaterials[1])}`,params:{}});const course=x?.section||x;showCourse(course,'materials');if(mMaterials[2])await loadFolder(course,Number(mMaterials[2]),true,'Folder');return true}catch(e){showSchoologyRequestError(e);return true}}
  const mDocument=path.match(/^\/(?:course|section)\/(?:s)?(\d+)\/documents\/(\d+)$/i);if(mDocument){try{const x=await A.api({path:`sections/${Number(mDocument[1])}/documents/${Number(mDocument[2])}`,params:{}});const d=x?.document||x;const type=String(d?.type||d?.document_type||'').toLowerCase();const url=d?.web_url||d?.webUrl||d?.url||d?.link_url||d?.linkURL;if(url||['link','web_content','external_tool','embed','video'].includes(type)){await A.prepareWebSession();showEmbeddedWeb(url||rawUrl,d?.title||'Resource');return true}showCourse(x?.section||{id:Number(mDocument[1])},'materials');return true}catch(e){showSchoologyRequestError(e);return true}}
  return false;
@@ -1076,32 +1080,94 @@ function showComposeMessage(){
   });
 }
 
-function resourceIconForType(type,title){
- const t=String(type||'').toLowerCase(), n=String(title||'');
- if(t==='assignment')return 'ic_assignment.png'; if(t==='assessment'||t==='assessment_v2'||t==='managed_assessment')return 'ic_assessment_16dp.svg'; if(t==='discussion')return 'ic_discussion.png'; if(t==='page')return 'ic_pages.png'; if(t==='album')return 'ic_albums.png'; if(t==='scorm')return 'ic_scorm.png'; if(t==='web_content')return 'ic_web_content.png'; if(t==='link')return 'ic_files_links.png';
- if(t==='document')return /\.(pdf|docx?|xlsx?|pptx?|txt|zip)$/i.test(n)?'ic_files_links.png':'ic_collection.png'; return 'ic_collection.png';
+function resourceIconForType(type,title,item={}){
+ const t=String(type||'').toLowerCase();
+ const dt=String(item.document_type||item.documentType||item.template?.template_document_type||item.template?.templateDocumentType||'').toLowerCase();
+ if(t==='assessment'||t==='assessment_v2'||t==='managed_assessment')return 'ic_assessment_16dp.svg';
+ if(t==='assignment')return 'ic_assignment.png';
+ if(t==='discussion')return 'ic_discussion.png';
+ if(t==='page')return 'ic_pages.png';
+ if(t==='album')return 'ic_albums.png';
+ if(t==='scorm')return 'ic_scorm.png';
+ if(t==='web_package'||t==='web_content')return 'ic_web_content.png';
+ if(t==='folder')return item.color&&String(item.color).toLowerCase()!=='black'?`ic_folder_${String(item.color).toLowerCase()}.png`:'ic_folder_black.png';
+ if(t==='document'){
+   if(dt==='link')return 'ic_files_links.png';
+   if(dt==='embed')return 'attachment_link_icon.png';
+   if(dt==='external_tool')return 'ic_web_content.png';
+   if(dt==='file'){
+     const n=String(title||'').toLowerCase();
+     if(/\.pdf$/.test(n))return 'ic_attach_app_pdf.png';
+     if(/\.(ppt|pptx)$/.test(n))return 'ic_attach_app_ppt.png';
+     if(/\.zip$/.test(n))return 'ic_attach_app_zip.png';
+     if(/\.(png|jpe?g|gif|webp|bmp)$/.test(n))return 'ic_attach_image.png';
+     if(/\.(mp3|wav|m4a|aac|ogg)$/.test(n))return 'ic_attach_audio.png';
+     return 'attachment_document_icon.png';
+   }
+ }
+ if(t==='link')return 'ic_files_links.png';
+ return 'attachment_document_icon.png';
 }
 function collectionIcon(type){return type==='shared'?'ic_collection.png':type==='groups'?'home_dash_groups.png':type==='apps'?'ic_resourceapps.png':'ic_eportfolio.png'}
+function resourceAttachment(item){return item?.attachments||item?.attachment||item?.template?.attachments||item?.template?.attachment||{};}
+function firstAttachment(item,key){const a=resourceAttachment(item);const x=a?.[key]?.[key==='files'?'file':key==='links'?'link':key==='embeds'?'embed':'item']||a?.[key]||a?.[key==='files'?'file':key==='links'?'link':key==='embeds'?'embed':'item'];return Array.isArray(x)?x[0]:x;}
+function resourceDocumentType(item){return String(item?.document_type||item?.documentType||item?.template?.template_document_type||item?.template?.templateDocumentType||'').toLowerCase();}
+function resourceTitle(item){return item?.template_title||item?.templateTitle||item?.title||item?.name||item?.filename||'Resource';}
+function resourceType(item){return String(item?.template_type||item?.templateType||item?.type||'').toLowerCase();}
+async function openCollectionResource(item,button){
+ const t=resourceType(item),dt=resourceDocumentType(item),title=resourceTitle(item);
+ if(t==='folder'){await openResourceCollection({...item,collection_id:item.collection_id||item.collectionID||state.resourceCollection?.collection_id||state.resourceCollection?.id,folder_id:item.id||item.template_id||item.templateID},button);return}
+ if(['assignment','assessment','assessment_v2','managed_assessment','discussion','page','album','scorm','web_package','web_content'].includes(t)){
+   const id=item.id||item.template_id||item.templateID||item.collection_id;
+   if(id){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/${t==='assignment'?'assignment':t==='assessment'?'assignment':t}/${id}`,title);return}
+ }
+ if(t==='document'){
+   if(dt==='link'){
+     const link=firstAttachment(item,'links');const u=link?.link_url||link?.linkURL||link?.url||link?.href||item.url||item.web_url||item.webUrl;
+     if(u){await A.prepareWebSession();showEmbeddedWeb(u,title);return}
+   }
+   if(dt==='embed'){
+     const embed=firstAttachment(item,'embeds');const code=embed?.embed_code||embed?.embedCode;
+     if(code){showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),title,{allowBrowser:false});return}
+   }
+   if(dt==='external_tool'){
+     const u=item.launch_url||item.launchUrl||item.web_url||item.webUrl||item.url||item.href;
+     if(u){await A.prepareWebSession();showEmbeddedWeb(u,title);return}
+   }
+   if(dt==='file'){
+     const f=firstAttachment(item,'files');const u=f?.resolveDownloadUrl||f?.download_path||f?.downloadPath||f?.converted_download_path||f?.convertedDownloadPath;
+     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const r=await downloadWithFeedback(button,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err);return}
+   }
+ }
+ const u=item.web_url||item.webUrl||item.url||item.href||item.location||item.download_path||item.downloadPath||item.file_url||item.fileUrl;
+ if(u){await A.prepareWebSession();showEmbeddedWeb(u,title);return}
+ throw new Error('Schoology did not provide a destination for this resource.');
+}
+function setResourceLoading(button,text='Loading…'){
+ const c=document.getElementById('content');if(!c)return()=>{};
+ const old=c.querySelector('.resourceActionLoading');if(old)old.remove();
+ const overlay=document.createElement('div');overlay.className='resourceActionLoading';overlay.innerHTML=`<img src="../assets/android_loading_spinner_72.gif" alt=""><span>${esc(text)}</span>`;c.appendChild(overlay);
+ if(button){button.disabled=true;button.classList.add('resourceBusy')}
+ return()=>{overlay.remove();if(button){button.disabled=false;button.classList.remove('resourceBusy')}};
+}
 async function loadResourcesHome(c){
  c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></section>';
  const x=await A.api({path:'collections',params:{limit:200}}); const appsX=await A.api({path:'resource_apps',params:{limit:200}}).catch(()=>({}));
  const all=x.collection||x.collections||x.collection_list||[]; const apps=appsX.resource_apps||appsX.resourceApps||appsX.collection||appsX.collections||[];
- const uid=state.auth?.userId||state.auth?.user?.id;
- const groups=[],shared=[],mine=[];
+ const uid=state.auth?.userId||state.auth?.user?.id; const groups=[],shared=[],mine=[];
  all.forEach(o=>{const owner=Number(o.collection_owner_id||o.collectionOwnerId||o.owner_id||0), realm=String(o.collection_realm||o.collectionRealm||'').toLowerCase(), sharedCount=Number(o.shared_users_count||o.sharedUsersCount||0);if(realm==='group')groups.push(o);else if(sharedCount>0)shared.push(o);else if(!realm&&(!owner||owner===Number(uid)))mine.push(o)});
  const categories=[['mine','My Resources',mine],['shared','Shared',shared],['groups','Groups',groups],['apps','Resource Apps',apps]];
- c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceCategoryList">${categories.map(([key,label,list])=>`<section class="resourceCategory"><button class="resourceCategoryHeader" data-resource-category="${key}"><img src="../assets/icons/${collectionIcon(key)}" alt=""><b>${esc(label)}</b><span class="resourceChevron">›</span></button><div class="resourceCategoryChildren" id="resource-${key}">${list.length?list.map((o,i)=>`<button class="resourceCollectionRow" data-resource-collection="${key}" data-resource-index="${i}"><img src="../assets/icons/${key==='apps'?'ic_resourceapps.png':o.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'}" alt=""><span><b>${esc(o.collection_title||o.title||o.name||'Resource')}</b>${o.created?`<small>${esc(formatSchoologyDate(o.created))}</small>`:''}</span><span>›</span></button>`).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`).join('')}</div></section>`;
+ c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceCategoryList">${categories.map(([key,label,list])=>`<section class="resourceCategory"><button class="resourceCategoryHeader" data-resource-category="${key}"><img src="../assets/icons/${collectionIcon(key)}" alt=""><b>${esc(label)}</b><span class="resourceChevron">›</span></button><div class="resourceCategoryChildren" id="resource-${key}">${list.length?list.map((o,i)=>`<button class="resourceCollectionRow" data-resource-collection="${key}" data-resource-index="${i}"><img src="../assets/icons/${key==='apps'?'ic_resourceapps.png':o.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'}" alt=""><span><b>${esc(o.collection_title||o.title||o.name||'Resource')}</b></span><span>›</span></button>`).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`).join('')}</div></section>`;
  window.__resourceCategories=Object.fromEntries(categories.map(([k,l,a])=>[k,a]));
  document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
- document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];if(b.dataset.resourceCollection==='apps'){try{const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');showEmbeddedWeb(url,col.collection_title||col.title||'Resource App')}catch(e){alert('Unable to launch resource app: '+e.message)}}else openResourceCollection(col)});
+ document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');showEmbeddedWeb(url,col.collection_title||col.title||'Resource App')}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
 }
 async function openResourceCollection(col){
  const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';syncToolbar();
  const id=col.collection_id||col.collectionID||col.id;if(!id)return;
- c.innerHTML='<section class="resourcesAndroidPage"><div class="loading">Loading resources…</div></section>';
- const x=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE'}});const arr=x.resource||x.resources||x.resource_list||[];
- c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceBackTitle">${esc(state.toolbarTitle)}</div><div class="resourceRows">${arr.length?arr.map(r=>{const title=r.template_title||r.title||r.name||r.filename||'Resource',type=r.template_type||r.type||'';return `<button class="resourceFileRow" data-resource-url="${esc(r.url||r.file_download_url||r.download_path||r.download_url||'')}" data-resource-name="${esc(title)}"><img src="../assets/icons/${resourceIconForType(type,title)}" alt=""><span><b>${esc(title)}</b><small>${esc(type||'Resource')}</small></span><span>›</span></button>`}).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`;
- document.querySelectorAll('[data-resource-url]').forEach(b=>b.onclick=()=>{const u=b.dataset.resourceUrl;if(!u)return;openWithPressTransition(b,()=>showEmbeddedWeb(u,b.dataset.resourceName||'Resource'))});
+ const folderId=col.folder_id||col.folderId||col.collection_folder_id||col.collectionFolderId||0;
+ c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></section>';
+ try{const x=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE',...(folderId?{f:folderId}:{})}});const arr=x.resource||x.resources||x.resource_list||[];c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceRows">${arr.length?arr.map((r,i)=>{const title=resourceTitle(r),type=resourceType(r);return `<button class="resourceFileRow" data-resource-item-index="${i}"><img src="../assets/icons/${resourceIconForType(type,title,r)}" alt=""><span><b>${esc(title)}</b></span><span>›</span></button>`}).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`;window.__resourceItems=arr;document.querySelectorAll('[data-resource-item-index]').forEach(b=>b.onclick=async()=>{const stop=setResourceLoading(b,'Loading resource…');try{await openCollectionResource(window.__resourceItems[+b.dataset.resourceItemIndex],b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}})}catch(e){c.innerHTML=`<div class="error apiError">Schoology could not load resources.<br>${esc(e.message)}</div>`}
 }
 let homeLayoutMediaQuery=null;
 function installHomeLayoutWatcher(){const mq=window.matchMedia('(min-aspect-ratio: 4/3)');if(homeLayoutMediaQuery===mq)return;window.__schoologyHomeLayoutChange=()=>{if(state.tab==='home')loadTab()};homeLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyHomeLayoutChange);mq.addEventListener?.('change',window.__schoologyHomeLayoutChange);homeLayoutMediaQuery=mq}
@@ -1377,9 +1443,9 @@ async function loadHomeTab(){
     const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
     const arr=x.section||x.sections||[];
     window.__schoologyDashboardCourses=arr;
-    c.classList.remove('dashboardContentActive');c.classList.add('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><div id="dashboardWebviewLoading" class="webviewLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
+    c.classList.remove('dashboardContentActive');c.classList.add('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><div id="dashboardWebviewLoading" class="dashboardOfficialLoading"><img src="../assets/sgy_loading.gif" alt=""></div><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
-    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);setDashboardLoading(true);dw.addEventListener('did-start-loading',()=>setDashboardLoading(true));dw.addEventListener('did-stop-loading',()=>setDashboardLoading(false));dw.addEventListener('did-finish-load',()=>setDashboardLoading(false));dw.addEventListener('did-fail-load',()=>setDashboardLoading(false));
+    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);setDashboardLoading(true);dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setDashboardLoading(true)});dw.addEventListener('did-stop-loading',()=>setDashboardLoading(false));dw.addEventListener('did-finish-load',()=>setDashboardLoading(false));dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});
       const sizeDashboard=()=>{
         const parent=c.parentElement; const host=c.parentElement?.parentElement;
         const main=document.getElementById('content');

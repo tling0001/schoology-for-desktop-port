@@ -274,23 +274,36 @@ async function submitAssignmentFile(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.assignmentId||!info?.filePath)throw new Error('Submission information is incomplete.');
   const filePath=info.filePath, filename=path.basename(filePath), file=fs.readFileSync(filePath);
-  const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
-  const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
-  const post=Buffer.from(`\r\n--${boundary}--\r\n`), body=Buffer.concat([pre,file,post]);
-  // Android FileServiceApi @o("file") is mounted on the v1 API base URL.
-  const uploadUrl=new URL(`https://${API_HOST}/v1/file`); uploadUrl.searchParams.set('name',filename);
-  const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0'};
-  // FileServiceApi is created from the authenticated Android v1 Retrofit adapter,
-  // so the multipart upload must carry the same OAuth Authorization header.
-  headers.Authorization=makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret);
-  headers.Cookie=MOBILE_COOKIE;
-  const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(body);req.end()});
-  if(uploaded.status<200||uploaded.status>=300)throw new Error('File upload failed: '+uploaded.status+' '+uploaded.text);
-  let j={};try{j=JSON.parse(uploaded.text)}catch{} const fileId=j.fileMetadataId;
-  if(!fileId)throw new Error('Schoology did not return fileMetadataId.');
-  // Android AssignmentApi: POST section/{sectionId}/assignment/{assignmentId}/submission.
+  const mimeByExt={'.pdf':'application/pdf','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.ppt':'application/vnd.ms-powerpoint','.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation','.txt':'text/plain','.csv':'text/csv','.zip':'application/zip','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif'};
+  const mime=mimeByExt[path.extname(filename).toLowerCase()]||'application/octet-stream';
+  let fileId=null;
+  try{
+    const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
+    const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: ${mime}\r\n\r\n`);
+    const post=Buffer.from(`\r\n--${boundary}--\r\n`), multipart=Buffer.concat([pre,file,post]);
+    const uploadUrl=new URL(`https://${API_HOST}/v1/file`);uploadUrl.searchParams.set('name',filename);
+    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':multipart.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0',Authorization:makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),Cookie:MOBILE_COOKIE};
+    const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(multipart);req.end()});
+    if(uploaded.status>=200&&uploaded.status<300){try{fileId=JSON.parse(uploaded.text).fileMetadataId}catch{}}
+    if(!fileId)throw new Error(`FileService ${uploaded.status}: ${uploaded.text}`);
+  }catch(primaryError){
+    // Android 2026.06.0 retains a legacy upload path when FileServiceApi is unavailable.
+    // Reproduce that documented fallback: POST metadata to /v1/upload, then PUT bytes to /v1/upload/{id}.
+    const md5=crypto.createHash('md5').update(file).digest('hex');
+    const meta={upload_filename:filename,upload_file_md5:md5,upload_file_size:file.length};
+    const holder=await request('POST',`https://${API_HOST}/v1/upload`,meta,{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+    if(holder.status<200||holder.status>=300)throw new Error(`File upload failed: ${primaryError.message}; legacy metadata upload failed: ${holder.status} ${holder.text}`);
+    let h={};try{h=JSON.parse(holder.text)}catch{}
+    fileId=h.upload_file_id||h.uploadFileID||h.upload_id||h.id;
+    if(!fileId)throw new Error('Schoology did not return an upload file ID.');
+    const u=new URL(`https://${API_HOST}/v1/upload/${fileId}`);
+    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,Authorization:makeOAuthHeader('PUT',u.toString(),a.oauth_token,a.oauth_token_secret,null,null),Cookie:MOBILE_COOKIE,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0'};
+    const put=await new Promise((resolve,reject)=>{const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(file);req.end()});
+    if(put.status<200||put.status>=300)throw new Error(`File upload failed: ${put.status} ${put.text}`);
+  }
+  if(!fileId)throw new Error('Schoology did not return a file metadata ID.');
   const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
-  if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text); return true;
+  if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text);return true;
 }
 async function updateAssignmentGrade(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
@@ -304,7 +317,7 @@ async function submitAssignmentText(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.gradeItemId)throw new Error('Text submission information is incomplete.');
   const body=String(info.text||'').trim(); if(!body)throw new Error('Enter a submission before posting.');
-  const result=await request('POST',`https://${API_HOST}/v1/sections/${info.sectionId}/submissions/${info.gradeItemId}/create`,{body,draft:info.draft?1:0},{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+  const result=await request('POST',`https://${API_HOST}/v1/sections/${info.sectionId}/submissions/${info.gradeItemId}/create`,{body,draft:info.draft?1:0},{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
   if(result.status<200||result.status>=300)throw new Error('Text submission failed: '+result.status+' '+result.text); return true;
 }
 

@@ -499,3 +499,15 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .dashboardContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
 .dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
 .recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:100%!important;min-height:0!important}
+/* v64: compact in-button download/update feedback; preserve the row's original label. */
+.downloadProgressWrap,.settingProgress{display:inline-flex!important;align-items:center;gap:6px;float:right;margin-left:10px;white-space:nowrap;font-size:12px;color:#68757e}
+.downloadProgressWrap img,.settingProgress img{width:20px!important;height:20px!important;display:block!important;margin:0!important;object-fit:contain}
+.downloadBusy{opacity:.85}
+/* Upcoming intentionally gets more space than Course Apps in landscape. */
+@media (min-aspect-ratio:4/3){
+  .courseLandscapePage{grid-template-columns:minmax(0,18fr) minmax(0,55fr) minmax(0,27fr)!important}
+}
+.qr.loginAnimated{animation:schoologyLoginFadeIn .38s ease both}.qr.loginAnimated h1,.qr.loginAnimated p,.qr.loginAnimated video,.qr.loginAnimated .qrbox{animation:schoologyLoginFadeIn .38s ease both}.qr.loginAnimated video{animation-delay:.08s}.qr.loginAnimated .qrbox{animation-delay:.12s}.qr.loginAnimated .qrhint{animation-delay:.16s}
+.androidInlineSpinner{width:32px!important;height:32px!important;object-fit:contain;display:block;margin:0 auto 8px}
+.assignmentLoading{min-height:180px;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.drawerLoading{display:flex;align-items:center;justify-content:center;gap:7px;padding:18px;color:#68757e}.drawerLoading .androidInlineSpinner{width:24px!important;height:24px!important;margin:0!important}

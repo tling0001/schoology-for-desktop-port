@@ -30,7 +30,7 @@ function messageDetail(){
    const attachments=renderMessageAttachments(msg.attachments||msg.attachment||{});
    return `<article class="messageThreadItem"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div><b>${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${esc(body)}</div>${attachments}</article>`;
  }).join(''):`<div class="messageThreadLoading">Loading message…</div>`;
- return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">‹</button><span class="toolbarTitle">${esc(subject)}</span><button id="messageMore" class="iconButton" aria-label="More">⋮</button></header><main class="messageDetail">${thread?cards:'<div class="loading">Loading message…</div>'}</main></div>`;
+ return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">‹</button><span class="toolbarTitle">${esc(subject)}</span><button id="messageMore" class="iconButton" aria-label="More">⋮</button></header><main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main></div>`;
 }
 function renderMessageAttachments(a){
  const out=[];
@@ -44,13 +44,13 @@ function renderMessageAttachments(a){
 const menuImg="<svg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'><path fill='white' d='M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z'/></svg>";
 function render(){let h=state.message?messageDetail():state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;bind();return h}
 function login(){return `<div class="login loginAnimated"><img class="logo" src="../assets/logo_schoology.png"><div class="loginBody"><button id="schoolLogin" class="primary">Log in through your School</button><button id="continueSchoology" class="secondary">Log in using schoology.com</button><button id="qrLogin" class="qrButton">Sign in with a QR code</button></div><div class="loginBottom">I need help signing in</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
-function schoolSearchScreen(){return `<div class="login loginAnimated"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" autofocus placeholder="Enter your School or domain" value="${esc(state.q)}"><span>⌕</span></div>${state.loading?'<div class="searchStatus">Searching…</div>':''}${state.schools.length?`<div class="suggestions">${state.schools.map((s,i)=>`<button class="suggestion" data-school="${i}"><b>${esc(s.title||'')}</b><small>${esc([s.id,s.domain,s.location].filter(Boolean).join(' • '))}</small></button>`).join('')}</div>`:''}${!state.loading&&state.q&&state.schools.length===0&&!state.error?'<div class="searchStatus">No schools found.</div>':''}</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
+function schoolSearchScreen(){return `<div class="login loginAnimated"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" autofocus placeholder="Enter your School or domain" value="${esc(state.q)}"><span>⌕</span></div><div id="schoolSearchStatus"></div><div id="schoolSuggestions"></div></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function credentials(){return `<div class="login loginAnimated"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody">${state.school?`<div class="selected">${esc(state.school.title||'School')}</div>`:'<div class="accountTitle">Log in using schoology.com</div>'}<div class="label">Username or Email</div><input id="user" class="field" autocomplete="username"><div class="label">Password</div><input id="pass" class="field" type="password" autocomplete="current-password"><button id="signIn" class="primary">Login</button><button id="qrLogin" class="qrButton">Sign in with a QR code</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function externalSelect(){
   const name=state.school?.title||'School';
   return `<div class="login loginAnimated"><button id="back" class="back">‹</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="selected">${esc(name)}</div><button id="browserLogin" class="primary">Log in through your browser</button><button id="nativeLogin" class="secondary">Log in with a username and password</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`
 }
-function qr(){return `<div class="qr"><button id="back" class="back">‹</button><h1>QR Code Login</h1><p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><div class="qrbox"></div><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
+function qr(){return `<div class="qr loginAnimated"><button id="back" class="back">‹</button><h1>QR Code Login</h1><p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><div class="qrbox"></div><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function shell(){
  const drawerItems=[
   ['profile','Profile','profile'],['messages','Messages','ic_menu_messages'],['notifications','Notifications','ic_menu_notifications'],['requests','Requests','ic_menu_requests'],
@@ -64,7 +64,7 @@ function shell(){
    </div>`:'';
  return `<div class="shell">
  <header class="toolbar">${state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
- <main id="content"><div class="loading">Loading…</div></main>
+ <main id="content"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></main>
  <div id="drawerShade" class="drawerShade ${drawerPage?'submenuShade':''}"></div><aside id="drawer" class="drawer ${drawerPage?'drawerSubMode':''}">
    ${drawerPage||`<button id="profileButton" class="profileRow"><img src="../assets/logo_schoology.png"><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
    <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span class="drawerLabel">${label}</span>${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span class="drawerLabel">${label}</span>${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`).join('')}</div>`}
@@ -73,8 +73,12 @@ function shell(){
 }
 function setDownloadButtonState(button,active,label='Downloading…'){
   if(!button)return;
-  if(active){button.dataset.downloadBusy='1';button.disabled=true;button.classList.add('downloadBusy');button.dataset.originalHtml=button.innerHTML;button.innerHTML=`<span class="downloadProgressWrap"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>${esc(label)}</span></span>`;}
-  else{button.disabled=false;button.classList.remove('downloadBusy');if(button.dataset.originalHtml!=null)button.innerHTML=button.dataset.originalHtml;delete button.dataset.originalHtml;delete button.dataset.downloadBusy;}
+  if(active){
+    button.dataset.downloadBusy='1';button.disabled=true;button.classList.add('downloadBusy');
+    if(!button.querySelector('.downloadProgressWrap')) button.insertAdjacentHTML('beforeend',`<span class="downloadProgressWrap"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>${esc(label)}</span></span>`);
+  }else{
+    button.disabled=false;button.classList.remove('downloadBusy');button.querySelector('.downloadProgressWrap')?.remove();delete button.dataset.downloadBusy;
+  }
 }
 async function downloadWithFeedback(button,params){
   const progressId='dl-'+Date.now()+'-'+Math.random().toString(36).slice(2);
@@ -91,7 +95,24 @@ function bind(){
   const qrbtn=document.getElementById('qrLogin');if(qrbtn)qrbtn.onclick=()=>{state.error='';state.screen='qr';render();startQR()};
   const back=document.getElementById('back');if(back)back.onclick=()=>{stopQR();state.error='';state.screen=state.school?'search':'login';if(state.screen==='search')state.schools=[];render()};
   const q=document.getElementById('schoolSearch');
-  if(q){q.oninput=async()=>{const start=q.selectionStart??q.value.length,end=q.selectionEnd??start;state.q=q.value;const query=q.value.trim();const restore=()=>{const el=document.getElementById('schoolSearch');if(el){el.focus();try{el.setSelectionRange(start,end)}catch{}}};if(query.length<1){state.schools=[];state.loading=false;render();restore();return}const token=++state.searchToken;state.loading=true;state.error='';render();restore();try{const results=await A.schoolSearch(query);if(token!==state.searchToken)return;state.schools=Array.isArray(results)?results:[]}catch(e){if(token===state.searchToken){state.schools=[];state.error=e.message||'Unable to search for schools.'}}finally{if(token===state.searchToken)state.loading=false}if(token===state.searchToken){render();restore()}}}
+  if(q){
+    const status=document.getElementById('schoolSearchStatus'), list=document.getElementById('schoolSuggestions');
+    const updateSearchUi=()=>{
+      if(status)status.innerHTML=state.loading?'<div class="searchStatus">Searching…</div>':(!state.error&&state.q&&state.schools.length===0?'<div class="searchStatus">No schools found.</div>':'');
+      if(list)list.innerHTML=state.schools.length?`<div class="suggestions">${state.schools.map((s,i)=>`<button class="suggestion" data-school="${i}"><b>${esc(s.title||'')}</b><small>${esc([s.id,s.domain,s.location].filter(Boolean).join(' • '))}</small></button>`).join('')}</div>`:'';
+      list?.querySelectorAll('[data-school]').forEach(b=>b.onclick=async()=>{const school=state.schools[+b.dataset.school];state.school=school;state.schools=[];state.error='';const external=!!school&&school.login_type&&school.login_type!=='schoology';const browserFlow=!!school&&(school.use_browser_login_flow??school.useBrowserLoginFlow??true);if(!external){state.screen='credentials';render();document.getElementById('user')?.focus();return}if(browserFlow){state.screen='externalSelect';render();return}state.loading=true;updateSearchUi();try{state.auth=await A.loginExternalSchool({url:school.login_url||school.loginUrl||'',domain:school.domain||''});await afterLogin()}catch(e){state.error=e.message||'School sign-in failed.';state.screen='search';render()}finally{state.loading=false}});
+    };
+    q.oninput=async()=>{
+      const query=q.value.trim();state.q=q.value;state.error='';
+      if(query.length<1){state.schools=[];state.loading=false;updateSearchUi();return;}
+      const token=++state.searchToken;state.loading=true;updateSearchUi();
+      try{const results=await A.schoolSearch(query);if(token!==state.searchToken)return;state.schools=Array.isArray(results)?results:[]}
+      catch(e){if(token===state.searchToken){state.schools=[];state.error=e.message||'Unable to search for schools.'}}
+      finally{if(token===state.searchToken){state.loading=false;updateSearchUi()}}
+    };
+    updateSearchUi();
+  }
+
   document.querySelectorAll('[data-school]').forEach(b=>b.onclick=async()=>{
     state.school=state.schools[+b.dataset.school];state.schools=[];state.error='';
     const school=state.school,external=!!school&&school.login_type&&school.login_type!=='schoology';
@@ -119,7 +140,7 @@ function bind(){
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
     if(id==='courses'||id==='groups'||id==='grades'){
-      state.drawerPage=id;const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${id==='grades'?'Grades':id==='groups'?'Groups':'Courses'}</span>${id==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div><div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${id==='grades'?'grades':id==='groups'?'groups':'courses'}…</div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadCourseSubmenu();return;
+      state.drawerPage=id;const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${id==='grades'?'Grades':id==='groups'?'Groups':'Courses'}</span>${id==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div><div id="courseSubList" class="courseSubList"><div class="drawerLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading ${id==='grades'?'grades':id==='groups'?'groups':'courses'}…</span></div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadCourseSubmenu();return;
     }
     closeDrawerThen(async()=>{
       if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
@@ -182,7 +203,7 @@ function showGradeSection(course){
  state.selectedCourse=course;
  const c=document.getElementById('content');if(!c)return;
  const title=courseTitleOf(course),section=sectionTitleOf(course),sid=course?.id||course?.section_id||course?.sectionId;
- c.innerHTML=`<section class="gradesNativePage"><div class="gradesHeader"><h1>${esc(section||title)}</h1><p>${esc(title)}</p></div><div id="gradesContent" class="gradesContent"><div class="loading">Loading…</div></div></section>`;
+ c.innerHTML=`<section class="gradesNativePage"><div class="gradesHeader"><h1>${esc(section||title)}</h1><p>${esc(title)}</p></div><div id="gradesContent" class="gradesContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></section>`;
  (async()=>{try{
    const x=await A.api({path:`sections/${sid}/grades`,params:{}});
    const rows=x.grade||x.grades||x.assignment||x.assignments||[];
@@ -319,14 +340,14 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  if(landscape&&effectiveTab==='courseapp')effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
-   <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading">Loading…</div></div></aside>
+   <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
    <section class="courseMainPane">
     <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
     <div class="sectionProfileHeader"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback">${esc(title.charAt(0))}</span><div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div></div>
     <div class="sectionProfileRule"></div>
-    <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading">Loading…</div></div>
+    <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>
    </section>
-   <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading">Loading…</div></div></aside>
+   <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
  </section>`;
  hydrateCourseImages(c);
  document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{
@@ -343,7 +364,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
 async function showAssignment(sectionId,assignmentId){
   const c=document.getElementById('content'); if(!c)return;
   state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSubpage=null; state.submissionMenu=false; syncToolbar();
-  c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading">Loading assignment…</div></section>`;
+  c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading assignment…</span></div></section>`;
   try{
     const uid=state.auth?.userId||state.auth?.user?.id;
     const [aResp,sectionResp,enrollResp]=await Promise.all([
@@ -507,32 +528,38 @@ function openTextSubmissionComposer(){
 function renderAttachments(a){
   if(!a)return '';
   const out=[];
-  const add=(url,type,title)=>{
+  const addFile=(f)=>{
+    const url=f?.resolveDownloadUrl||f?.resolve_download_url||f?.converted_download_path||f?.convertedDownloadPath||f?.download_path||f?.downloadPath||f?.fileDownloadURL||f?.download_url||f?.downloadUrl||f?.url;
     if(!url)return;
-    const u=normalizeImageUrl(url);
-    if(type==='image'||/\.(png|jpe?g|gif|webp)(\?|$)/i.test(u)){
-      out.push(`<img class="activityMediaImage authenticatedMediaImage" data-media-image-url="${esc(u)}" alt="${esc(title||'')}" loading="lazy" style="display:none">`);
-    } else out.push(`<button class="activityAttachment" data-open-url="${esc(u)}">${esc(title||u)}</button>`);
+    const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim();
+    const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream';
+    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}">📎 ${esc(title)}</button>`);
   };
+  const addLink=(url,title)=>{if(url)out.push(`<button class="activityAttachment" data-open-url="${esc(url)}">${esc(title||url)}</button>`)};
   const walk=(v)=>{
     if(!v)return;
     if(Array.isArray(v)){v.forEach(walk);return}
     if(typeof v!=='object')return;
+    const files=v.files?.file||v.files?.list||v.files||v['file-attachment']||v.file;
+    if(files){const list=Array.isArray(files)?files:(files.file||files.list||[files]);list.filter(x=>x&&typeof x==='object').forEach(addFile)}
     const type=String(v.type||v.attachmentType||'').toLowerCase();
     const title=v.title||v.fileTitle||v.fileName||v.linkTitle||v.videoTitle||'Attachment';
-    add(v.thumbnail||v.fileThumbnailURL||v.videoThumbnailURL,type==='video'?'image':type,title);
-    add(v.url||v.fileDownloadURL||v.fileConvertedDownloadURL||v.linkURL||v.videoURL,type,title);
-    for(const k of ['attachment','file','link','video','embed','files','links','videos'])if(v[k])walk(v[k]);
+    if(type==='file'||v.download_path||v.downloadPath||v.converted_download_path||v.convertedDownloadPath||v.resolveDownloadUrl||v.fileDownloadURL){addFile(v)}
+    else if(v.thumbnail||v.fileThumbnailURL||v.videoThumbnailURL){const thumb=v.thumbnail||v.fileThumbnailURL||v.videoThumbnailURL;out.push(`<img class="activityMediaImage authenticatedMediaImage" data-media-image-url="${esc(normalizeImageUrl(thumb))}" alt="${esc(title)}" loading="lazy" style="display:none">`)}
+    if(type!=='file')addLink(v.linkURL||v.linkUrl||((type==='link'||type==='web_content')?v.url:null),title);
+    for(const k of ['attachment','file','link','video','embed','links','videos'])if(v[k])walk(v[k]);
   };
   walk(a);
   return out.length?`<div class="activityMedia">${out.join('')}</div>`:'';
 }
+
 async function hydrateMediaImages(root=document){
   const els=root.querySelectorAll?.('[data-media-image-url]')||[];
   await Promise.all([...els].map(async el=>{
     const u=el.getAttribute('data-media-image-url');try{const data=await A.fetchImage(u);if(data){el.src=data;el.style.display='block';if(el.nextElementSibling)el.nextElementSibling.style.display='none'}}catch{}
   }));
-  root.querySelectorAll?.('[data-open-url]')?.forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Attachment')));
+  root.querySelectorAll?.('[data-open-url]')?.forEach(b=>{if(b.dataset.boundOpen)return;b.dataset.boundOpen='1';b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Attachment'))});
+  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{const r=await downloadWithFeedback(b,{url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
 }
 function materialIconForType(item){
  const type=String(item?.type||item?.template_type||'').toLowerCase();
@@ -629,8 +656,9 @@ async function routeSchoologyLink(rawUrl){
  if(mAssignment){const sid=state.assignmentView?.sectionId||state.selectedCourse?.id||state.selectedCourse?.section_id||state.selectedCourse?.sectionId;if(sid){showAssignment(sid,Number(mAssignment[1]));return true}try{const x=await A.api({path:`assignments/${Number(mAssignment[1])}`,params:{}});const a=x?.assignment||x;const sectionId=a?.section_id||a?.sectionId||a?.section?.id;if(sectionId){showAssignment(Number(sectionId),Number(mAssignment[1]));return true}}catch{}return false}
  return false;
 }
-function showEmbeddedWeb(url,title){
+async function showEmbeddedWeb(url,title){
   const c=document.getElementById('content');if(!c)return;
+  try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
   c.classList.remove('webContentHost');
   c.classList.add('embeddedContentActive');
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
@@ -990,7 +1018,7 @@ function resourceIconForType(type,title){
 }
 function collectionIcon(type){return type==='shared'?'ic_collection.png':type==='groups'?'home_dash_groups.png':type==='apps'?'ic_resourceapps.png':'ic_eportfolio.png'}
 async function loadResourcesHome(c){
- c.innerHTML='<section class="resourcesAndroidPage"><div class="loading">Loading…</div></section>';
+ c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></section>';
  const x=await A.api({path:'collections',params:{limit:200}}); const appsX=await A.api({path:'resource_apps',params:{limit:200}}).catch(()=>({}));
  const all=x.collection||x.collections||x.collection_list||[]; const apps=appsX.resource_apps||appsX.resourceApps||appsX.collection||appsX.collections||[];
  const uid=state.auth?.userId||state.auth?.user?.id;
@@ -1014,7 +1042,7 @@ let homeLayoutMediaQuery=null;
 function installHomeLayoutWatcher(){const mq=window.matchMedia('(min-aspect-ratio: 4/3)');if(homeLayoutMediaQuery===mq)return;window.__schoologyHomeLayoutChange=()=>{if(state.tab==='home')loadTab()};homeLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyHomeLayoutChange);mq.addEventListener?.('change',window.__schoologyHomeLayoutChange);homeLayoutMediaQuery=mq}
 async function loadTab(){
  const c=document.getElementById('content');if(!c)return;
- c.innerHTML='<div class="loading">Loading…</div>';
+ c.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
  const uid=state.auth?.userId||state.auth?.user?.id;
  try{
   if(state.tab==='home'){
@@ -1176,7 +1204,7 @@ async function renderUpcomingInto(c){
  body.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_menu_resources':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
  document.querySelectorAll('[data-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.upcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id)openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
 }
-async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="homeUpcomingList"><div class="loading">Loading…</div></div>';await renderUpcomingInto(c)}
+async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="homeUpcomingList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';await renderUpcomingInto(c)}
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
  c.style.position='';c.style.left='';c.style.right='';c.style.top='';c.style.bottom='';c.style.height='';c.style.minHeight='';c.style.maxHeight='';c.style.overflow='';c.style.padding='';c.style.margin='';c.style.flex='';
@@ -1234,10 +1262,11 @@ async function loadHomeTab(){
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){
       const sizeDashboard=()=>{
-        const h=Math.max(0,Math.round(c.getBoundingClientRect().height||window.innerHeight-56));
-        c.style.position='relative';c.style.left='0';c.style.right='0';c.style.top='0';c.style.bottom='0';c.style.height=h+'px';c.style.minHeight=h+'px';c.style.maxHeight=h+'px';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';
-        const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.position='absolute';sec.style.inset='0';sec.style.width='100%';sec.style.height=h+'px';sec.style.minHeight=h+'px';sec.style.maxHeight=h+'px';sec.style.padding='0';sec.style.margin='0';sec.style.flex='none';sec.style.overflow='hidden'}
-        dw.style.position='absolute';dw.style.inset='0';dw.style.height=h+'px';dw.style.minHeight=h+'px';dw.style.maxHeight=h+'px';dw.style.width='100%';dw.style.minWidth='100%';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
+        const parent=c.parentElement;
+        c.style.position='relative';c.style.left='0';c.style.right='0';c.style.top='0';c.style.bottom='0';c.style.height='100%';c.style.minHeight='0';c.style.maxHeight='none';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';c.style.flex='1 1 auto';
+        if(parent){parent.style.minHeight='0';parent.style.overflow='hidden';parent.style.display='flex';parent.style.flexDirection='column'}
+        const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.position='absolute';sec.style.inset='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.flex='none';sec.style.overflow='hidden'}
+        dw.style.position='absolute';dw.style.inset='0';dw.style.height='100%';dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='100%';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
       };
       sizeDashboard();requestAnimationFrame(sizeDashboard);window.addEventListener('resize',sizeDashboard,{passive:true});
       dw.addEventListener('dom-ready',sizeDashboard);
@@ -1245,7 +1274,10 @@ async function loadHomeTab(){
       dw.addEventListener('new-window',async e=>{e.preventDefault();if(await handleDashboardLink(e.url,e))return;try{dw.src=e.url}catch{}});
       dw.addEventListener('will-navigate',async e=>{if(await handleDashboardLink(e.url,e))return;});
       dw.addEventListener('did-navigate-in-page',async e=>{await handleDashboardLink(e.url,null)});
-      dw.addEventListener('dom-ready',()=>{try{dw.executeJavaScript(`(()=>{if(window.__schoologyDesktopDeepLinkHook)return;window.__schoologyDesktopDeepLinkHook=true;document.addEventListener('click',e=>{const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;const h=a.href||a.getAttribute('href')||'';if(/^(schoology:|https?:\/\/)(?:[^/]+\.schoology\.com|lms\.lausd\.net)(?:\/|$)/i.test(h)){e.preventDefault();e.stopPropagation();window.open(h,'_blank');}},true);})();`,true)}catch{}});
+      // Android uses SGYDeepLinkInterceptor at the WebSession/navigation layer.
+      // Electron's webview new-window/will-navigate hooks provide the equivalent;
+      // do not execute arbitrary JavaScript inside the guest page.
+
       dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
     }
   }else{

@@ -276,7 +276,10 @@ async function submitAssignmentFile(info){
   // Android FileServiceApi @o("file") is mounted on the v1 API base URL.
   const uploadUrl=new URL(`https://${API_HOST}/v1/file`); uploadUrl.searchParams.set('name',filename);
   const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0'};
+  // FileServiceApi is created from the authenticated Android v1 Retrofit adapter,
+  // so the multipart upload must carry the same OAuth Authorization header.
   headers.Authorization=makeOAuthHeader('POST',uploadUrl.toString(),a.oauth_token,a.oauth_token_secret);
+  headers.Cookie=MOBILE_COOKIE;
   const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(body);req.end()});
   if(uploaded.status<200||uploaded.status>=300)throw new Error('File upload failed: '+uploaded.status+' '+uploaded.text);
   let j={};try{j=JSON.parse(uploaded.text)}catch{} const fileId=j.fileMetadataId;

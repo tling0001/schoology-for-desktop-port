@@ -566,3 +566,13 @@ html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .
 .shell>main#content:has(.homeLandscapeSplit){height:calc(100vh - 56px)!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important}
 .homeLandscapeSplit{height:100%!important;min-height:0!important;flex:1 1 auto!important}
 .homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important}
+
+/* v73: macOS keeps native traffic lights in a separate 28px Schoology-colored title strip. */
+html[data-electron-platform=darwin] body{background:#002137!important}
+html[data-electron-platform=darwin] .shell{padding-top:28px!important}
+html[data-electron-platform=darwin] .shell>.toolbar{flex:0 0 56px!important}
+html[data-electron-platform=darwin] .login,html[data-electron-platform=darwin] .qr{min-height:100vh!important;padding-top:28px!important}
+/* v73: Windows/Linux caption controls are an overlay; reserve their full region and physically push app actions left. */
+html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:164px!important}
+html[data-electron-platform=win32] .toolbarActionSlot,html[data-electron-platform=linux] .toolbarActionSlot{position:absolute!important;right:164px!important;top:0!important;width:48px!important;min-width:48px!important;height:56px!important;margin:0!important;z-index:100!important}
+html[data-electron-platform=win32] .toolbarTitle,html[data-electron-platform=linux] .toolbarTitle{padding-right:56px!important}

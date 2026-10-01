@@ -499,7 +499,7 @@ async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTea
       let subs={};
       try{subs=await A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}})}catch(e){subs={};}
       const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||subs.data?.revision||subs.data?.revisions||[];
-      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId:uid,revisionId:r.revision_id||r.revisionId})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
+      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId:uid,revisionId:r.revision_id||r.revisionId,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
       await hydrateMediaImages(c);
     }
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load submissions.</b><br>${esc(e.message)}</div>`}
@@ -512,7 +512,7 @@ async function openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enr
   try{
     const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}}).catch(()=>({}))]);
     const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revs=subs.revision||subs.revisions||[];
-    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId,revisionId:r.revision_id||r.revisionId})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
+    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId,revisionId:r.revision_id||r.revisionId,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
     await hydrateMediaImages(c);
     document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{try{await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment:document.getElementById('teacherGradeComment')?.value||'',commentStatus:document.getElementById('teacherDisplayComment')?.checked});await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId)}catch(e){alert(e.message)}});
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this submission.</b><br>${esc(e.message)}</div>`}
@@ -561,7 +561,7 @@ function renderAttachments(a,submissionContext=null){
     if(!url)return;
     const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim();
     const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream';
-    const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
+    const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
     out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}>📎 ${esc(title)}</button>`);
   };
   const addLink=(url,title)=>{if(url)out.push(`<button class="activityAttachment" data-open-url="${esc(url)}">${esc(title||url)}</button>`)};
@@ -588,7 +588,7 @@ async function hydrateMediaImages(root=document){
     const u=el.getAttribute('data-media-image-url');try{const data=await A.fetchImage(u);if(data){el.src=data;el.style.display='block';if(el.nextElementSibling)el.nextElementSibling.style.display='none'}}catch{}
   }));
   root.querySelectorAll?.('[data-open-url]')?.forEach(b=>{if(b.dataset.boundOpen)return;b.dataset.boundOpen='1';b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Attachment'))});
-  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{let info={url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime};if(b.dataset.submissionFileId&&b.dataset.submissionRevisionId&&b.dataset.submissionSectionId&&b.dataset.submissionGradeItemId&&b.dataset.submissionUserId){const rr=await A.api({path:`sections/${b.dataset.submissionSectionId}/submissions/${b.dataset.submissionGradeItemId}/${b.dataset.submissionUserId}/revision/${b.dataset.submissionRevisionId}`,params:{with_annotations:'TRUE',with_attachments:'TRUE'}});const revisions=rr?.revision||rr?.revisions||rr?.data?.revision||rr?.data?.revisions||[];const list=Array.isArray(revisions)?revisions:[revisions];let exact=null;for(const rv of list){const files=rv?.attachments?.files?.file||rv?.attachments?.files||rv?.attachments?.file||[];const fs=Array.isArray(files)?files:(files?[files]:[]);const hit=fs.find(f=>String(f?.id??f?.fid??'')===String(b.dataset.submissionFileId));if(hit){exact=hit;break;}}if(exact){const convertedOk=String(exact.converted_status??exact.convertedStatus)==='1';const rawUrl=exact.download_path||exact.downloadPath||'';const convertedUrl=exact.converted_download_path||exact.convertedDownloadPath||'';info.url=convertedOk&&convertedUrl?convertedUrl:(rawUrl||convertedUrl);info.filename=(convertedOk&&exact.convertedFilename)||exact.filename||exact.title||info.filename;info.mime=(convertedOk&&exact.convertedFileMime)||exact.filemime||info.mime;}}const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
+  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{let info={url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime};if(b.dataset.submissionFileId&&b.dataset.submissionRevisionId&&b.dataset.submissionSectionId&&b.dataset.submissionGradeItemId&&b.dataset.submissionUserId){const rr=await A.api({path:`sections/${b.dataset.submissionSectionId}/submissions/${b.dataset.submissionSubmissionId||b.dataset.submissionGradeItemId}/${b.dataset.submissionUserId}/revision/${b.dataset.submissionRevisionId}`,params:{with_annotations:'TRUE',with_attachments:'TRUE'}});const revisions=rr?.revision||rr?.revisions||rr?.data?.revision||rr?.data?.revisions||[];const list=Array.isArray(revisions)?revisions:[revisions];let exact=null;for(const rv of list){const files=rv?.attachments?.files?.file||rv?.attachments?.files||rv?.attachments?.file||[];const fs=Array.isArray(files)?files:(files?[files]:[]);const hit=fs.find(f=>String(f?.id??f?.fid??'')===String(b.dataset.submissionFileId));if(hit){exact=hit;break;}}if(exact){const convertedOk=['success','converted','1'].includes(String(exact.converted_status??exact.convertedStatus??'').toLowerCase());const rawUrl=exact.download_path||exact.downloadPath||'';const convertedUrl=exact.converted_download_path||exact.convertedDownloadPath||'';info.url=convertedOk&&convertedUrl?convertedUrl:(rawUrl||convertedUrl);info.filename=(convertedOk&&exact.convertedFilename)||exact.filename||exact.title||info.filename;info.mime=(convertedOk&&exact.convertedFileMime)||exact.filemime||info.mime;}}const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
 }
 function materialIconForType(item){
  const type=String(item?.type||item?.template_type||'').toLowerCase();
@@ -697,6 +697,23 @@ function showSchoologyRequestError(error,retry){
 window.schoologyShowError=showSchoologyRequestError;
 
 function openWithPressTransition(el,fn){if(!el){fn();return;}el.classList.add('pressTransition');setTimeout(()=>{el.classList.remove('pressTransition');fn()},110)}
+async function resolveAssignmentSection(assignmentId){
+ const id=Number(assignmentId); if(!id)return 0;
+ const cached=window.__schoologyDashboardCourses||window.__schoologyCourses||[];
+ const candidates=cached.length?cached.slice():[];
+ if(!candidates.length){
+   const uid=state.auth?.userId||state.auth?.user?.id;
+   if(uid){try{const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});candidates.push(...(x.section||x.sections||[]));}catch{}}
+ }
+ const ids=[...new Set(candidates.map(x=>Number(x.id||x.section_id||x.sectionId)).filter(Boolean))];
+ for(const sid of ids){
+   try{const x=await A.api({path:`sections/${sid}/assignments/${id}`,params:{richtext:1,with_attachments:'TRUE'}});if(x&&(x.assignment||x.id||x.assignment_id))return sid}catch{}
+ }
+ return 0;
+}
+function isSchoologyRoutableLink(rawUrl){
+ try{const u=new URL(rawUrl);const host=u.hostname.toLowerCase();return u.protocol.toLowerCase()==='schoology:'||host==='lms.lausd.net'||host.endsWith('.schoology.com')}catch{return false}
+}
 async function routeSchoologyLink(rawUrl){
  let u;try{u=new URL(rawUrl)}catch{return false}
  const scheme=u.protocol.toLowerCase()==='schoology:';
@@ -708,11 +725,12 @@ async function routeSchoologyLink(rawUrl){
  if(!scheme&&!isSchoolHost)return false;
  const mCourse=path.match(/^\/course(?:s)?\/(\d+)(?:\/materials(?:\/gp\/(\d+))?)?$/i);
  const mSection=path.match(/^\/section(?:s)?\/(\d+)$/i);
- const mAssignment=path.match(/^\/(?:assignment|assignments)\/(\d+)$/i);
- const mCourseAssignment=path.match(/^\/course(?:s)?\/(\d+)\/(?:assignment|assignments)\/(\d+)$/i);
+ const mAssignment=path.match(/^\/(?:assignment|assignments)\/(\d+)(?:\/info)?$/i);
+ const mCourseAssignment=path.match(/^\/course(?:s)?\/(\d+)\/(?:assignment|assignments)\/(\d+)(?:\/info)?$/i);
+ if(/^\/home$/i.test(path)){state.homeUpcomingReturn=false;state.tab='home';state.courseView=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Home';render();loadTab();return true}
  if(mCourse||mSection){const sid=Number((mCourse||mSection)[1]);const gp=(mCourse&&mCourse[2])?Number(mCourse[2]):0;try{const x=await A.api({path:`sections/${sid}`,params:{}});const course=x?.section||x;state.embeddedTitle=null;await showCourse(course,'materials');if(gp)await loadFolder(course,gp,true,'Folder');return true}catch(e){showSchoologyRequestError(e);return true}}
- if(mCourseAssignment){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/course/${Number(mCourseAssignment[1])}/assignment/${Number(mCourseAssignment[2])}`:rawUrl,'Assignment');return true}
- if(mAssignment){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/assignment/${Number(mAssignment[1])}`:rawUrl,'Assignment');return true}
+ if(mCourseAssignment){const sid=Number(mCourseAssignment[1]),aid=Number(mCourseAssignment[2]);showAssignment(sid,aid);return true}
+ if(mAssignment){const aid=Number(mAssignment[1]);const sid=await resolveAssignmentSection(aid);if(sid){showAssignment(sid,aid);return true}await A.prepareWebSession();showEmbeddedWeb(rawUrl,'Assignment');return true}
  const mQuiz=path.match(/^\/(?:quiz|quizzes|assessment|assessments|assessment_v2|managed_assessment)(?:\/view)?\/(\d+)$/i);if(mQuiz){await A.prepareWebSession();showEmbeddedWeb(scheme?`https://app.schoology.com/${path.replace(/^\//,'')}`:rawUrl,'Quiz');return true}
  const mMaterials=path.match(/^\/(?:course|section)\/(?:s)?(\d+)\/materials(?:\/(?:folder|gp)\/(\d+))?$/i);if(mMaterials){try{const x=await A.api({path:`sections/${Number(mMaterials[1])}`,params:{}});const course=x?.section||x;showCourse(course,'materials');if(mMaterials[2])await loadFolder(course,Number(mMaterials[2]),true,'Folder');return true}catch(e){showSchoologyRequestError(e);return true}}
  const mDocument=path.match(/^\/(?:course|section)\/(?:s)?(\d+)\/documents\/(\d+)$/i);if(mDocument){try{const x=await A.api({path:`sections/${Number(mDocument[1])}/documents/${Number(mDocument[2])}`,params:{}});const d=x?.document||x;const type=String(d?.type||d?.document_type||'').toLowerCase();const url=d?.web_url||d?.webUrl||d?.url||d?.link_url||d?.linkURL;if(url||['link','web_content','external_tool','embed','video'].includes(type)){await A.prepareWebSession();showEmbeddedWeb(url||rawUrl,d?.title||'Resource');return true}showCourse(x?.section||{id:Number(mDocument[1])},'materials');return true}catch(e){showSchoologyRequestError(e);return true}}
@@ -730,7 +748,7 @@ async function showEmbeddedWeb(url,title,options={}){
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setLoading(true)});w.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame)setLoading(false)});w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
- w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^(schoology:|https?:\/\/)(?:[^/]+\.schoology\.com|lms\.lausd\.net)(?:\/|$)/i.test(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
+ w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
 }
 async function loadAttendanceTab(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
@@ -1403,7 +1421,7 @@ async function loadHomeTab(){
     const userMap={};
     await Promise.all(userIds.slice(0,20).map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});userMap[id]=u?.user||u}catch{}}));
     state.activityUsers=userMap;state.__activityById=Object.fromEntries(updates.map(u=>[String(u.id),u]));
-    c.classList.add('recentActivityScroll');c.style.overflowY='auto';c.style.height='100%';c.style.minHeight='0';
+    c.classList.add('recentActivityScroll');c.style.overflowY='auto';c.style.height=`${availableHeight}px`;c.style.minHeight='0';
     c.innerHTML=updates.length?updates.map(x=>{
       const uid=x.user_id||x.uid||x.author_id||x.authorId;
       const u=userMap[uid]||{};
@@ -1451,20 +1469,28 @@ async function loadHomeTab(){
         const main=document.getElementById('content');
         const split=main?.querySelector('.homeLandscapeSplit');
         const homeTabContent=c;
-        if(main){main.style.height='calc(100vh - 56px)';main.style.minHeight='0';main.style.maxHeight='none';main.style.flex='1 1 auto';main.style.overflow='hidden';main.style.padding='0';main.style.margin='0'}
-        if(split){split.style.height='100%';split.style.minHeight='0';split.style.maxHeight='none';split.style.width='100%';split.style.overflow='hidden'}
-        homeTabContent.style.position='relative';homeTabContent.style.display='block';homeTabContent.style.flex='1 1 auto';homeTabContent.style.height='0';homeTabContent.style.minHeight='0';homeTabContent.style.width='100%';homeTabContent.style.overflow='hidden';
+        const viewportHeight=Math.max(1,window.innerHeight||document.documentElement.clientHeight||600);
+        const mainHeight=Math.max(1,Math.round((main?.clientHeight||viewportHeight-56)));
+        if(main){main.style.height=`${mainHeight}px`;main.style.minHeight='0';main.style.maxHeight='none';main.style.flex='1 1 auto';main.style.overflow='hidden';main.style.padding='0';main.style.margin='0'}
+        if(split){split.style.height=`${mainHeight}px`;split.style.minHeight='0';split.style.maxHeight='none';split.style.width='100%';split.style.overflow='hidden'}
+        if(parent){parent.style.height=`${mainHeight}px`}
+        const tabs=parent?.querySelector('.homeTabs');
+        const availableHeight=Math.max(1,mainHeight-Math.round(tabs?.getBoundingClientRect?.().height||48));
+        homeTabContent.style.position='relative';homeTabContent.style.display='block';homeTabContent.style.flex='1 1 auto';homeTabContent.style.height=`${availableHeight}px`;homeTabContent.style.minHeight='0';homeTabContent.style.width='100%';homeTabContent.style.overflow='hidden';
         if(parent && parent.id==='homeTabContent'){parent.style.position='relative';parent.style.display='block';parent.style.flex='1 1 auto';parent.style.height='0';parent.style.minHeight='0';parent.style.overflow='hidden'}
         c.style.position='relative';c.style.left='0';c.style.right='0';c.style.top='0';c.style.bottom='0';c.style.height='100%';c.style.minHeight='0';c.style.maxHeight='none';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';c.style.flex='1 1 auto';
         if(parent){parent.style.minHeight='0';parent.style.overflow='hidden';parent.style.display='flex';parent.style.flexDirection='column'}
         const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.position='absolute';sec.style.inset='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.flex='none';sec.style.overflow='hidden'}
-        dw.style.position='absolute';dw.style.inset='0';dw.style.height='100%';dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='100%';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
+        dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.right='0';dw.style.bottom='auto';dw.style.height=`${Math.max(1,c.clientHeight)}px`;dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='100%';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
+        if(sec){sec.style.height=`${availableHeight}px`}
+        if(parent){parent.style.height=`${mainHeight}px`;parent.style.minHeight='0'}
       };
-      sizeDashboard();requestAnimationFrame(sizeDashboard);window.addEventListener('resize',sizeDashboard,{passive:true});
+      sizeDashboard();requestAnimationFrame(sizeDashboard);requestAnimationFrame(()=>requestAnimationFrame(sizeDashboard));window.addEventListener('resize',sizeDashboard,{passive:true});
+      if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(document.getElementById('content'));ro.observe(document.getElementById('homeTabContent'));}
       dw.addEventListener('dom-ready',sizeDashboard);
       const handleDashboardLink=async(raw,ev)=>{const u=String(raw||'');if(!u)return false;try{if(await routeSchoologyLink(u)){ev?.preventDefault?.();return true}}catch(err){console.warn('Schoology dashboard deep link failed:',err)}return false};
       dw.addEventListener('new-window',async e=>{e.preventDefault();if(await handleDashboardLink(e.url,e))return;try{dw.src=e.url}catch{}});
-      dw.addEventListener('will-navigate',async e=>{if(await handleDashboardLink(e.url,e))return;});
+      dw.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(handleDashboardLink(u,e)).catch(err=>console.warn('Schoology dashboard deep link failed:',err));}});
       dw.addEventListener('did-navigate-in-page',async e=>{await handleDashboardLink(e.url,null)});
       // Android uses SGYDeepLinkInterceptor at the WebSession/navigation layer.
       // Electron's webview new-window/will-navigate hooks provide the equivalent;
@@ -1539,4 +1565,4 @@ installCourseLayoutWatcher();
 // Restore the persisted Android-style OAuth session on application launch.
 (async()=>{try{const saved=await A.authState();if(saved?.oauth_token&&saved?.oauth_token_secret){state.auth=saved;await afterLogin();window.schoologyAppReady?.();return}}catch(e){console.warn('Saved Schoology session could not be restored:',e)}render();window.schoologyAppReady?.()})();
 
-A.onUpdateAvailable?.(()=>{});
+A.onUpdateAvailable?.(u=>{if(!u?.url)return;let dlg=showAppDialog('Downloading update','Downloading…',[]);const msg=dlg?.querySelector('.appDialogMessage');if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="autoUpdateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="autoUpdateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';const off=A.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('autoUpdateDownloadProgressBar'),txt=document.getElementById('autoUpdateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.percent!=null?`Downloading… ${d.percent}%`:'Downloading…';});A.installUpdate(u).catch(e=>{off?.();dlg?.classList.remove('open');showAppDialog('Unable to install update',e.message||String(e))});});

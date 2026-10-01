@@ -1,4 +1,5 @@
 const {contextBridge,ipcRenderer}=require('electron');
+try{document.documentElement.dataset.electronPlatform=process.platform}catch{}
 
 // Keep the Electron authentication bridge alive even if the optional QR decoder
 // cannot be loaded. A failed decoder must never abort the entire preload.
@@ -33,6 +34,7 @@ contextBridge.exposeInMainWorld('schoology',{
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),
   openExternal:u=>ipcRenderer.invoke('open-external',u),
+  platform:process.platform,
   pickFile:()=>ipcRenderer.invoke('pick-file'),
   // QR camera scanning normally uses Chromium's native BarcodeDetector in renderer.js.
   // Keep jsQR only as a compatibility fallback; its failure must never prevent startup.

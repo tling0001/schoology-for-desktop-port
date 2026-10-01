@@ -221,12 +221,14 @@ async function downloadAuthenticatedFile(info, sender){
   const target=path.join(tmpDir,`${Date.now()}-${crypto.randomBytes(5).toString('hex')}-${finalName}`);
   let downloadedPath=null;
   await new Promise((resolve,reject)=>{
-    const doGet=(url,depth=0)=>{
+    const doGet=async(url,depth=0)=>{
       if(depth>6)return reject(new Error('Too many redirects while downloading the Schoology file.'));
       const uu=new URL(url);
       const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'*/*'};
-      headers.Authorization=makeOAuthHeader('GET',uu.toString(),a.oauth_token,a.oauth_token_secret);
-      headers.Cookie=MOBILE_COOKIE;
+      // Match Android RestAdapterFactory/OAuthRequestSigner: only requests to
+      // the configured API host receive the OAuth Authorization header.
+      if(uu.hostname===API_HOST) headers.Authorization=makeOAuthHeader('GET',uu.toString(),a.oauth_token,a.oauth_token_secret);
+      try{const cookies=await session.defaultSession.cookies.get({url:uu.origin});if(cookies.length)headers.Cookie=cookies.map(c=>`${c.name}=${c.value}`).join('; ');else headers.Cookie=MOBILE_COOKIE}catch{headers.Cookie=MOBILE_COOKIE}
       const req=https.request({hostname:uu.hostname,path:uu.pathname+uu.search,method:'GET',headers},res=>{
         const code=res.statusCode||0;
         if([301,302,303,307,308].includes(code)&&res.headers.location){
@@ -281,7 +283,7 @@ async function submitAssignmentFile(info){
     const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
     const post=Buffer.from(`\r\n--${boundary}--\r\n`), multipart=Buffer.concat([pre,file,post]);
     const uploadUrl=new URL(`https://${API_HOST}/v1/file`);uploadUrl.searchParams.set('name',filename);
-    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':multipart.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0',Authorization:makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),Cookie:MOBILE_COOKIE};
+    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':multipart.length,Authorization:makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),Cookie:MOBILE_COOKIE};
     const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(multipart);req.end()});
     if(uploaded.status>=200&&uploaded.status<300){try{fileId=JSON.parse(uploaded.text).fileMetadataId}catch{}}
     if(!fileId)throw new Error(`FileService ${uploaded.status}: ${uploaded.text}`);
@@ -290,13 +292,15 @@ async function submitAssignmentFile(info){
     // Reproduce that documented fallback: POST metadata to /v1/upload, then PUT bytes to /v1/upload/{id}.
     const md5=crypto.createHash('md5').update(file).digest('hex');
     const meta={upload_filename:filename,upload_file_md5:md5,upload_file_size:file.length};
-    const holder=await request('POST',`https://${API_HOST}/v1/upload`,meta,{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+    const metadataUrl=new URL(`https://${API_HOST}/v1/upload`);
+    for(const [k,v] of Object.entries(meta)) metadataUrl.searchParams.set(k,String(v));
+    const holder=await request('POST',metadataUrl.toString(),meta,{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
     if(holder.status<200||holder.status>=300)throw new Error(`File upload failed: ${primaryError.message}; legacy metadata upload failed: ${holder.status} ${holder.text}`);
     let h={};try{h=JSON.parse(holder.text)}catch{}
     fileId=h.upload_file_id||h.uploadFileID||h.upload_id||h.id;
     if(!fileId)throw new Error('Schoology did not return an upload file ID.');
     const u=new URL(`https://${API_HOST}/v1/upload/${fileId}`);
-    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,Authorization:makeOAuthHeader('PUT',u.toString(),a.oauth_token,a.oauth_token_secret,null,null),Cookie:MOBILE_COOKIE,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0'};
+    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,Authorization:makeOAuthHeader('PUT',u.toString(),a.oauth_token,a.oauth_token_secret,null,null),Cookie:MOBILE_COOKIE};
     const put=await new Promise((resolve,reject)=>{const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(file);req.end()});
     if(put.status<200||put.status>=300)throw new Error(`File upload failed: ${put.status} ${put.text}`);
   }
@@ -320,14 +324,14 @@ async function submitAssignmentText(info){
   if(result.status<200||result.status>=300)throw new Error('Text submission failed: '+result.status+' '+result.text); return true;
 }
 
-async function api(pathname,method='GET',params={}){
+async function api(pathname,method='GET',params={},options={}){
   const a=loadAuth();if(!a)throw new Error('Not signed in');
   const clean=String(pathname||'').replace(/^\//,'');
   const version=clean.startsWith('v2/')?'v2':'v1';
   const resource=clean.startsWith('v2/')?clean.slice(3):clean;
   const url=`https://${API_HOST}/${version}/${resource}`;
   const isMultioptions=clean==='multioptions' && method.toUpperCase()==='POST';
-  const r=await request(method,url,params,{sign:true,signBody:method.toUpperCase()!=='GET' && method.toUpperCase()!=='HEAD',clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:isMultioptions});
+  const r=await request(method,url,params,{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:!!options.json||isMultioptions});
   if(r.status===401)throw new Error('Schoology session expired (HTTP 401)');
   if(r.status===403)throw new Error('Schoology denied this request (HTTP 403)');
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);
@@ -521,7 +525,10 @@ async function installUpdate(info){
 let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{const result=await checkForUpdates(false);if(result?.available){try{await installUpdate(result)}catch(e){console.error('Automatic Schoology update failed:',e.message)}}if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_INTERVAL_MS)}catch(e){console.log('Schoology update check deferred:',e.message);if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_RETRY_MS)}};const st=readUpdateState();const due=!st.lastSuccessfulCheck||Date.now()-st.lastSuccessfulCheck>=UPDATE_INTERVAL_MS;setTimeout(()=>{if(due)run();else updateTimer=setTimeout(run,Math.max(1000,UPDATE_INTERVAL_MS-(Date.now()-st.lastSuccessfulCheck)))},8000)}
 
 function create(){
-  win=new BrowserWindow({show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
+  const titlebarOptions=process.platform==='darwin'
+    ? {titleBarStyle:'hiddenInset'}
+    : {titleBarStyle:'hidden',titleBarOverlay:{color:'#002137',symbolColor:'#ffffff',height:56}};
+  win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
@@ -555,7 +562,7 @@ app.whenReady().then(()=>{
     let j={};try{j=JSON.parse(r.text)}catch{throw new Error('School search returned invalid data.')}
     return Array.isArray(j.school)?j.school:[];
   });
-  ipcMain.handle('api',(_,x)=>api(x.path,x.method||'GET',x.params||{}));
+  ipcMain.handle('api',(_,x)=>api(x.path,x.method||'GET',x.params||{},{json:!!x.json}));
   ipcMain.handle('fetch-image',(_,u)=>fetchSchoologyImage(u));
   ipcMain.handle('prepare-web-session',()=>prepareWebSession());
   ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));

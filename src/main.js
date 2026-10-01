@@ -509,29 +509,17 @@ async function installUpdate(info){
   const file=typeof info==='string'?info:await downloadAndVerifyUpdate(info);
   if(!file||!fs.existsSync(file))throw new Error('The update installer is no longer available.');
   if(process.platform==='win32'){
-    // Install into the exact directory the currently running Schoology executable
-    // came from. NSIS /S makes this completely non-interactive; the helper waits
-    // for the installer to finish (after this process exits) and launches the
-    // newly installed executable from the same directory.
-    const {spawn}=require('child_process');
-    const installDir=path.dirname(process.execPath);
-    const exePath=process.execPath;
-    const psPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.ps1`);
-    const psQuote=v=>String(v).replace(/'/g,"''");
-    const script=`$ErrorActionPreference='SilentlyContinue'\n`+
-      `$installer='${psQuote(file)}'\n`+
-      `$installDir='${psQuote(installDir)}'\n`+
-      `$exe='${psQuote(exePath)}'\n`+
-      `$appPid=${process.pid}\n`+
-      `for($i=0;$i -lt 300;$i++){ if(-not (Get-Process -Id $appPid -ErrorAction SilentlyContinue)){ break }; Start-Sleep -Milliseconds 200 }\n`+
-      `Start-Process -FilePath $installer -ArgumentList @('/S',('/D='+$installDir)) -Wait\n`+
-      `if(Test-Path -LiteralPath $exe){ Start-Process -FilePath $exe }\n`+
-      `Remove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue\n`+
-      `Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue\n`;
-    fs.writeFileSync(psPath,script,'utf8');
-    spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',psPath],{detached:true,stdio:'ignore',windowsHide:true}).unref();
-    app.quit();
-    return true;
+    const {spawn}=require('child_process'); const installDir=path.dirname(process.execPath),exePath=process.execPath;
+    const psPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.ps1`),q=v=>String(v).replace(/'/g,"''");
+    const script=`$ErrorActionPreference='SilentlyContinue'\n$installer='${q(file)}'\n$installDir='${q(installDir)}'\n$exe='${q(exePath)}'\n$appPid=${process.pid}\nfor($i=0;$i -lt 300;$i++){if(-not(Get-Process -Id $appPid -ErrorAction SilentlyContinue)){break};Start-Sleep -Milliseconds 200}\nStart-Process -FilePath $installer -ArgumentList @('/S',('/D='+$installDir)) -Wait\nif(Test-Path -LiteralPath $exe){Start-Process -FilePath $exe}\nRemove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue\nRemove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue\n`;
+    fs.writeFileSync(psPath,script,'utf8');spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',psPath],{detached:true,stdio:'ignore',windowsHide:true}).unref();app.quit();return true;
+  }
+  if(process.platform==='darwin'){
+    const {spawn}=require('child_process'); const targetApp=path.dirname(path.dirname(process.execPath)); const parentDir=path.dirname(targetApp);
+    const shPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.sh`),q=v=>String(v).replace(/'/g,"'\"'\"'");
+    const mount=path.join(app.getPath('temp'),`schoology-dmg-${process.pid}-${Date.now()}`);fs.mkdirSync(mount,{recursive:true});
+    const script=`#!/bin/bash\nset -e\nDMG='${q(file)}'\nTARGET='${q(targetApp)}'\nPARENT='${q(parentDir)}'\nMOUNT='${q(mount)}'\nPID=${process.pid}\nfor i in {1..300}; do kill -0 $PID 2>/dev/null || break; sleep .2; done\nhdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null\nAPP=$(find "$MOUNT" -maxdepth 2 -name '*.app' -type d -print -quit)\nif [ -z "$APP" ]; then hdiutil detach "$MOUNT" >/dev/null; exit 1; fi\nrm -rf "$TARGET"\nditto "$APP" "$TARGET"\nhdiutil detach "$MOUNT" >/dev/null\nopen "$TARGET"\nrm -f "$DMG" "$0"\n`;
+    fs.writeFileSync(shPath,script,{encoding:'utf8',mode:0o755});spawn('/bin/bash',[shPath],{detached:true,stdio:'ignore'}).unref();app.quit();return true;
   }
   const r=await shell.openPath(file);if(r)throw new Error(r);return true;
 }
@@ -540,7 +528,7 @@ let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{con
 function create(){
   const appIcon=path.join(__dirname,'../assets/ic_launcher_256.png');
   const titlebarOptions=process.platform==='darwin'
-    ? {titleBarStyle:'hiddenInset',trafficLightPosition:{x:12,y:7}}
+    ? {titleBarStyle:'default'}
     : {titleBarStyle:'hidden',titleBarOverlay:{color:'#44505d',symbolColor:'#ffffff',height:56}};
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:appIcon,...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();

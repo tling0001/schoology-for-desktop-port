@@ -338,6 +338,8 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
    const target=buttons.find(b=>b.dataset.courseTab===tab);
    if(target){buttons.forEach(b=>b.classList.toggle('active',b===target));}
    state.courseTab=tab;state.toolbarTitle=target?.textContent||state.toolbarTitle;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;syncToolbar();
+   const tabContent=document.getElementById('sectionProfileContent');
+   if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
    await loadCourseTab(course,tab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
    return;
  }
@@ -372,6 +374,8 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
    const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';
    document.querySelectorAll('[data-course-tab]').forEach(x=>x.classList.toggle('active',x===b));
    state.folderStack=[];state.currentFolderId=0;syncToolbar();
+   const tabContent=document.getElementById('sectionProfileContent');
+   if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
    loadCourseTab(course,id).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
  });
  loadCourseTab(course,effectiveTab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
@@ -562,7 +566,7 @@ function renderAttachments(a,submissionContext=null){
     const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim();
     const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream';
     const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
-    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}>📎 ${esc(title)}</button>`);
+    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon"><img src="../assets/icons/${mimeIconForFilename(title)}" alt=""></span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon"><img src="../assets/icons/ic_action_download.png" alt=""></span></button>`);
   };
   const addLink=(url,title)=>{if(url)out.push(`<button class="activityAttachment" data-open-url="${esc(url)}">${esc(title||url)}</button>`)};
   const walk=(v)=>{
@@ -745,8 +749,12 @@ async function showEmbeddedWeb(url,title,options={}){
  const c=document.getElementById('content');if(!c)return;try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
  c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';state.embeddedCanOpenExternal=options.allowBrowser!==false;syncToolbar();
  c.innerHTML=`<section class="embeddedPage"><div id="embeddedWebviewLoading" class="webviewLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div><webview id="schoologyWebview" src="${esc(String(url||''))}" allowpopups></webview></section>`;
- const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);setLoading(true);
- w.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setLoading(true)});w.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame)setLoading(false)});w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
+ const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;setLoading(true);
+ w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
+ w.addEventListener('did-finish-load',e=>{if(e.isMainFrame)setLoading(false)});
+ w.addEventListener('did-stop-loading',()=>{if(Date.now()-loadingStartedAt>150)setLoading(false)});
+ w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
+ setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},20000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
  w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
 }
@@ -981,7 +989,7 @@ async function loadSectionGrades(course){
  }
  const rows=assignments.map(a=>({...a,gradeData:byId[String(a.id)]||{}}));
  el.innerHTML=`<div class="gradesAndroid">${renderOverallGrade(current)}${renderGradePeriods(rows,periods,categories)}</div>`;
- el.querySelectorAll('[data-grade-assignment]').forEach(b=>b.onclick=()=>showAssignment(sid,b.dataset.gradeAssignment));
+ el.querySelectorAll('[data-grade-assignment]').forEach(b=>b.onclick=async()=>{const type=String(b.dataset.gradeType||'assignment').toLowerCase(),id=Number(b.dataset.gradeAssignment);if(!id)return;if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,b.textContent?.trim()||'Quiz');}else if(type==='discussion'){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/section/${sid}/discussion/view/${id}`,b.textContent?.trim()||'Discussion');}else showAssignment(sid,id)});
  el.querySelectorAll('[data-grade-toggle]').forEach(b=>b.onclick=()=>{
    const target=document.getElementById(b.dataset.gradeToggle);if(!target)return;
    const parent=b.closest('.gradePeriod,.gradeCategory');if(!parent)return;
@@ -1022,7 +1030,7 @@ function renderGradePeriods(rows,periods,categories){
       ${list.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''))).map(a=>{
        const g=a.gradeData||{};const raw=g.grade??g.calculated_grade??g.score??'—';const max=a.max_points??a.maxPoints??g.max_points??g.maxPoints;
        const value=(raw!=='—'&&max!=null&&String(max)!=='')?`${raw}/${max}`:raw;
-       return `<button class="gradeAssignmentRow" data-grade-assignment="${esc(a.id||'')}"><span class="gradeAssignmentName">${esc(a.title||a.assignment_title||'Assignment')}</span><span class="gradeValue">${esc(value)}</span></button>`;
+       return `<button class="gradeAssignmentRow" data-grade-assignment="${esc(a.id||'')}" data-grade-type="${esc(a.type||a.template_type||a.type_name||'assignment')}"><span class="gradeAssignmentName">${esc(a.title||a.assignment_title||'Assignment')}</span><span class="gradeValue">${esc(value)}</span></button>`;
       }).join('')||'<div class="empty">No graded items.</div>'}
       </div>
     </div>`;
@@ -1421,7 +1429,7 @@ async function loadHomeTab(){
     const userMap={};
     await Promise.all(userIds.slice(0,20).map(async id=>{try{const u=await A.api({path:`users/${id}`,params:{}});userMap[id]=u?.user||u}catch{}}));
     state.activityUsers=userMap;state.__activityById=Object.fromEntries(updates.map(u=>[String(u.id),u]));
-    c.classList.add('recentActivityScroll');c.style.overflowY='auto';c.style.height=`${availableHeight}px`;c.style.minHeight='0';
+    c.classList.add('recentActivityScroll');c.style.overflowY='auto';c.style.height='100%';c.style.minHeight='0';
     c.innerHTML=updates.length?updates.map(x=>{
       const uid=x.user_id||x.uid||x.author_id||x.authorId;
       const u=userMap[uid]||{};
@@ -1465,25 +1473,14 @@ async function loadHomeTab(){
     const dw=document.getElementById('courseDashboardWebview');
     if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);setDashboardLoading(true);dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setDashboardLoading(true)});dw.addEventListener('did-stop-loading',()=>setDashboardLoading(false));dw.addEventListener('did-finish-load',()=>setDashboardLoading(false));dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});
       const sizeDashboard=()=>{
-        const parent=c.parentElement; const host=c.parentElement?.parentElement;
         const main=document.getElementById('content');
-        const split=main?.querySelector('.homeLandscapeSplit');
-        const homeTabContent=c;
+        const rect=c.getBoundingClientRect();
         const viewportHeight=Math.max(1,window.innerHeight||document.documentElement.clientHeight||600);
-        const mainHeight=Math.max(1,Math.round((main?.clientHeight||viewportHeight-56)));
-        if(main){main.style.height=`${mainHeight}px`;main.style.minHeight='0';main.style.maxHeight='none';main.style.flex='1 1 auto';main.style.overflow='hidden';main.style.padding='0';main.style.margin='0'}
-        if(split){split.style.height=`${mainHeight}px`;split.style.minHeight='0';split.style.maxHeight='none';split.style.width='100%';split.style.overflow='hidden'}
-        if(parent){parent.style.height=`${mainHeight}px`}
-        const tabs=parent?.querySelector('.homeTabs');
-        const availableHeight=Math.max(1,mainHeight-Math.round(tabs?.getBoundingClientRect?.().height||48));
-        homeTabContent.style.position='relative';homeTabContent.style.display='block';homeTabContent.style.flex='1 1 auto';homeTabContent.style.height=`${availableHeight}px`;homeTabContent.style.minHeight='0';homeTabContent.style.width='100%';homeTabContent.style.overflow='hidden';
-        if(parent && parent.id==='homeTabContent'){parent.style.position='relative';parent.style.display='block';parent.style.flex='1 1 auto';parent.style.height='0';parent.style.minHeight='0';parent.style.overflow='hidden'}
-        c.style.position='relative';c.style.left='0';c.style.right='0';c.style.top='0';c.style.bottom='0';c.style.height='100%';c.style.minHeight='0';c.style.maxHeight='none';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';c.style.flex='1 1 auto';
-        if(parent){parent.style.minHeight='0';parent.style.overflow='hidden';parent.style.display='flex';parent.style.flexDirection='column'}
-        const sec=dw.closest('.dashboardHybrid');if(sec){sec.style.position='absolute';sec.style.inset='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.flex='none';sec.style.overflow='hidden'}
-        dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.right='0';dw.style.bottom='auto';dw.style.height=`${Math.max(1,c.clientHeight)}px`;dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='100%';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
-        if(sec){sec.style.height=`${availableHeight}px`}
-        if(parent){parent.style.height=`${mainHeight}px`;parent.style.minHeight='0'}
+        const available=Math.max(1,Math.floor(viewportHeight-rect.top));
+        c.style.position='relative';c.style.height=`${available}px`;c.style.minHeight='0';c.style.maxHeight='none';c.style.width='100%';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';
+        const sec=dw.closest('.dashboardHybrid');
+        if(sec){sec.style.position='relative';sec.style.width='100%';sec.style.height=`${available}px`;sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='block';sec.style.overflow='hidden'}
+        dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.right='0';dw.style.bottom='0';dw.style.height=`${available}px`;dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='0';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
       };
       sizeDashboard();requestAnimationFrame(sizeDashboard);requestAnimationFrame(()=>requestAnimationFrame(sizeDashboard));window.addEventListener('resize',sizeDashboard,{passive:true});
       if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(document.getElementById('content'));ro.observe(document.getElementById('homeTabContent'));}

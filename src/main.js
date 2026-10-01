@@ -54,6 +54,10 @@ function sortedOAuthBaseParams(method,url,oauth,extra=[]){
   pairs.sort((a,b)=>{if(a[0]!==b[0])return a[0]<b[0]?-1:1;if(a[1]!==b[1])return a[1]<b[1]?-1:1;return 0});
   return pairs.map(([k,v])=>k+'='+v).join('&');
 }
+function makePlaintextOAuthHeader(authToken,authSecret){
+  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'PLAINTEXT',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0',oauth_token:authToken==null?'':String(authToken)};
+  return 'OAuth '+['oauth_consumer_key','oauth_nonce','oauth_signature_method','oauth_timestamp','oauth_token','oauth_version'].map(k=>k+'=\"'+String(oauth[k])+'\"').join(', ')+', oauth_signature=\"'+enc(CONSUMER_SECRET+'&'+String(authSecret||''))+'\"';
+}
 function makeOAuthHeader(method,url,authToken,authSecret,qrData='',bodyParams=null){
   const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
   // Android OAuthRequestSigner always includes oauth_token; for the initial
@@ -278,7 +282,7 @@ async function submitAssignmentFile(info){
   const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0'};
   // FileServiceApi is created from the authenticated Android v1 Retrofit adapter,
   // so the multipart upload must carry the same OAuth Authorization header.
-  headers.Authorization=makeOAuthHeader('POST',uploadUrl.toString(),a.oauth_token,a.oauth_token_secret);
+  headers.Authorization=makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret);
   headers.Cookie=MOBILE_COOKIE;
   const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(body);req.end()});
   if(uploaded.status<200||uploaded.status>=300)throw new Error('File upload failed: '+uploaded.status+' '+uploaded.text);

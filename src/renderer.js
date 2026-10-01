@@ -373,6 +373,16 @@ async function showAssignment(sectionId,assignmentId){
       uid?A.api({path:`sections/${sectionId}/enrollments`,params:{uid,enrollment_status:1}}).catch(()=>({})):Promise.resolve({})
     ]);
     const at=aResp.assignment||aResp;
+    // Android AssignmentResolverActivity sends LTI submissions to LTIAssignmentActivity,
+    // which loads AssignmentData.webUrl() in a Schoology WebView. Google Drive/Docs/Slides
+    // assignments use this LTI/external-tool path, so do not try to render them natively.
+    const assignmentType=String(at.assignment_type||at.assignmentType||at.type||'').toLowerCase();
+    const assignmentWebUrl=at.web_url||at.webUrl||at.launch_url||at.launchUrl||'';
+    if(assignmentType==='lti_submission' && assignmentWebUrl){
+      await A.prepareWebSession();
+      showEmbeddedWeb(assignmentWebUrl,at.title||'Assignment');
+      return;
+    }
     const html=typeof at.description==='string'?at.description:'';
     const attachments=at.attachments||at.attachment||{};
     const myEnrollment=(enrollResp.enrollment||enrollResp.enrollments||[])[0]||{};
@@ -471,7 +481,7 @@ async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTea
       let subs={};
       try{subs=await A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}})}catch(e){subs={};}
       const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||subs.data?.revision||subs.data?.revisions||[];
-      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
+      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId:uid,revisionId:r.revision_id||r.revisionId})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
       await hydrateMediaImages(c);
     }
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load submissions.</b><br>${esc(e.message)}</div>`}
@@ -484,7 +494,7 @@ async function openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enr
   try{
     const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}}).catch(()=>({}))]);
     const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revs=subs.revision||subs.revisions||[];
-    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
+    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId,revisionId:r.revision_id||r.revisionId})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
     await hydrateMediaImages(c);
     document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{try{await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment:document.getElementById('teacherGradeComment')?.value||'',commentStatus:document.getElementById('teacherDisplayComment')?.checked});await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId)}catch(e){alert(e.message)}});
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this submission.</b><br>${esc(e.message)}</div>`}
@@ -525,7 +535,7 @@ function openTextSubmissionComposer(){
  document.getElementById('postTextSubmission')?.addEventListener('click',async()=>{const text=document.getElementById('submissionText')?.value||'';if(!text.trim()){alert('Enter a submission before posting.');return}try{const a=state.assignmentData||{};const gradeItemId=a.grade_item_id||a.gradeItemId||a.gradeitem_id||v.assignmentId;await A.submitAssignmentText({sectionId:v.sectionId,gradeItemId,text,draft:document.getElementById('submissionDraft')?.checked});wrap.remove();await openAssignmentSubmissions(v.sectionId,v.assignmentId,a,false)}catch(e){alert('Unable to submit text: '+e.message)}});
  document.getElementById('submissionText')?.focus();
 }
-function renderAttachments(a){
+function renderAttachments(a,submissionContext=null){
   if(!a)return '';
   const out=[];
   const addFile=(f)=>{
@@ -533,7 +543,8 @@ function renderAttachments(a){
     if(!url)return;
     const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim();
     const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream';
-    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}">📎 ${esc(title)}</button>`);
+    const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
+    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}>📎 ${esc(title)}</button>`);
   };
   const addLink=(url,title)=>{if(url)out.push(`<button class="activityAttachment" data-open-url="${esc(url)}">${esc(title||url)}</button>`)};
   const walk=(v)=>{
@@ -559,16 +570,36 @@ async function hydrateMediaImages(root=document){
     const u=el.getAttribute('data-media-image-url');try{const data=await A.fetchImage(u);if(data){el.src=data;el.style.display='block';if(el.nextElementSibling)el.nextElementSibling.style.display='none'}}catch{}
   }));
   root.querySelectorAll?.('[data-open-url]')?.forEach(b=>{if(b.dataset.boundOpen)return;b.dataset.boundOpen='1';b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Attachment'))});
-  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{const r=await downloadWithFeedback(b,{url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
+  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{let info={url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime};if(b.dataset.submissionFileId&&b.dataset.submissionRevisionId&&b.dataset.submissionSectionId&&b.dataset.submissionGradeItemId&&b.dataset.submissionUserId){const rr=await A.api({path:`sections/${b.dataset.submissionSectionId}/submissions/${b.dataset.submissionGradeItemId}/${b.dataset.submissionUserId}/revision/${b.dataset.submissionRevisionId}`,params:{with_annotations:'TRUE',with_attachments:'TRUE'}});const revisions=rr?.revision||rr?.revisions||rr?.data?.revision||rr?.data?.revisions||[];const list=Array.isArray(revisions)?revisions:[revisions];let exact=null;for(const rv of list){const files=rv?.attachments?.files?.file||rv?.attachments?.files||rv?.attachments?.file||[];const fs=Array.isArray(files)?files:(files?[files]:[]);exact=fs.find(f=>String(f?.id||f?.fid||'')===String(b.dataset.submissionFileId))||exact;if(exact)break;}if(exact){const convertedOk=String(exact.converted_status??exact.convertedStatus)==='1';info.url=convertedOk?(exact.converted_download_path||exact.convertedDownloadPath||exact.download_path||exact.downloadPath):(exact.download_path||exact.downloadPath||exact.converted_download_path||exact.convertedDownloadPath);info.filename=exact.convertedFilename||exact.filename||exact.title||info.filename;info.mime=exact.convertedFileMime||exact.filemime||info.mime;}}const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
 }
 function materialIconForType(item){
  const type=String(item?.type||item?.template_type||'').toLowerCase();
+ const docType=String(item?.document_type||item?.documentType||item?.template_document_type||item?.templateDocumentType||'').toLowerCase();
  if(type==='folder'){const color=String(item?.color||item?.folder_color||item?.folderColor||'gray').toLowerCase();const allowed=['black','blue','gray','green','orange','pink','purple','red','yellow'];return `ic_folder_${allowed.includes(color)?color:'gray'}.png`;}
  if(type==='assignment')return 'ic_assignment.png';
  if(type==='discussion')return 'ic_discussion.png';
  if(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'||type==='quiz')return 'ic_assessment_16dp.svg';
- if(type==='page')return 'ic_pages.png'; if(type==='album')return 'ic_albums.png'; if(type==='scorm')return 'ic_scorm.png'; if(type==='web_content')return 'ic_web_content.png';
- return 'ic_files_links.png';
+ if(type==='page')return 'ic_pages.png'; if(type==='album')return 'ic_albums.png'; if(type==='scorm')return 'ic_scorm.png';
+ if(type==='web_content'||docType==='external_tool')return 'ic_web_content.png';
+ if(type==='document'||docType){
+   if(docType==='link')return 'ic_files_links.png';
+   if(docType==='embed')return 'attachment_link_icon.png';
+   if(docType==='external_tool')return 'ic_external_tool.png';
+   if(docType==='file'){const f=item?.filename||item?.fileName||item?.title||item?.filemime||item?.fileMIME||'';return mimeIconForFilename(f);}
+ }
+ return mimeIconForFilename(item?.filename||item?.fileName||item?.title||'');
+}
+function mimeIconForFilename(name){
+ const n=String(name||'').toLowerCase();
+ if(/\.(mp3|wav|m4a|aac|ogg|flac|mp4|mov|avi|webm|mkv)$/.test(n))return 'ic_attach_audio.png';
+ if(/\.(txt|csv|rtf)$/.test(n))return 'ic_attach_text.png';
+ if(/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/.test(n))return 'ic_attach_image.png';
+ if(/\.pdf$/.test(n))return 'ic_attach_app_pdf.png';
+ if(/\.(ppt|pptx|odp)$/.test(n))return 'ic_attach_app_ppt.png';
+ if(/\.(xls|xlsx|ods)$/.test(n))return 'ic_attach_app_excel.png';
+ if(/\.(doc|docx|odt)$/.test(n))return 'ic_attach_app_word.png';
+ if(/\.(zip|rar|7z|tar|gz)$/.test(n))return 'ic_attach_app_zip.png';
+ return 'attachment_document_icon.png';
 }
 
 function extensionFromMime(mime){const m=String(mime||'').toLowerCase().split(';')[0].trim();const map={'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','image/svg+xml':'svg','audio/mpeg':'mp3','audio/mp4':'m4a','audio/wav':'wav','video/mp4':'mp4','video/webm':'webm','application/pdf':'pdf','application/zip':'zip','application/x-zip-compressed':'zip','application/msword':'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'docx','application/vnd.ms-excel':'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'xlsx','application/vnd.ms-powerpoint':'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx','text/plain':'txt','text/csv':'csv'};return map[m]||'';}
@@ -591,7 +622,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
   const rows=items.map((f,i)=>{
     const type=String(f.type||'');
     const icon=materialIconForType(f);
-    return `<button class="materialRow" data-material-index="${i}"><span class="materialIcon officialMaterialIcon"><img src="../assets/icons/${icon}" alt=""></span><span><b>${esc(f.title||'Untitled')}</b><small>${esc(type)}</small></span><span>›</span></button>`;
+    return `<button class="materialRow" data-material-index="${i}"><span class="materialIcon officialMaterialIcon"><img src="../assets/icons/${icon}" alt=""></span><span><b>${esc(f.title||'Untitled')}</b></span><span>›</span></button>`;
   }).join('');
   el.innerHTML=parent+(items.length?`<div class="materialList">${rows}</div>`:'<div class="empty"><h2>This folder is empty</h2></div>');
   window.__schoologyFolderItems=items;
@@ -662,8 +693,13 @@ async function showEmbeddedWeb(url,title){
   c.classList.remove('webContentHost');
   c.classList.add('embeddedContentActive');
   state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';syncToolbar();
-  c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" src="${esc(url)}" allowpopups></webview></section>`;
+  c.innerHTML=`<section class="embeddedPage"><webview id="schoologyWebview" allowpopups></webview></section>`;
   const w=document.getElementById('schoologyWebview'); if(!w)return;
+  try{w.setUserAgent?.('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/157.0.0.0 Mobile Safari/537.36 Schoology/2026.06.0')}catch{}
+  w.addEventListener('dom-ready',()=>{try{w.loadURL(url)}catch(e){console.warn('Embedded Schoology load failed:',e)}} ,{once:true});
+  // Some Electron builds emit dom-ready after the initial navigation only when src is set;
+  // explicitly initiate it as a fallback after the guest view is attached.
+  setTimeout(()=>{try{if(w.getURL()==='about:blank'||!w.getURL())w.loadURL(url)}catch{}},50);
   w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
   w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(/^(schoology:|https?:\/\/)(?:[^/]+\.schoology\.com|lms\.lausd\.net)(?:\/|$)/i.test(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
   w.addEventListener('did-fail-load',e=>{if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)});

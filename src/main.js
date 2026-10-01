@@ -58,14 +58,13 @@ function makePlaintextOAuthHeader(authToken,authSecret){
   const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'PLAINTEXT',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0',oauth_token:authToken==null?'':String(authToken)};
   return 'OAuth '+['oauth_consumer_key','oauth_nonce','oauth_signature_method','oauth_timestamp','oauth_token','oauth_version'].map(k=>k+'=\"'+String(oauth[k])+'\"').join(', ')+', oauth_signature=\"'+enc(CONSUMER_SECRET+'&'+String(authSecret||''))+'\"';
 }
-function makeOAuthHeader(method,url,authToken,authSecret,qrData='',bodyParams=null){
+function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
   const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
   // Android OAuthRequestSigner always includes oauth_token; for the initial
   // request-token request its value is explicitly the empty string.
   oauth.oauth_token=authToken==null?'':String(authToken);
   const extra=[];
   if(qrData) extra.push(['scanned_qr_data',qrData]);
-  if(bodyParams && method.toUpperCase()!=='GET') for(const [k,v] of Object.entries(bodyParams||{})){ if(v==null || typeof v==='object') continue; extra.push([k,String(v)]); }
   const normalized=sortedOAuthBaseParams(method,url,oauth,extra);
   const u=new URL(url);
   const base=method.toUpperCase()+'&'+enc(u.protocol+'//'+u.host+u.pathname)+'&'+enc(normalized);
@@ -89,7 +88,7 @@ function request(method,url,body={},opts={},redirectDepth=0){
     }
     if(opts.headers) Object.assign(headers,opts.headers);
     if(opts.sign){
-      headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'',opts.signBody?body:null);
+      headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');
       headers.Cookie=MOBILE_COOKIE;
     }
     if(!isGet){headers['Content-Type']=opts.json?'application/json':'application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
@@ -279,7 +278,7 @@ async function submitAssignmentFile(info){
   let fileId=null;
   try{
     const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
-    const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: ${mime}\r\n\r\n`);
+    const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
     const post=Buffer.from(`\r\n--${boundary}--\r\n`), multipart=Buffer.concat([pre,file,post]);
     const uploadUrl=new URL(`https://${API_HOST}/v1/file`);uploadUrl.searchParams.set('name',filename);
     const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':multipart.length,'X-Schoology-Client':'Android','X-Schoology-App-Version':'2026.06.0',Authorization:makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),Cookie:MOBILE_COOKIE};
@@ -291,7 +290,7 @@ async function submitAssignmentFile(info){
     // Reproduce that documented fallback: POST metadata to /v1/upload, then PUT bytes to /v1/upload/{id}.
     const md5=crypto.createHash('md5').update(file).digest('hex');
     const meta={upload_filename:filename,upload_file_md5:md5,upload_file_size:file.length};
-    const holder=await request('POST',`https://${API_HOST}/v1/upload`,meta,{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+    const holder=await request('POST',`https://${API_HOST}/v1/upload`,meta,{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
     if(holder.status<200||holder.status>=300)throw new Error(`File upload failed: ${primaryError.message}; legacy metadata upload failed: ${holder.status} ${holder.text}`);
     let h={};try{h=JSON.parse(holder.text)}catch{}
     fileId=h.upload_file_id||h.uploadFileID||h.upload_id||h.id;
@@ -317,7 +316,7 @@ async function submitAssignmentText(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.gradeItemId)throw new Error('Text submission information is incomplete.');
   const body=String(info.text||'').trim(); if(!body)throw new Error('Enter a submission before posting.');
-  const result=await request('POST',`https://${API_HOST}/v1/sections/${info.sectionId}/submissions/${info.gradeItemId}/create`,{body,draft:info.draft?1:0},{sign:true,signBody:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+  const submissionUrl=new URL(`https://${API_HOST}/v1/sections/${info.sectionId}/submissions/${info.gradeItemId}/create`);submissionUrl.searchParams.set('realm','sections');submissionUrl.searchParams.set('realm_id',String(info.sectionId));submissionUrl.searchParams.set('grade_item_id',String(info.gradeItemId));submissionUrl.searchParams.set('action','create');const result=await request('POST',submissionUrl.toString(),{body,draft:info.draft?1:0},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
   if(result.status<200||result.status>=300)throw new Error('Text submission failed: '+result.status+' '+result.text); return true;
 }
 
@@ -491,8 +490,35 @@ function downloadUrl(url,target){return new Promise((resolve,reject)=>{const get
 function updateAssetForPlatform(release){const assets=Array.isArray(release?.assets)?release.assets:[];const arch=process.arch;let wanted=[];if(process.platform==='win32')wanted=['Setup-x64.exe'];else if(process.platform==='darwin')wanted=[arch==='arm64'?'arm64.dmg':'x64.dmg'];else if(process.platform==='linux')wanted=[fs.existsSync('/usr/bin/rpm')&&!fs.existsSync('/usr/bin/dpkg')?'x86_64.rpm':'amd64.deb'];return assets.find(a=>wanted.some(s=>String(a.name||'').endsWith(s)))||null}
 async function checkForUpdates(force=false){const now=Date.now(),st=readUpdateState();if(!force&&st.lastSuccessfulCheck&&now-st.lastSuccessfulCheck<UPDATE_INTERVAL_MS)return {checked:false,available:false};if(!require('electron').net.isOnline())throw new Error('Computer is offline.');const release=await fetchJson(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`);const tag=String(release.tag_name||'');const remote=Number((tag.match(/(\d+)$/)||[])[1]||0),local=localReleaseNumber();if(!remote||remote<=local||release.draft||release.prerelease){writeUpdateState({lastSuccessfulCheck:now,lastRemoteTag:tag});return {checked:true,available:false,version:local};}const asset=updateAssetForPlatform(release);if(!asset)throw new Error('No compatible update package was found for this computer.');writeUpdateState({lastSuccessfulCheck:now,lastRemoteTag:tag});return {checked:true,available:true,version:remote,tag,assetName:asset.name,url:asset.browser_download_url,size:Number(asset.size||0),digest:asset.digest||null};}
 async function downloadAndVerifyUpdate(info){if(!info?.url)throw new Error('The update download URL is missing.');const tag=String(info.tag||'update').replace(/[^A-Za-z0-9._-]/g,'_');const name=String(info.assetName||path.basename(new URL(info.url).pathname)||'schoology-update').replace(/[^A-Za-z0-9._-]/g,'_');const tmp=path.join(app.getPath('temp'),`schoology-update-${tag}-${name}`);let valid=false;if(fs.existsSync(tmp)){try{if(info.size&&fs.statSync(tmp).size!==Number(info.size))throw new Error('size');if(info.digest&&/^sha256:/i.test(String(info.digest))){const actual=await sha256File(tmp);if(actual.toLowerCase()!==String(info.digest).split(':').pop().toLowerCase())throw new Error('digest')}valid=true}catch{try{fs.unlinkSync(tmp)}catch{}}}if(!valid)await downloadUrl(info.url,tmp);if(info.size&&fs.statSync(tmp).size!==Number(info.size))throw new Error('Downloaded update size does not match GitHub release metadata.');if(info.digest&&/^sha256:/i.test(String(info.digest))){const actual=await sha256File(tmp);const expected=String(info.digest).split(':').pop().toLowerCase();if(actual.toLowerCase()!==expected){try{fs.unlinkSync(tmp)}catch{};throw new Error('Downloaded update failed its SHA-256 integrity check.');}}return tmp;}
-async function installUpdate(info){const file=typeof info==='string'?info:await downloadAndVerifyUpdate(info);if(!file||!fs.existsSync(file))throw new Error('The update installer is no longer available.');if(process.platform==='win32'){const {spawn}=require('child_process');spawn(file,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();app.quit();return true}const r=await shell.openPath(file);if(r)throw new Error(r);return true;}
-let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{const result=await checkForUpdates(false);if(result?.available&&win?.webContents)win.webContents.send('update-available',result);if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_INTERVAL_MS)}catch(e){console.log('Schoology update check deferred:',e.message);if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_RETRY_MS)}};const st=readUpdateState();const due=!st.lastSuccessfulCheck||Date.now()-st.lastSuccessfulCheck>=UPDATE_INTERVAL_MS;setTimeout(()=>{if(due)run();else updateTimer=setTimeout(run,Math.max(1000,UPDATE_INTERVAL_MS-(Date.now()-st.lastSuccessfulCheck)))},8000)}
+async function installUpdate(info){
+  const file=typeof info==='string'?info:await downloadAndVerifyUpdate(info);
+  if(!file||!fs.existsSync(file))throw new Error('The update installer is no longer available.');
+  if(process.platform==='win32'){
+    // Install into the exact directory the currently running Schoology executable
+    // came from. NSIS /S makes this completely non-interactive; the helper waits
+    // for the installer to finish (after this process exits) and launches the
+    // newly installed executable from the same directory.
+    const {spawn}=require('child_process');
+    const installDir=path.dirname(process.execPath);
+    const exePath=process.execPath;
+    const psPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.ps1`);
+    const psQuote=v=>String(v).replace(/'/g,"''");
+    const script=`$ErrorActionPreference='SilentlyContinue'\n`+
+      `$installer='${psQuote(file)}'\n`+
+      `$installDir='${psQuote(installDir)}'\n`+
+      `$exe='${psQuote(exePath)}'\n`+
+      `Start-Process -FilePath $installer -ArgumentList @('/S',('/D='+$installDir)) -Wait\n`+
+      `if(Test-Path -LiteralPath $exe){ Start-Process -FilePath $exe }\n`+
+      `Remove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue\n`+
+      `Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue\n`;
+    fs.writeFileSync(psPath,script,'utf8');
+    spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',psPath],{detached:true,stdio:'ignore',windowsHide:true}).unref();
+    app.quit();
+    return true;
+  }
+  const r=await shell.openPath(file);if(r)throw new Error(r);return true;
+}
+let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{const result=await checkForUpdates(false);if(result?.available){try{await installUpdate(result)}catch(e){console.error('Automatic Schoology update failed:',e.message)}}if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_INTERVAL_MS)}catch(e){console.log('Schoology update check deferred:',e.message);if(updateTimer)clearTimeout(updateTimer);updateTimer=setTimeout(run,UPDATE_RETRY_MS)}};const st=readUpdateState();const due=!st.lastSuccessfulCheck||Date.now()-st.lastSuccessfulCheck>=UPDATE_INTERVAL_MS;setTimeout(()=>{if(due)run();else updateTimer=setTimeout(run,Math.max(1000,UPDATE_INTERVAL_MS-(Date.now()-st.lastSuccessfulCheck)))},8000)}
 
 function create(){
   win=new BrowserWindow({show:false,backgroundColor:'#22303e',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});

@@ -642,9 +642,14 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
     if(String(f.type)==='folder'){loadFolder(course,f.id,true,f.title||'Folder').catch(e=>showSchoologyRequestError(e,()=>loadFolder(course,f.id,false,f.title||'Folder')));return}
     if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
     const directDocType=String(f.document_type||f.documentType||'').toLowerCase();
-    if(String(f.type).toLowerCase()==='link'||String(f.type).toLowerCase()==='web_content'||String(f.type).toLowerCase()==='external_tool'||['link','external_tool','embed','video'].includes(directDocType)){
-      const target=f.web_url||f.webUrl||f.url||f.href||f.launch_url||f.launchUrl||f.location;
-      if(target){await A.prepareWebSession();showEmbeddedWeb(target,f.title||'Link');return}
+    const target=f.web_url||f.webUrl||f.url||f.href||f.launch_url||f.launchUrl||f.location;
+    // Android FolderItem maps link/video documents to ACTION_VIEW, while embed
+    // and external_tool documents use their dedicated WebView activities.
+    if(directDocType==='link'||directDocType==='video'||String(f.type).toLowerCase()==='link'){
+      if(target){await A.openExternal(target);return}
+    }
+    if(directDocType==='embed'||directDocType==='external_tool'||String(f.type).toLowerCase()==='external_tool'||String(f.type).toLowerCase()==='embed'){
+      if(target){await A.prepareWebSession();showEmbeddedWeb(target,f.title||'Resource');return}
     }
     if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(f.type))){(async()=>{try{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${f.id}`,f.title||'Assessment')}catch(e){alert(e.message)}})();return}
     (async()=>{try{
@@ -657,9 +662,12 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const links=data.attachments?.links?.link||data.attachments?.links||data.attachment?.links?.link||data.attachment?.links||[];
         const linkObj=Array.isArray(links)?links[0]:links;
         const linkUrl=data.web_url||data.webUrl||data.url||data.href||f.web_url||f.webUrl||f.url||f.href||linkObj?.link_url||linkObj?.linkURL||tmpl.url||tmpl.web_url||tmpl.webUrl||tmpl.href||'';
-        if(docType==='link'||docType==='external_tool'||docType==='embed'||linkUrl){
-          const target=linkUrl||data.location||data.launch_url||data.launchUrl;
-          if(target){await A.prepareWebSession();showEmbeddedWeb(target,data.title||f.title||'Link');return}
+        const documentTarget=linkUrl||data.location||data.launch_url||data.launchUrl;
+        if(docType==='link'||docType==='video'){
+          if(documentTarget){await A.openExternal(documentTarget);return}
+        }
+        if(docType==='external_tool'||docType==='embed'){
+          if(documentTarget){await A.prepareWebSession();showEmbeddedWeb(documentTarget,data.title||f.title||'Resource');return}
         }
         const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
       }
@@ -1354,7 +1362,11 @@ async function loadHomeTab(){
     if(dw){
       const sizeDashboard=()=>{
         const parent=c.parentElement; const host=c.parentElement?.parentElement;
+        const main=document.getElementById('content');
+        const split=main?.querySelector('.homeLandscapeSplit');
         const homeTabContent=c;
+        if(main){main.style.height='calc(100vh - 56px)';main.style.minHeight='0';main.style.maxHeight='none';main.style.flex='1 1 auto';main.style.overflow='hidden';main.style.padding='0';main.style.margin='0'}
+        if(split){split.style.height='100%';split.style.minHeight='0';split.style.maxHeight='none';split.style.width='100%';split.style.overflow='hidden'}
         homeTabContent.style.position='relative';homeTabContent.style.display='block';homeTabContent.style.flex='1 1 auto';homeTabContent.style.height='0';homeTabContent.style.minHeight='0';homeTabContent.style.width='100%';homeTabContent.style.overflow='hidden';
         if(parent && parent.id==='homeTabContent'){parent.style.position='relative';parent.style.display='block';parent.style.flex='1 1 auto';parent.style.height='0';parent.style.minHeight='0';parent.style.overflow='hidden'}
         c.style.position='relative';c.style.left='0';c.style.right='0';c.style.top='0';c.style.bottom='0';c.style.height='100%';c.style.minHeight='0';c.style.maxHeight='none';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';c.style.flex='1 1 auto';
@@ -1441,4 +1453,4 @@ installCourseLayoutWatcher();
 // Restore the persisted Android-style OAuth session on application launch.
 (async()=>{try{const saved=await A.authState();if(saved?.oauth_token&&saved?.oauth_token_secret){state.auth=saved;await afterLogin();window.schoologyAppReady?.();return}}catch(e){console.warn('Saved Schoology session could not be restored:',e)}render();window.schoologyAppReady?.()})();
 
-A.onUpdateAvailable?.(u=>showUpdateDialog(u));
+A.onUpdateAvailable?.(()=>{});

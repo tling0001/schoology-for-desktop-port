@@ -23,6 +23,13 @@ const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 let serverTimeOffset=0;
+const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
+function windowChromeOverlayEnabled(){
+  if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
+  try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay!==false}catch{return true}
+}
+function saveWindowChromeOverlay(enabled){fs.mkdirSync(path.dirname(windowChromeSettingsFile),{recursive:true});fs.writeFileSync(windowChromeSettingsFile,JSON.stringify({overlay:!!enabled},null,2),'utf8')}
+
 
 function loadAuth(){
   for(const f of [storeFile,legacyStoreFile]){
@@ -527,9 +534,10 @@ let updateTimer=null;function scheduleUpdateChecks(){const run=async()=>{try{con
 
 function create(){
   const appIcon=path.join(__dirname,'../assets/ic_launcher_256.png');
+  const overlay=windowChromeOverlayEnabled();
   const titlebarOptions=process.platform==='darwin'
-    ? {titleBarStyle:'default'}
-    : {titleBarStyle:'hidden',titleBarOverlay:{color:'#44505d',symbolColor:'#ffffff',height:56}};
+    ? (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#002137',symbolColor:'#ffffff',height:56}} : {titleBarStyle:'hiddenInset'})
+    : (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#44505d',symbolColor:'#ffffff',height:56}} : {});
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:appIcon,...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
@@ -571,7 +579,9 @@ app.whenReady().then(()=>{
   ipcMain.handle('submit-assignment-text',(_,x)=>submitAssignmentText(x));
   ipcMain.handle('update-assignment-grade',(_,x)=>updateAssignmentGrade(x));
   ipcMain.handle('check-for-updates',()=>checkForUpdates(true));
-  ipcMain.handle('set-window-chrome',(_,x)=>{if(process.platform==='win32'||process.platform==='linux'){try{win?.setTitleBarOverlay?.({color:String(x?.color||'#002137'),symbolColor:String(x?.symbolColor||'#ffffff'),height:Number(x?.height||56)})}catch{}}return true});
+  ipcMain.handle('set-window-chrome',(_,x)=>{if(process.platform==='win32'||process.platform==='linux'){try{if(windowChromeOverlayEnabled())win?.setTitleBarOverlay?.({color:String(x?.color||'#002137'),symbolColor:String(x?.symbolColor||'#ffffff'),height:Number(x?.height||56)})}catch{}}return true});
+  ipcMain.handle('get-window-chrome-mode',()=>({overlay:windowChromeOverlayEnabled(),platform:process.platform}));
+  ipcMain.handle('set-window-chrome-mode',(_,enabled)=>{saveWindowChromeOverlay(!!enabled);app.relaunch();app.exit(0);return true});
   ipcMain.handle('install-update',(_,file)=>installUpdate(file));
   ipcMain.handle('download-file',(event,x)=>downloadAuthenticatedFile(x,event.sender));
   ipcMain.handle('launch-course-app',async(_,x)=>{

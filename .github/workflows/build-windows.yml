@@ -15,6 +15,7 @@ on:
         type: string
   push:
     branches: [main, master]
+    tags: ['v*']
 
 permissions:
   contents: write
@@ -90,7 +91,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: [windows, macos, linux]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.release == true }}
+    if: ${{ github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.release == true) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

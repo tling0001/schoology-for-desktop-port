@@ -14,6 +14,7 @@ try {
 
 contextBridge.exposeInMainWorld('schoology',{
   authState:()=>ipcRenderer.invoke('auth-state'),
+  networkOnline:()=>ipcRenderer.invoke('network-online'),
   loginCredentials:x=>ipcRenderer.invoke('login-credentials',x),
   loginQR:x=>ipcRenderer.invoke('login-qr',x),
   loginSchoolBrowser:x=>ipcRenderer.invoke('login-school-browser',x),

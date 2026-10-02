@@ -794,3 +794,40 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 .assignmentActionMenu .officialEmbeddedIcon{width:24px!important;height:24px!important;flex:0 0 24px!important}
 .toolbarImageButton .officialEmbeddedIcon{width:24px!important;height:24px!important;object-fit:contain!important}
 .fileUploadProgressWrap{padding:10px 0 2px}.fileUploadProgressTrack{height:8px;background:#dfe4e8;border-radius:4px;overflow:hidden}.fileUploadProgressBar{height:100%;background:#2e66a3;border-radius:4px;width:0%;transition:width .12s linear}.fileUploadProgressText{margin-top:10px;font-size:14px;color:#56636c;text-align:center}
+
+
+/* v83: native course identity -- compact Android-style image at left in both orientations. */
+.courseMainPane .courseIdentityCard{display:flex!important;flex-direction:row!important;align-items:center!important;width:100%!important;height:92px!important;min-height:92px!important;max-height:92px!important;padding:14px 16px!important;box-sizing:border-box!important;background:#fff!important;overflow:hidden!important;visibility:visible!important;opacity:1!important}
+.courseMainPane .courseIdentityImageWrap{position:relative!important;flex:0 0 64px!important;width:64px!important;height:64px!important;min-width:64px!important;min-height:64px!important;max-width:64px!important;max-height:64px!important;margin:0 14px 0 0!important;padding:0!important;background:#e6e9ec!important;overflow:hidden!important;border-radius:3px!important}
+.courseMainPane .courseIdentityImageWrap .sectionProfileImage,.courseMainPane .courseIdentityImageWrap .sectionProfileFallback{position:absolute!important;inset:0!important;width:64px!important;height:64px!important;min-width:64px!important;min-height:64px!important;max-width:64px!important;max-height:64px!important;margin:0!important;border-radius:3px!important;object-fit:cover!important}
+.courseMainPane .courseIdentityImageWrap .sectionProfileFallback{align-items:center!important;justify-content:center!important;background:#56607d!important;color:#fff!important;font-size:25px!important;font-weight:400!important}
+.courseMainPane .courseIdentityInfoBar{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;justify-content:center!important;min-width:0!important;width:auto!important;min-height:0!important;height:auto!important;padding:0!important;background:#fff!important;border:0!important;overflow:hidden!important}
+.courseMainPane .courseIdentityInfoBar .sectionProfileTitle{display:block!important;padding:0!important;font-size:17px!important;font-weight:400!important;line-height:1.2!important;color:#333!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.courseMainPane .courseIdentityInfoBar .sectionProfileSubtitle{display:block!important;padding:0!important;margin-top:5px!important;font-size:13px!important;line-height:1.2!important;color:#777!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.courseMainPane .courseIdentitySchool{display:block!important;margin-top:4px!important;font-size:11px!important;line-height:1.2!important;color:#8a949b!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+/* Dashboard fallback letters are only visible when no image can be loaded. */
+.nativeDashboardCourseImage .dashboardCourseFallback{display:none;position:absolute!important;inset:0!important;align-items:center!important;justify-content:center!important;background:#e7ebee!important;color:#002137!important;font-size:42px!important;font-weight:600!important}
+/* Exact fixed dashboard image height, independent of grid column count. */
+.nativeDashboardCourseImage{width:100%!important;height:130px!important;min-height:130px!important;max-height:130px!important;aspect-ratio:auto!important;flex:0 0 130px!important;overflow:hidden!important}
+.nativeDashboardCourseImage img{position:absolute!important;inset:0!important;width:100%!important;height:130px!important;min-height:130px!important;max-height:130px!important;object-fit:cover!important}
+/* v83: keep every right toolbar action strictly on the right-safe side of the native caption controls. */
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) 48px 200px!important;column-gap:0!important;padding:0!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!important;grid-row:1!important}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important;width:auto!important;margin:0!important;padding-left:12px!important;padding-right:12px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:48px!important;min-width:48px!important;max-width:48px!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;z-index:2!important}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex:0 0 44px!important;margin:0!important}
+/* The fourth grid column is deliberately empty: it is the native caption-control exclusion area. */
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar::after,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar::after{content:"";grid-column:4!important;grid-row:1!important;width:200px!important;height:56px!important;display:block!important;pointer-events:none!important}
+/* v83: exact local embedded icons for the comment composer. */
+.androidDialogIcon .officialEmbeddedIcon{width:24px!important;height:24px!important;display:block!important;object-fit:contain!important}
+/* v83: startup offline error remains on the Android splash. */
+.startupOfflineError{width:min(420px,82vw);display:flex;flex-direction:column;align-items:center;gap:10px;color:#fff;text-align:center;font-family:Arial,sans-serif}
+.startupOfflineError b{font-size:20px;font-weight:400}
+.startupOfflineError span{font-size:14px;color:#d6dce0}
+.startupOfflineError button{margin-top:8px;border:0;border-radius:4px;background:#2e66a3;color:#fff;padding:10px 28px;font-size:15px;cursor:pointer}

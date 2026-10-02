@@ -562,10 +562,17 @@ async function installUpdate(info){
   const file=typeof info==='string'?info:await downloadAndVerifyUpdate(info);
   if(!file||!fs.existsSync(file))throw new Error('The update installer is no longer available.');
   if(process.platform==='win32'){
-    const {spawn}=require('child_process'); const installDir=path.dirname(process.execPath),exePath=process.execPath;
-    const psPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.ps1`),q=v=>String(v).replace(/'/g,"''");
-    const script=`$ErrorActionPreference='SilentlyContinue'\n$installer='${q(file)}'\n$installDir='${q(installDir)}'\n$exe='${q(exePath)}'\n$appPid=${process.pid}\nfor($i=0;$i -lt 300;$i++){if(-not(Get-Process -Id $appPid -ErrorAction SilentlyContinue)){break};Start-Sleep -Milliseconds 200}\n$proc=Start-Process -FilePath $installer -ArgumentList @('/D='+$installDir) -Wait -PassThru\nif($proc -and $proc.ExitCode -eq 0 -and (Test-Path -LiteralPath $exe)){Start-Process -FilePath $exe}\nRemove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue\nRemove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue\n`;
-    fs.writeFileSync(psPath,script,'utf8');spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',psPath],{detached:true,stdio:'ignore',windowsHide:true}).unref();app.exit(0);return true;
+    const {spawn}=require('child_process');
+    const installDir=path.dirname(process.execPath),exePath=process.execPath;
+    const cmdPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.cmd`);
+    const q=v=>String(v).replace(/%/g,'%%').replace(/"/g,'""');
+    const installer=q(file),dir=q(installDir),exe=q(exePath),pid=String(process.pid);
+    const script=`@echo off\r\nsetlocal EnableExtensions\r\nset "INSTALLER=${installer}"\r\nset "INSTALLDIR=${dir}"\r\nset "EXE=${exe}"\r\nset "APPPID=${pid}"\r\n:WAIT_FOR_SCHOOLOGY\r\ntasklist /FI "PID eq %APPPID%" 2>nul | findstr /R /C:" %APPPID% " >nul\r\nif not errorlevel 1 (timeout /t 1 /nobreak >nul & goto WAIT_FOR_SCHOOLOGY)\r\nif not exist "%INSTALLER%" exit /b 2\r\nstart "" /wait "%INSTALLER%" "/D=%INSTALLDIR%"\r\nset "RC=%ERRORLEVEL%"\r\nif "%RC%"=="0" if exist "%EXE%" start "" "%EXE%"\r\nif exist "%INSTALLER%" del /f /q "%INSTALLER%" >nul 2>&1\r\ndel /f /q "%~f0" >nul 2>&1\r\nexit /b %RC%\r\n`;
+    fs.writeFileSync(cmdPath,script,'utf8');
+    const command=`call "${cmdPath.replace(/"/g,'\\"')}"`;
+    spawn('cmd.exe',['/d','/c',command],{detached:true,stdio:'ignore',windowsHide:true}).unref();
+    app.quit();
+    return true;
   }
   if(process.platform==='darwin'){
     const {spawn}=require('child_process'); const targetApp=path.dirname(path.dirname(process.execPath)); const parentDir=path.dirname(targetApp);
@@ -583,7 +590,7 @@ function create(){
   const overlay=windowChromeOverlayEnabled();
   const titlebarOptions=process.platform==='darwin'
     ? (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#002137',symbolColor:'#ffffff',height:56}} : {titleBarStyle:'hiddenInset'})
-    : (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#44505d',symbolColor:'#ffffff',height:56}} : {});
+    : (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#002137',symbolColor:'#ffffff',height:56}} : {});
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:appIcon,...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
@@ -592,13 +599,14 @@ function create(){
   win.webContents.on('console-message',(_,level,message,line,source)=>console.log('Renderer:',message,'at',source+':'+line));
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
-  win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:process.platform==='darwin'?'#002137':'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});
+  win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }
 app.whenReady().then(()=>{
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
   ipcMain.handle('auth-state',()=>loadAuth());
+  ipcMain.handle('network-online',()=>require('electron').net.isOnline());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));
   ipcMain.handle('login-school-browser',(_,info)=>loginThroughSchoolBrowser(info));

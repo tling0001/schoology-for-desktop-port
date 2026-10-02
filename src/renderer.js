@@ -428,6 +428,8 @@ async function showAssignment(sectionId,assignmentId){
     }catch{}
     const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission)||flag(gradeItem.allow_dropbox)||flag(gradeItem.allowDropbox)||flag(gradeItem.allow_submission)||flag(gradeItem.allowSubmission);
     const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion)||flag(gradeItem.allow_discussion)||flag(gradeItem.allowDiscussion);
+    let assignmentGrade={};
+    if(uid){try{const gr=await A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItem.id||assignmentId,enrollment_id:(myEnrollment.id||undefined)}});assignmentGrade=(gr.grades?.grade||gr.grade||[])[0]||{}}catch{}}
     const resolvedGradeItemId=Number(gradeItem.id||gradeItem.grade_item_id||gradeItem.gradeItemId||gradeItem.gradeitem_id||gradeItem.gradeItemID||assignmentId)||Number(assignmentId);
     state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentAllowComments=allowComments; state.assignmentData={...at,__gradeItemId:resolvedGradeItemId}; state.assignmentEnrollmentId=myEnrollment.id||null;
     const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button>${allowComments?`<button class="assignmentTab" data-assignment-tab="comments">Comments</button>`:''}${!state.assignmentLandscape&&canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
@@ -438,7 +440,8 @@ async function showAssignment(sectionId,assignmentId){
     }
     const renderInfo=()=>{
       const el=document.getElementById('assignmentTabContent');if(!el)return;
-      el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${renderAttachments(attachments)}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
+      const teacherComment=typeof assignmentGrade.comment==='string'?assignmentGrade.comment:(assignmentGrade.comment?.comment||assignmentGrade.comment?.body||'');
+      el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${renderAttachments(attachments)}${teacherComment?`<section class="assignmentTeacherComment"><b>Teacher Comment</b><div>${teacherComment}</div></section>`:''}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
       state.assignmentTab='info';state.assignmentSubpage=null;state.submissionMenu=false;syncToolbar();
       el.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||''; const isGoogleDoc=/^https?:\/\/(?:docs\.google\.com|drive\.google\.com)(?:\/|$)/i.test(href); if(isGoogleDoc){ev.preventDefault();ev.stopPropagation();try{await A.prepareWebSession();showEmbeddedWeb(href,a.textContent?.trim()||'Google Docs')}catch(e){alert('Unable to open Google Docs: '+e.message)}return;} if(/^(https?:\/\/)?(lms\.lausd\.net|[^/]+\.schoology\.com)(?:\/|$)/i.test(href)||/^schoology:/i.test(href)){ev.preventDefault();ev.stopPropagation(); try{const handled=await routeSchoologyLink(href); if(!handled){const w=window.open(href,'_blank'); if(w)w.opener=null;}}catch(e){alert('Unable to open Schoology link: '+e.message)}}}));
     };
@@ -539,8 +542,10 @@ async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTea
       const grades=await A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:(state.assignmentEnrollmentId||undefined)}}).catch(()=>({}));
       let subs={};
       try{subs=await A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}})}catch(e){subs={};}
-      const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revs=subs.revision||subs.revisions||subs.data?.revision||subs.data?.revisions||[];
-      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div><div class="studentOverallComment"><b>Overall Comment</b><div>${esc(g.comment||'')}</div></div><div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId:uid,revisionId:r.revision_id||r.revisionId,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>'}</div></section>`;
+      const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revsRaw=subs.revision||subs.revisions||subs.data?.revision||subs.data?.revisions||[];const revs=Array.isArray(revsRaw)?revsRaw.slice():[];revs.sort((a,b)=>Number(b.revision_id??b.revisionId??b.id??0)-Number(a.revision_id??a.revisionId??a.id??0));
+      const revisionHtml=revs.length?revs.map(r=>{const rid=r.revision_id??r.revisionId??r.id??'';return `<article class="submissionRevisionAndroid"><div><b>Revision ${esc(rid)}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId:uid,revisionId:rid,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`}).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>';
+      const gradeComment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');
+      c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div>${gradeComment?`<div class="studentOverallComment"><b>Overall Comment</b><div>${esc(gradeComment)}</div></div>`:''}<div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revisionHtml}</div></section>`;
       await hydrateMediaImages(c);
     }
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load submissions.</b><br>${esc(e.message)}</div>`}
@@ -552,8 +557,10 @@ async function openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enr
   c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading submission…</span></div></div>';
   try{
     const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}}).catch(()=>({}))]);
-    const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revs=subs.revision||subs.revisions||[];
-    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revs.length?revs.map((r,i)=>`<article class="submissionRevisionAndroid"><div><b>Revision ${revs.length-i}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId,revisionId:r.revision_id||r.revisionId,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`).join(''):'<div class="androidEmptyState">No submissions.</div>'}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(g.comment||'')}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
+    const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revsRaw=subs.revision||subs.revisions||[];const revs=Array.isArray(revsRaw)?revsRaw.slice():[];revs.sort((a,b)=>Number(b.revision_id??b.revisionId??b.id??0)-Number(a.revision_id??a.revisionId??a.id??0));
+    const revisionHtml=revs.length?revs.map(r=>{const rid=r.revision_id??r.revisionId??r.id??'';const comment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');return `<article class="submissionRevisionAndroid"><div><b>Revision ${esc(rid)}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId,revisionId:rid,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`}).join(''):'<div class="androidEmptyState">No submissions.</div>';
+    const gradeComment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');
+    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revisionHtml}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(gradeComment)}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
     await hydrateMediaImages(c);
     document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{try{await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment:document.getElementById('teacherGradeComment')?.value||'',commentStatus:document.getElementById('teacherDisplayComment')?.checked});await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId)}catch(e){alert(e.message)}});
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this submission.</b><br>${esc(e.message)}</div>`}
@@ -1062,7 +1069,8 @@ async function loadSectionGrades(course){
 function renderOverallGrade(sec){
  const final=(sec.final_grade||sec.finalGrade||[])[0]||{};
  const val=final.grade||final.grade_override||final.calculated_grade||'—';
- return `<div class="gradeOverallCard"><div class="label">Overall Grade</div><div class="value">${esc(val)}</div></div>`;
+ const comment=typeof final.comment==='string'?final.comment:(final.comment?.comment||final.comment?.body||'');
+ return `<div class="gradeOverallCard"><div class="label">Overall Grade</div><div class="value">${esc(val)}</div>${comment?`<div class="gradeOverallTeacherComment"><b>Teacher Comment</b><div>${comment}</div></div>`:''}</div>`;
 }
 function renderGradePeriods(rows,periods,categories){
  const ps=periods.grading_period||periods.gradePeriod||periods.period||periods.periods||[];
@@ -1093,7 +1101,8 @@ function renderGradePeriods(rows,periods,categories){
       ${list.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''))).map(a=>{
        const g=a.gradeData||{};const raw=g.grade??g.calculated_grade??g.score??'—';const max=a.max_points??a.maxPoints??g.max_points??g.maxPoints;
        const value=(raw!=='—'&&max!=null&&String(max)!=='')?`${raw}/${max}`:raw;
-       return `<button class="gradeAssignmentRow" data-grade-assignment="${esc(a.id||'')}" data-grade-type="${esc(a.type||a.template_type||a.type_name||'assignment')}"><span class="gradeAssignmentName">${esc(a.title||a.assignment_title||'Assignment')}</span><span class="gradeValue">${esc(value)}</span></button>`;
+       const comment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');
+       return `<button class="gradeAssignmentRow" data-grade-assignment="${esc(a.id||'')}" data-grade-type="${esc(a.type||a.template_type||a.type_name||'assignment')}"><span class="gradeAssignmentName"><b>${esc(a.title||a.assignment_title||'Assignment')}</b>${comment?`<small class="gradeTeacherComment">${comment}</small>`:''}</span><span class="gradeValue">${esc(value)}</span></button>`;
       }).join('')||'<div class="empty">No graded items.</div>'}
       </div>
     </div>`;
@@ -1529,40 +1538,31 @@ async function loadHomeTab(){
       }catch(e){alert('Unable to load comments: '+e.message)}
     });
   }else if(state.homeTab==='dashboard'){
+    // Android 2026.06.0 uses a HybridView for this tab. The desktop port uses a
+    // native equivalent so Chromium/WebView sizing cannot leave a blank bottom area.
     const uid=state.auth?.userId||state.auth?.user?.id;
-    await A.prepareWebSession();
-    const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
-    const arr=x.section||x.sections||[];
-    window.__schoologyDashboardCourses=arr;
-    c.classList.remove('dashboardContentActive');c.classList.add('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><div id="dashboardWebviewLoading" class="dashboardOfficialLoading"><img src="../assets/sgy_loading.gif" alt=""></div><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
-    const dw=document.getElementById('courseDashboardWebview');
-    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);let dashboardNav=0;const startDashboardNavigation=()=>{const token=++dashboardNav;setDashboardLoading(true);setTimeout(()=>{if(token===dashboardNav)setDashboardLoading(false)},10000)};dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)startDashboardNavigation()});dw.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame){dashboardNav++;setDashboardLoading(false)}});dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame){dashboardNav++;setDashboardLoading(false)}});
-      const sizeDashboard=()=>{
-        const main=document.getElementById('content'),split=document.querySelector('.homeLandscapeSplit'),pane=document.querySelector('.homeLandscapeSplit .homeRightPane'),tabs=pane?.querySelector('.homeTabs'),tabContent=document.getElementById('homeTabContent'),sec=dw.closest('.dashboardHybrid');
-        const toolbar=document.querySelector('.shell>.toolbar');
-        const available=Math.max(0,window.innerHeight-(toolbar?.getBoundingClientRect().height||56));
-        if(main){main.style.position='relative';main.style.padding='0';main.style.margin='0';main.style.overflow='hidden';main.style.height=available+'px';main.style.minHeight=available+'px';main.style.maxHeight=available+'px'}
-        if(split){split.style.position='absolute';split.style.left='0';split.style.top='0';split.style.right='0';split.style.bottom='0';split.style.width='100%';split.style.height=available+'px';split.style.minHeight='0';split.style.overflow='hidden'}
-        if(pane){pane.style.position='relative';pane.style.height=available+'px';pane.style.minHeight='0';pane.style.overflow='hidden';pane.style.display='grid';pane.style.gridTemplateRows='48px minmax(0,1fr)'}
-        if(tabs){tabs.style.height='48px';tabs.style.minHeight='48px';tabs.style.gridRow='1'}
-        if(tabContent){tabContent.style.position='relative';tabContent.style.gridRow='2';tabContent.style.height=(Math.max(0,available-48))+'px';tabContent.style.minHeight='0';tabContent.style.maxHeight=(Math.max(0,available-48))+'px';tabContent.style.overflow='hidden';tabContent.style.margin='0';tabContent.style.padding='0';tabContent.style.display='block'}
-        if(sec){sec.style.position='absolute';sec.style.left='0';sec.style.top='0';sec.style.right='0';sec.style.bottom='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='block';sec.style.overflow='hidden'}
-        const r=tabContent?.getBoundingClientRect();if(r&&r.width>0&&r.height>0){dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.width=Math.ceil(r.width)+'px';dw.style.height=Math.ceil(r.height)+'px';dw.style.minWidth='0';dw.style.minHeight='0';dw.style.maxWidth='none';dw.style.maxHeight='none';dw.style.margin='0';dw.style.padding='0';dw.style.display='block'}
-      };
-      sizeDashboard();requestAnimationFrame(sizeDashboard);requestAnimationFrame(()=>requestAnimationFrame(sizeDashboard));window.addEventListener('resize',sizeDashboard,{passive:true});
-      if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(document.getElementById('content'));ro.observe(document.querySelector('.homeLandscapeSplit'));ro.observe(document.getElementById('homeTabContent'));}
-      dw.addEventListener('dom-ready',sizeDashboard);
-      const handleDashboardLink=async(raw,ev)=>{const u=String(raw||'');if(!u)return false;try{if(await routeSchoologyLink(u)){ev?.preventDefault?.();return true}}catch(err){console.warn('Schoology dashboard deep link failed:',err)}return false};
-      dw.addEventListener('new-window',async e=>{e.preventDefault();if(await handleDashboardLink(e.url,e))return;try{dw.src=e.url}catch{}});
-      dw.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(handleDashboardLink(u,e)).catch(err=>console.warn('Schoology dashboard deep link failed:',err));}});
-      dw.addEventListener('did-navigate-in-page',async e=>{await handleDashboardLink(e.url,null)});
-      // Android uses SGYDeepLinkInterceptor at the WebSession/navigation layer.
-      // Electron's webview new-window/will-navigate hooks provide the equivalent;
-      // do not execute arbitrary JavaScript inside the guest page.
-
-    }
+    c.classList.remove('embeddedContentActive');c.classList.add('dashboardContentActive');
+    c.innerHTML=`<section class="nativeCourseDashboard"><div class="dashboardOfficialLoading" id="dashboardOfficialLoading"><img src="../assets/sgy_loading.gif" alt=""></div><div id="nativeDashboardCourses" class="nativeDashboardCourses"></div></section>`;
+    const loader=document.getElementById('dashboardOfficialLoading'),list=document.getElementById('nativeDashboardCourses');
+    try{
+      const x=uid?await A.api({path:`users/${uid}/sections`,params:{limit:100}}):{};
+      const arr=x.section||x.sections||[];window.__schoologyDashboardCourses=arr;
+      if(!arr.length){list.innerHTML='<div class="androidEmptyState">No courses found.</div>'}
+      else{
+        list.innerHTML=arr.map((course,i)=>{
+          const title=courseTitleOf(course),section=sectionTitleOf(course);
+          const school=course.school_name||course.schoolName||course.school_title||course.schoolTitle||course.school?.school_name||course.school?.name||course.school?.title||'';
+          const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
+          return `<button class="nativeDashboardCourse" data-dashboard-course="${i}"><div class="nativeDashboardCourseImage">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span>${esc(title.charAt(0)||'C')}</span></div><div class="nativeDashboardCourseInfo"><b>${esc(title)}</b>${section?`<span class="nativeDashboardCoursePeriod">${esc(section)}</span>`:''}${school?`<small>${esc(school)}</small>`:''}</div></button>`;
+        }).join('');
+        await hydrateCourseImages(list);
+        list.querySelectorAll('[data-dashboard-course]').forEach(b=>b.onclick=()=>showCourse(arr[+b.dataset.dashboardCourse],'materials'));
+      }
+    }catch(e){list.innerHTML=`<div class="error apiError"><b>Schoology could not load the course dashboard.</b><br>${esc(e.message)}</div>`}
+    finally{loader?.classList.add('hidden')}
   }else{
-    c.innerHTML='<div id="homeUpcomingList"></div>';
+    c.classList.remove('recentActivityScroll');c.classList.add('homePortraitUpcomingScroll');
+    c.innerHTML='<div id="homeUpcomingList" class="homeUpcomingPortraitList"></div>';
     await renderUpcomingInto(document.getElementById('homeUpcomingList'));
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}

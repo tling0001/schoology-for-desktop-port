@@ -586,3 +586,20 @@ html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .
 
 /* v74: dashboard loader matches the native Android animation aspect ratio and sits above center. */
 .dashboardOfficialLoading{align-items:flex-start!important;justify-content:center!important;padding-top:42px;box-sizing:border-box}.dashboardOfficialLoading img{width:180px!important;height:auto!important;aspect-ratio:480/385;object-fit:contain}
+
+/* v75 fixes: keep toolbar actions in normal flow left of Windows/Linux caption controls. */
+html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:156px!important;overflow:hidden!important}
+html[data-electron-platform=win32] .toolbar .toolbarActionSlot,html[data-electron-platform=linux] .toolbar .toolbarActionSlot{position:static!important;right:auto!important;top:auto!important;width:auto!important;min-width:44px!important;height:56px!important;margin-left:auto!important;margin-right:0!important;flex:0 0 auto!important;z-index:1!important}
+html[data-electron-platform=win32] .toolbar .toolbarTitle,html[data-electron-platform=linux] .toolbar .toolbarTitle{flex:1 1 auto!important;min-width:0!important;padding-right:0!important}
+/* v75: dashboard occupies the entire flex remainder beneath the home tabs. */
+.homeLandscapeSplit{display:flex!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+.homeLandscapeSplit .homeRightPane{flex:2 1 0!important;height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;position:relative!important;inset:auto!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;position:relative!important;inset:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-height:none!important;display:block!important}
+/* MIME icons should never inherit a broken intrinsic size. */
+.attachmentFileIcon{width:40px!important;height:40px!important;min-width:40px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.attachmentFileIcon img{width:32px!important;height:32px!important;object-fit:contain!important;display:block!important}
+/* Android upcoming date separators. */
+.upcomingDateHeader{display:flex;flex-direction:column;padding:10px 10px 5px;color:#6f6f6f;font-size:14px}
+.upcomingDateHeader .upcomingDateRule{height:1px;background:#6f6f6f;width:100%;margin-top:5px}

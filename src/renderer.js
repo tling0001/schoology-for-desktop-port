@@ -566,7 +566,7 @@ function renderAttachments(a,submissionContext=null){
     const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim();
     const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream';
     const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
-    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon"><img src="../assets/icons/${mimeIconForFilename(title)}" alt=""></span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon"><img src="../assets/icons/ic_action_download.png" alt=""></span></button>`);
+    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon"><img src="../assets/icons/${mimeIconForFilename(title,mime)}" alt=""></span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon"><img src="../assets/icons/ic_action_download.png" alt=""></span></button>`);
   };
   const addLink=(url,title)=>{if(url)out.push(`<button class="activityAttachment" data-open-url="${esc(url)}">${esc(title||url)}</button>`)};
   const walk=(v)=>{
@@ -607,19 +607,20 @@ function materialIconForType(item){
    if(docType==='link')return 'ic_files_links.png';
    if(docType==='embed')return 'attachment_link_icon.png';
    if(docType==='external_tool')return 'ic_external_tool.png';
-   if(docType==='file'){const f=item?.filename||item?.fileName||item?.title||item?.filemime||item?.fileMIME||'';return mimeIconForFilename(f);}
+   if(docType==='file'){const f=item?.filename||item?.fileName||item?.title||item?.filemime||item?.fileMIME||'';return mimeIconForFilename(f,item?.filemime||item?.fileMIME||'');}
  }
  return mimeIconForFilename(item?.filename||item?.fileName||item?.title||'');
 }
-function mimeIconForFilename(name){
+function mimeIconForFilename(name,mime=''){
  const n=String(name||'').toLowerCase();
+ const mt=String(mime||'').toLowerCase().split(';')[0].trim();
  if(/\.(mp3|wav|m4a|aac|ogg|flac|mp4|mov|avi|webm|mkv)$/.test(n))return 'ic_attach_audio.png';
  if(/\.(txt|csv|rtf)$/.test(n))return 'ic_attach_text.png';
  if(/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/.test(n))return 'ic_attach_image.png';
- if(/\.pdf$/.test(n))return 'ic_attach_app_pdf.png';
- if(/\.(ppt|pptx|odp)$/.test(n))return 'ic_attach_app_ppt.png';
- if(/\.(xls|xlsx|ods)$/.test(n))return 'ic_attach_app_excel.png';
- if(/\.(doc|docx|odt)$/.test(n))return 'ic_attach_app_word.png';
+ if(/\.pdf$/.test(n)||mt==='application/pdf')return 'ic_attach_app_pdf.png';
+ if(/\.(ppt|pptx|odp)$/.test(n)||mt.includes('presentation')||mt.includes('powerpoint'))return 'ic_attach_app_ppt.png';
+ if(/\.(xls|xlsx|ods)$/.test(n)||mt.includes('spreadsheet')||mt.includes('excel'))return 'ic_attach_app_excel.png';
+ if(/\.(doc|docx|odt)$/.test(n)||mt.includes('word')||mt.includes('msword')||mt.includes('officedocument.word'))return 'ic_attach_app_word.png';
  if(/\.(zip|rar|7z|tar|gz)$/.test(n))return 'ic_attach_app_zip.png';
  return 'attachment_document_icon.png';
 }
@@ -731,7 +732,9 @@ async function routeSchoologyLink(rawUrl){
  const mSection=path.match(/^\/section(?:s)?\/(\d+)$/i);
  const mAssignment=path.match(/^\/(?:assignment|assignments)\/(\d+)(?:\/info)?$/i);
  const mCourseAssignment=path.match(/^\/course(?:s)?\/(\d+)\/(?:assignment|assignments)\/(\d+)(?:\/info)?$/i);
- if(/^\/home$/i.test(path)){state.homeUpcomingReturn=false;state.tab='home';state.courseView=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Home';render();loadTab();return true}
+ if(/^\/home$/i.test(path)){state.homeUpcomingReturn=false;state.tab='home';state.courseView=null;state.currentGroup=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Home';render();loadTab();return true}
+ const mResources=path.match(/^\/resources(?:\/.*)?$/i);if(mResources){state.homeUpcomingReturn=false;state.courseView=null;state.currentGroup=null;state.assignmentView=null;state.embeddedTitle=null;state.tab='resources';state.toolbarTitle='Resources';render();loadTab();return true}
+ const mGroup=path.match(/^\/groups?\/(\d+)(?:\/.*)?$/i);if(mGroup){const gid=Number(mGroup[1]);let group={id:gid,name:'Group'};try{const gx=await A.api({path:`groups/${gid}`,params:{}});group=gx?.group||gx||group;}catch{}state.tab='groups';state.currentGroup=group;state.toolbarTitle=group.name||group.title||'Group';render();await showGroup(group,'updates');return true}
  if(mCourse||mSection){const sid=Number((mCourse||mSection)[1]);const gp=(mCourse&&mCourse[2])?Number(mCourse[2]):0;try{const x=await A.api({path:`sections/${sid}`,params:{}});const course=x?.section||x;state.embeddedTitle=null;await showCourse(course,'materials');if(gp)await loadFolder(course,gp,true,'Folder');return true}catch(e){showSchoologyRequestError(e);return true}}
  if(mCourseAssignment){const sid=Number(mCourseAssignment[1]),aid=Number(mCourseAssignment[2]);showAssignment(sid,aid);return true}
  if(mAssignment){const aid=Number(mAssignment[1]);const sid=await resolveAssignmentSection(aid);if(sid){showAssignment(sid,aid);return true}await A.prepareWebSession();showEmbeddedWeb(rawUrl,'Assignment');return true}
@@ -751,8 +754,8 @@ async function showEmbeddedWeb(url,title,options={}){
  c.innerHTML=`<section class="embeddedPage"><div id="embeddedWebviewLoading" class="webviewLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div><webview id="schoologyWebview" src="${esc(String(url||''))}" allowpopups></webview></section>`;
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
- w.addEventListener('did-finish-load',e=>{if(e.isMainFrame)setLoading(false)});
- w.addEventListener('did-stop-loading',()=>{if(Date.now()-loadingStartedAt>150)setLoading(false)});
+ w.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame)setLoading(false)});
+ w.addEventListener('did-navigate',e=>{if(e.isMainFrame){loadingStartedAt=Date.now();}});
  w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},20000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;try{w.src=e.url}catch{}});
@@ -965,7 +968,29 @@ async function loadCourseTab(course,tab){
 function animateTab(){ /* Restored to the Android pager's stable tab layout; no custom overlay animation. */ }
 function renderUpcoming(events){
  const arr=Array.isArray(events)?events:[];
- return arr.length?`<div class="upcomingList">${arr.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-course-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+ if(!arr.length)return '<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
+ const groups=[];const byDate=new Map();
+ const sorted=arr.slice().sort((a,b)=>new Date(String(a.start||'').replace(' ','T'))-new Date(String(b.start||'').replace(' ','T')));
+ for(const e of sorted){
+   const d=new Date(String(e.start||'').replace(' ','T'));
+   const key=Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+   if(!byDate.has(key)){const g={key,date:d,items:[]};byDate.set(key,g);groups.push(g);}
+   byDate.get(key).items.push(e);
+ }
+ const html=[];
+ for(const g of groups){
+   const dateLabel=Number.isNaN(g.date.getTime())?'':g.date.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'});
+   html.push(`<div class="upcomingDateHeader"><span>${esc(dateLabel)}</span><span class="upcomingDateRule"></span></div>`);
+   for(const e of g.items){
+     const type=String(e.type||'');
+     const icon=type==='assignment'?'ic_assignment':type==='assessment'?'ic_notifications_test_quiz':(type==='assessment_v2'||type==='managed_assessment')?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_external_tool':'ic_date_range_24px';
+     const ext=icon.endsWith('.svg')?'svg':'png';
+     const allDay=String(e.all_day)==='1'||e.allDay===1;
+     const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
+     html.push(`<button class="upcomingAssignment" data-course-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${ext}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time)}</small></span><span class="rowChevron">›</span></button>`);
+   }
+ }
+ return `<div class="upcomingList">${html.join('')}</div>`;
 }
 function formatSchoologyDate(v){if(v===null||v===undefined||v==='')return '';const n=Number(v);const d=(Number.isFinite(n)&&n>0)?new Date(n*1000):new Date(String(v).replace(' ','T'));if(Number.isNaN(d.getTime()))return String(v);return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
@@ -1123,7 +1148,7 @@ function resourceIconForType(type,title,item={}){
    if(dt==='external_tool')return 'ic_web_content.png';
    if(dt==='file'){
      const n=String(title||'').toLowerCase();
-     if(/\.pdf$/.test(n))return 'ic_attach_app_pdf.png';
+     if(/\.pdf$/.test(n)||mt==='application/pdf')return 'ic_attach_app_pdf.png';
      if(/\.(ppt|pptx)$/.test(n))return 'ic_attach_app_ppt.png';
      if(/\.zip$/.test(n))return 'ic_attach_app_zip.png';
      if(/\.(png|jpe?g|gif|webp|bmp)$/.test(n))return 'ic_attach_image.png';
@@ -1412,8 +1437,8 @@ async function renderUpcomingInto(c){
  const arr=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));
  const sorted=arr.slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
  const body=c.querySelector('.homeUpcomingList')||c;
- body.innerHTML=sorted.length?`<div class="upcomingList">${sorted.map(e=>{const type=String(e.type||'');const icon=type==='assignment'?'ic_assignment':(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'?'ic_assessment_16dp':type==='discussion'?'ic_discussion':type==='external_tool'?'ic_menu_resources':'ic_date_range_24px');const iconExt=(icon==='ic_assignment'||icon==='ic_discussion')?'png':'svg';const allDay=String(e.all_day)==='1'||e.allDay===1;const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';return `<button class="upcomingAssignment" data-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon"><img src="../assets/icons/${icon}.${iconExt}" alt=""></span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time||e.start||'')}</small></span><span class="rowChevron">›</span></button>`}).join('')}</div>`:'<div class="empty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div>';
- document.querySelectorAll('[data-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.upcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));}else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
+ body.innerHTML=renderUpcoming(sorted);
+ document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));}else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
 }
 async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="homeUpcomingList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';await renderUpcomingInto(c)}
 async function loadHomeTab(){
@@ -1471,19 +1496,15 @@ async function loadHomeTab(){
     window.__schoologyDashboardCourses=arr;
     c.classList.remove('dashboardContentActive');c.classList.add('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><div id="dashboardWebviewLoading" class="dashboardOfficialLoading"><img src="../assets/sgy_loading.gif" alt=""></div><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
-    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);setDashboardLoading(true);dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setDashboardLoading(true)});dw.addEventListener('did-stop-loading',()=>setDashboardLoading(false));dw.addEventListener('did-finish-load',()=>setDashboardLoading(false));dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});
+    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);setDashboardLoading(true);dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setDashboardLoading(true)});dw.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});
       const sizeDashboard=()=>{
-        const main=document.getElementById('content');
-        const rect=c.getBoundingClientRect();
-        const viewportHeight=Math.max(1,window.innerHeight||document.documentElement.clientHeight||600);
-        const available=Math.max(1,Math.floor(viewportHeight-rect.top));
-        c.style.position='relative';c.style.height=`${available}px`;c.style.minHeight='0';c.style.maxHeight='none';c.style.width='100%';c.style.overflow='hidden';c.style.padding='0';c.style.margin='0';
+        c.style.position='';c.style.height='';c.style.minHeight='';c.style.maxHeight='';c.style.width='';c.style.overflow='';c.style.padding='';c.style.margin='';
         const sec=dw.closest('.dashboardHybrid');
-        if(sec){sec.style.position='relative';sec.style.width='100%';sec.style.height=`${available}px`;sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='block';sec.style.overflow='hidden'}
-        dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.right='0';dw.style.bottom='0';dw.style.height=`${available}px`;dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='0';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
+        if(sec){sec.style.position='relative';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='flex';sec.style.flex='1 1 auto';sec.style.overflow='hidden'}
+        dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.right='0';dw.style.bottom='0';dw.style.height='100%';dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='0';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
       };
       sizeDashboard();requestAnimationFrame(sizeDashboard);requestAnimationFrame(()=>requestAnimationFrame(sizeDashboard));window.addEventListener('resize',sizeDashboard,{passive:true});
-      if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(document.getElementById('content'));ro.observe(document.getElementById('homeTabContent'));}
+      if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(c);ro.observe(document.getElementById('homeTabContent'));}
       dw.addEventListener('dom-ready',sizeDashboard);
       const handleDashboardLink=async(raw,ev)=>{const u=String(raw||'');if(!u)return false;try{if(await routeSchoologyLink(u)){ev?.preventDefault?.();return true}}catch(err){console.warn('Schoology dashboard deep link failed:',err)}return false};
       dw.addEventListener('new-window',async e=>{e.preventDefault();if(await handleDashboardLink(e.url,e))return;try{dw.src=e.url}catch{}});

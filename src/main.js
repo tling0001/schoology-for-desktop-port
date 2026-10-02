@@ -62,8 +62,11 @@ function sortedOAuthBaseParams(method,url,oauth,extra=[]){
   return pairs.map(([k,v])=>k+'='+v).join('&');
 }
 function makePlaintextOAuthHeader(authToken,authSecret){
-  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'PLAINTEXT',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0',oauth_token:authToken==null?'':String(authToken)};
-  return 'OAuth '+['oauth_consumer_key','oauth_nonce','oauth_signature_method','oauth_timestamp','oauth_token','oauth_version'].map(k=>k+'=\"'+String(oauth[k])+'\"').join(', ')+', oauth_signature=\"'+enc(CONSUMER_SECRET+'&'+String(authSecret||''))+'\"';
+  // Android OAuthRequestSigner.generatePlainTextAuthorizationHeader() does not
+  // RFC3986-encode the whole secret. It places the literal %26 separator in the
+  // OAuth header, while the request is otherwise signed exactly as Android does.
+  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:(()=>{let n=crypto.randomBytes(8).readBigInt64BE();if(n<0n)n=-n;return n.toString(16)})(),oauth_signature_method:'PLAINTEXT',oauth_timestamp:String(oauthTimestamp()),oauth_token:authToken==null?'':String(authToken)};
+  return 'OAuth '+['oauth_consumer_key','oauth_nonce','oauth_signature_method','oauth_timestamp','oauth_token'].map(k=>k+'=\"'+String(oauth[k])+'\"').join(', ')+', oauth_signature=\"'+String(CONSUMER_SECRET)+'%26'+String(authSecret||'')+'\"';
 }
 function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
   const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_version:'1.0'};
@@ -311,46 +314,61 @@ async function submitAssignmentFile(info){
   if(!info?.sectionId||!info?.assignmentId||!info?.filePath)throw new Error('Submission information is incomplete.');
   const filePath=info.filePath, filename=path.basename(filePath), file=fs.readFileSync(filePath);
   const mimeByExt={'.pdf':'application/pdf','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.ppt':'application/vnd.ms-powerpoint','.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation','.txt':'text/plain','.csv':'text/csv','.zip':'application/zip','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif'};
-  const mime=mimeByExt[path.extname(filename).toLowerCase()]||'application/octet-stream';
-  let fileId=null;
+  const mime=mimeByExt[path.extname(filename).toLowerCase()]||String(info.mime||'application/octet-stream');
+  let fileId=null, primaryError=null;
   try{
-    const boundary='----SchoologyElectron'+crypto.randomBytes(12).toString('hex');
-    const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g,'')}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
-    const post=Buffer.from(`\r\n--${boundary}--\r\n`), multipart=Buffer.concat([pre,file,post]);
-    const uploadUrl=new URL(`https://${API_HOST}/v1/file`);uploadUrl.searchParams.set('name',filename);
-    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':multipart.length,Authorization:makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),Cookie:MOBILE_COOKIE};
+    // This reproduces tc.z.a()/MultipartBody from Android 2026.06.0. In
+    // particular, the file part itself has the multipart/form-data media type,
+    // includes a Content-Length header, and the multipart boundary is a UUID.
+    const boundary=crypto.randomUUID();
+    const quoted=s=>String(s).replace(/\\/g,'\\\\').replace(/\"/g,'%22').replace(/\r/g,'%0D').replace(/\n/g,'%0A');
+    const pre=Buffer.from(`--${boundary}\\r\\nContent-Disposition: form-data; name=\\"file\\"; filename=\\"${quoted(filename)}\\"\\r\\nContent-Type: multipart/form-data\\r\\nContent-Length: ${file.length}\\r\\n\\r\\n`);
+    const post=Buffer.from(`\\r\\n--${boundary}--\\r\\n`);
+    const multipart=Buffer.concat([pre,file,post]);
+    const uploadUrl=new URL(`https://${API_HOST}/v1/file`);
+    // Android Multipart upload adds @Query("name") to the request URL.
+    uploadUrl.searchParams.set('name',filename);
+    const headers={
+      'User-Agent':ANDROID_OKHTTP_UA,
+      'Accept':'application/json',
+      'Content-Type':`multipart/form-data; boundary=${boundary}`,
+      'Content-Length':multipart.length,
+      'Authorization':makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),
+      'Cookie':MOBILE_COOKIE
+    };
     const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(multipart);req.end()});
     if(uploaded.status>=200&&uploaded.status<300){try{fileId=JSON.parse(uploaded.text).fileMetadataId}catch{}}
     if(!fileId)throw new Error(`FileService ${uploaded.status}: ${uploaded.text}`);
-  }catch(primaryError){
-    // Android 2026.06.0 retains a legacy upload path when FileServiceApi is unavailable.
-    // Reproduce that documented fallback: POST metadata to /v1/upload, then PUT bytes to /v1/upload/{id}.
-    const md5=crypto.createHash('md5').update(file).digest('hex');
-    const meta={upload_filename:filename,upload_file_md5:md5,upload_file_size:file.length};
-    const metadataUrl=new URL(`https://${API_HOST}/v1/upload`);
-    for(const [k,v] of Object.entries(meta)) metadataUrl.searchParams.set(k,String(v));
-    const holder=await request('POST',metadataUrl.toString(),meta,{sign:true,legacyOAuth:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
-    if(holder.status<200||holder.status>=300)throw new Error(`File upload failed: ${primaryError.message}; legacy metadata upload failed: ${holder.status} ${holder.text}`);
-    let h={};try{h=JSON.parse(holder.text)}catch{}
-    fileId=h.upload_file_id||h.uploadFileID||h.upload_id||h.id;
-    if(!fileId)throw new Error('Schoology did not return an upload file ID.');
-    const u=new URL(`https://${API_HOST}/v1/upload/${fileId}`);
-    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,Authorization:makeOAuthHeader('PUT',u.toString(),a.oauth_token,a.oauth_token_secret,null,null),Cookie:MOBILE_COOKIE};
-    const put=await new Promise((resolve,reject)=>{const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(file);req.end()});
-    if(put.status<200||put.status>=300)throw new Error(`File upload failed: ${put.status} ${put.text}`);
+  }catch(e){primaryError=e}
+  if(!fileId){
+    // The Android 2026.06.0 legacy implementation is only used when the
+    // FileServiceApi dependency is unavailable. Reproduce its exact request:
+    // POST /v1/upload with UploadAttachmentObject JSON fields (filename/md5_checksum/filesize) in the BODY (not query parameters), then
+    // PUT /v1/upload/{id} with the raw file bytes. The previous port incorrectly
+    // put upload_filename/upload_file_md5/upload_file_size into the URL, which
+    // changed the OAuth signature and caused the 401/400 failures seen here.
+    try{
+      const md5=crypto.createHash('md5').update(file).digest('hex');
+      const meta={filename,md5_checksum:md5,filesize:file.length};
+      const holder=await request('POST',`https://${API_HOST}/v1/upload`,meta,{sign:true,legacyOAuth:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+      if(holder.status<200||holder.status>=300)throw new Error(`legacy metadata upload failed: ${holder.status} ${holder.text}`);
+      let holderJson={};try{holderJson=JSON.parse(holder.text)}catch{}
+      const uploadId=holderJson.id??holderJson.upload_file_id??holderJson.uploadFileID;
+      if(uploadId==null)throw new Error('legacy metadata upload did not return an upload id.');
+      const putUrl=`https://${API_HOST}/v1/upload/${encodeURIComponent(String(uploadId))}`;
+      const putHeaders={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,'Authorization':makeOAuthHeader('PUT',putUrl,a.oauth_token,a.oauth_token_secret),'Cookie':MOBILE_COOKIE};
+      const put=await new Promise((resolve,reject)=>{const u=new URL(putUrl);const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers:putHeaders},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(file);req.end()});
+      if(put.status<200||put.status>=300)throw new Error(`legacy file upload failed: ${put.status} ${put.text}`);
+      fileId=String(uploadId);
+    }catch(legacyError){
+      const pmsg=primaryError?.message||String(primaryError||'FileService upload failed');
+      throw new Error(`File upload failed: ${pmsg}; ${legacyError.message||legacyError}`);
+    }
   }
-  if(!fileId)throw new Error('Schoology did not return a file metadata ID.');
   const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
   if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text);return true;
 }
-async function updateAssignmentGrade(info){
-  const a=loadAuth(); if(!a)throw new Error('Not signed in');
-  if(!info?.sectionId||!info?.assignmentId||!info?.enrollmentId)throw new Error('Grade information is incomplete.');
-  const body={grades:{grade:[{type:'assignment',assignment_id:String(info.assignmentId),enrollment_id:String(info.enrollmentId),grade:info.grade===''?null:info.grade,comment:String(info.comment||''),comment_status:info.commentStatus?1:0}]}};
-  const result=await request('PUT',`https://${API_HOST}/v1/sections/${info.sectionId}/grades`,body,{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
-  if(result.status<200||result.status>=300)throw new Error('Grade update failed: '+result.status+' '+result.text);
-  return true;
-}
+
 async function submitAssignmentText(info){
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.gradeItemId)throw new Error('Text submission information is incomplete.');

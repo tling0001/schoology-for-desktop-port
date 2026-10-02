@@ -9,7 +9,7 @@ let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
 let loadTabGeneration=0;
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:true};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:true};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
@@ -245,7 +245,12 @@ function syncToolbar(){
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
   if(state.embeddedTitle && state.embeddedCanOpenExternal){slot.innerHTML='<button id="embeddedOpenBrowser" class="iconButton toolbarImageButton" aria-label="Open in browser" title="Open in browser">↗</button>';document.getElementById('embeddedOpenBrowser')?.addEventListener('click',()=>{const w=document.getElementById('schoologyWebview');const u=w?.getURL?.()||'';if(u)A.openExternal(u).catch(e=>alert('Unable to open browser: '+e.message))});return;}
-  if(state.assignmentView&&state.assignmentTab==='comments'&&!state.assignmentSubpage){
+  if(state.assignmentView&&state.assignmentLandscape&&!state.assignmentSubpage&&(state.assignmentTab==='info'||state.assignmentTab==='comments')){
+    if(state.assignmentAllowComments||state.assignmentCanSubmit){
+      slot.innerHTML='<button id="assignmentPlus" class="iconButton toolbarImageButton" aria-label="Assignment actions"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
+      document.getElementById('assignmentPlus')?.addEventListener('click',showAssignmentActionMenu);
+    }
+  }else if(state.assignmentView&&state.assignmentTab==='comments'&&!state.assignmentSubpage){
     slot.innerHTML='<button id="assignmentPlus" class="iconButton toolbarImageButton" aria-label="Post comment"><img src="../assets/icons/ic_action_new.png" alt=""></button>';
     document.getElementById('assignmentPlus')?.addEventListener('click',()=>openAssignmentCommentComposer(state.assignmentView.sectionId,state.assignmentView.assignmentId,'0'));
   }else if(state.assignmentView&&state.assignmentCanSubmit&&state.assignmentTab==='submit'&&!state.assignmentIsTeacher&&!state.assignmentSubpage){
@@ -265,6 +270,9 @@ function syncToolbar(){
 }
 
 function navigateBack(){
+  const commentDialog=document.getElementById('assignmentCommentDialog');
+  if(commentDialog){commentDialog.remove();state.assignmentSubpage=null;syncToolbar();return}
+  document.getElementById('assignmentActionMenu')?.remove();
   if(state.composeMessage){state.composeMessage=false;state.toolbarTitle='Messages';state.tab='messages';state.message=null;state.messageThread=null;render();loadTab();return}
   if(state.assignmentView){
     if(state.assignmentSubpage){
@@ -272,7 +280,7 @@ function navigateBack(){
       if(state.assignmentTab==='comments')openAssignmentComments(state.assignmentView.sectionId,state.assignmentView.assignmentId,state.assignmentData||{}); else openAssignmentSubmissions(state.assignmentView.sectionId,state.assignmentView.assignmentId,state.assignmentData||{},state.assignmentIsTeacher);
       return;
     }
-    state.assignmentView=null;state.assignmentCanSubmit=false;state.assignmentIsTeacher=false;state.assignmentSubpage=null;state.assignmentData=null;state.assignmentEnrollmentId=null;state.assignmentTab='info';state.submissionMenu=false;state.embeddedTitle=null;state.profileUser=null;
+    state.assignmentView=null;state.assignmentCanSubmit=false;state.assignmentIsTeacher=false;state.assignmentAllowComments=false;state.assignmentLandscape=false;state.assignmentSubpage=null;state.assignmentData=null;state.assignmentEnrollmentId=null;state.assignmentTab='info';state.submissionMenu=false;state.embeddedTitle=null;state.profileUser=null;
     syncToolbar();
     if(state.homeUpcomingReturn){state.homeUpcomingReturn=false;state.courseView=null;state.selectedCourse=null;state.tab='home';state.homeTab=state.preferredHomepage||'recent';state.toolbarTitle='Home';render();loadTab();return;}
     if(state.selectedCourse){showCourse(state.selectedCourse,state.courseTab||'materials');}
@@ -348,6 +356,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  state.selectedCourse=course;state.courseView='course';state.courseTab=activeTab;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;
  state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);syncToolbar();
  const title=courseTitleOf(course), section=sectionTitleOf(course);
+ const school=course.school_name||course.schoolName||course.school_title||course.schoolTitle||course.school?.school_name||course.school?.name||course.school?.title||'';
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const navPerms=await getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null);
  if(renderToken!==courseRenderToken||state.courseView!=='course'||state.selectedCourse!==course)return;
@@ -365,7 +374,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
    <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
    <section class="courseMainPane">
     <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
-    <div class="sectionProfileHeader"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback">${esc(title.charAt(0))}</span><div class="sectionProfileText"><div class="sectionProfileTitle">${esc(section||title)}</div><div class="sectionProfileSubtitle">${esc(title)}</div></div></div>
+    <div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback">${esc(title.charAt(0))}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div>${school?`<div class="courseIdentitySchool">${esc(school)}</div>`:''}</div></div>
     <div class="sectionProfileRule"></div>
     <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>
    </section>
@@ -387,7 +396,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
 }
 async function showAssignment(sectionId,assignmentId){
   const c=document.getElementById('content'); if(!c)return;
-  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSubpage=null; state.submissionMenu=false; syncToolbar();
+  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSubpage=null; state.submissionMenu=false; state.assignmentAllowComments=false; state.assignmentLandscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches; syncToolbar();
   c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading assignment…</span></div></section>`;
   try{
     const uid=state.auth?.userId||state.auth?.user?.id;
@@ -420,9 +429,13 @@ async function showAssignment(sectionId,assignmentId){
     const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission)||flag(gradeItem.allow_dropbox)||flag(gradeItem.allowDropbox)||flag(gradeItem.allow_submission)||flag(gradeItem.allowSubmission);
     const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion)||flag(gradeItem.allow_discussion)||flag(gradeItem.allowDiscussion);
     const resolvedGradeItemId=Number(gradeItem.id||gradeItem.grade_item_id||gradeItem.gradeItemId||gradeItem.gradeitem_id||gradeItem.gradeItemID||assignmentId)||Number(assignmentId);
-    state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentData={...at,__gradeItemId:resolvedGradeItemId}; state.assignmentEnrollmentId=myEnrollment.id||null;
-    const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button>${allowComments?`<button class="assignmentTab" data-assignment-tab="comments">Comments</button>`:''}${canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
-    c.innerHTML=`<section class="assignmentAndroidPage"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section>`;
+    state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentAllowComments=allowComments; state.assignmentData={...at,__gradeItemId:resolvedGradeItemId}; state.assignmentEnrollmentId=myEnrollment.id||null;
+    const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button>${allowComments?`<button class="assignmentTab" data-assignment-tab="comments">Comments</button>`:''}${!state.assignmentLandscape&&canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
+    if(state.assignmentLandscape&&canSubmit){
+      c.innerHTML=`<section class="assignmentAndroidPage assignmentLandscapePage"><div class="assignmentLandscapeSplit"><section class="assignmentInfoPane"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section><aside class="assignmentSubmissionsPane"><div class="assignmentPaneHeader">${isTeacher?'Submissions':'Submissions'}</div><div id="assignmentSubmissionsPane" class="assignmentSubmissionsContent"></div></aside></div></section>`;
+    }else{
+      c.innerHTML=`<section class="assignmentAndroidPage"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section>`;
+    }
     const renderInfo=()=>{
       const el=document.getElementById('assignmentTabContent');if(!el)return;
       el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${renderAttachments(attachments)}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
@@ -439,11 +452,12 @@ async function showAssignment(sectionId,assignmentId){
     };
     document.querySelectorAll('[data-assignment-tab]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>select(b.dataset.assignmentTab)));
     renderInfo();
+    if(state.assignmentLandscape&&canSubmit)await openAssignmentSubmissions(sectionId,assignmentId,at,isTeacher);
   }catch(e){ c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`; }
 }
 
 async function openAssignmentComments(sectionId,assignmentId,assignment){
-  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
+  const c=state.assignmentLandscape?(document.getElementById('assignmentTabContent')||document.getElementById('content')):(document.getElementById('assignmentTabContent')||document.getElementById('content'));if(!c)return;
   c.innerHTML='<div class="commentsPage officialComments"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading comments…</span></div></div>';
   try{
     const x=await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});
@@ -475,15 +489,36 @@ async function openAssignmentComments(sectionId,assignmentId,assignment){
 
 function openAssignmentCommentComposer(sectionId,assignmentId,parentId='0'){
   state.assignmentSubpage='commentComposer';
-  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
-  state.toolbarTitle='Comments';syncToolbar();
-  c.innerHTML=`<section class="androidCommentComposer"><div class="androidComposerBar"><b>Comment</b><button id="cancelAssignmentComment">Cancel</button><button id="postAssignmentComment" class="androidPostIcon">➤</button></div><textarea id="assignmentCommentBody" placeholder="Post a comment…" autofocus></textarea></section>`;
-  document.getElementById('cancelAssignmentComment')?.addEventListener('click',()=>openAssignmentComments(sectionId,assignmentId,{}));
-  document.getElementById('postAssignmentComment')?.addEventListener('click',async()=>{const body=document.getElementById('assignmentCommentBody')?.value.trim();if(!body){alert('Please enter a comment.');return}try{await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{comment:body,parent_id:Number(parentId)||0},json:true});await openAssignmentComments(sectionId,assignmentId,{})}catch(e){alert('Unable to post comment: '+e.message)}});
+  const old=document.getElementById('assignmentCommentDialog');old?.remove();
+  const wrap=document.createElement('div');wrap.id='assignmentCommentDialog';wrap.className='assignmentCommentDialogOverlay';
+  wrap.innerHTML=`<section class="assignmentCommentDialog" role="dialog" aria-modal="true"><div class="androidCommentDialogBar"><button id="assignmentCommentCancel" class="androidDialogIcon" aria-label="Cancel"><img src="../assets/icons/ic_action_discard_icon.png" alt=""></button><div class="androidDialogTitle">Comment</div><button id="assignmentCommentSend" class="androidDialogIcon" aria-label="Submit"><img src="../assets/icons/ic_action_send_icon.png" alt=""></button></div><div class="androidCommentDialogBody"><textarea id="assignmentCommentBody" placeholder="Post a comment…" autofocus></textarea></div></section>`;
+  document.body.appendChild(wrap);
+  const close=()=>{state.assignmentSubpage=null;wrap.remove();syncToolbar()};
+  wrap.querySelector('#assignmentCommentCancel')?.addEventListener('click',close);
+  wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  wrap.querySelector('#assignmentCommentSend')?.addEventListener('click',async()=>{
+    const body=wrap.querySelector('#assignmentCommentBody')?.value.trim();if(!body)return;
+    const send=wrap.querySelector('#assignmentCommentSend');send.disabled=true;
+    try{await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{comment:body,parent_id:Number(parentId)||0},json:true});close();await openAssignmentComments(sectionId,assignmentId,state.assignmentData||{})}
+    catch(e){send.disabled=false;alert('Unable to post comment: '+e.message)}
+  });
+  requestAnimationFrame(()=>wrap.querySelector('#assignmentCommentBody')?.focus());
+}
+function showAssignmentActionMenu(){
+  const old=document.getElementById('assignmentActionMenu');old?.remove();
+  const plus=document.getElementById('assignmentPlus');if(!plus)return;
+  const r=plus.getBoundingClientRect();
+  const menu=document.createElement('div');menu.id='assignmentActionMenu';menu.className='assignmentActionMenu';
+  const canComment=!!state.assignmentAllowComments,canSubmit=!!state.assignmentCanSubmit;
+  menu.innerHTML=`${canComment?'<button id="assignmentNewComment"><img src="../assets/icons/ic_action_comment.png" alt="">New comment</button>':''}${canSubmit?'<button id="assignmentNewSubmission"><img src="../assets/icons/ic_action_new.png" alt="">New submission</button>':''}`;
+  document.body.appendChild(menu);menu.style.top=(r.bottom+6)+'px';menu.style.right=(window.innerWidth-r.right)+'px';
+  document.getElementById('assignmentNewComment')?.addEventListener('click',()=>{menu.remove();openAssignmentCommentComposer(state.assignmentView.sectionId,state.assignmentView.assignmentId,'0')});
+  document.getElementById('assignmentNewSubmission')?.addEventListener('click',()=>{menu.remove();showSubmissionMenu()});
+  const dismiss=e=>{if(!menu.contains(e.target)&&e.target!==plus){menu.remove();document.removeEventListener('mousedown',dismiss)}};setTimeout(()=>document.addEventListener('mousedown',dismiss),0);
 }
 
 async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTeacher){
-  const c=document.getElementById('assignmentTabContent')||document.getElementById('content');if(!c)return;
+  const c=(state.assignmentLandscape&&document.getElementById('assignmentSubmissionsPane'))||(document.getElementById('assignmentTabContent')||document.getElementById('content'));if(!c)return;
   const gradeItemId=assignment.__gradeItemId||assignment.grade_item_id||assignment.gradeItemId||assignment.gradeitem_id||assignment.gradeItemID||assignmentId;
   c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';
   try{
@@ -699,7 +734,7 @@ function showSchoologyRequestError(error,retry){
  const msg=String(error?.message||error||'Schoology could not load this page.');document.getElementById('schoologyNetworkError')?.remove();
  const isTimeout=/timed out|timeout|network|ECONN|ENOTFOUND|ERR_/i.test(msg);
  const wrap=document.createElement('div');wrap.id='schoologyNetworkError';wrap.className='schoologyErrorOverlay';wrap.innerHTML=`<div class="schoologyErrorDialog" role="dialog" aria-modal="true"><button class="schoologyErrorClose" aria-label="Close">×</button><div class="schoologyErrorSpinner"><img src="../assets/android_loading_spinner_72.gif" alt=""></div><h2>${isTimeout?'Schoology is taking longer than expected':'Schoology could not load this page'}</h2><p>${isTimeout?'The connection is slow or temporarily unavailable. Your course is still open.':esc(msg)}</p><div class="schoologyErrorActions"><button id="schoologyErrorRetry" class="androidPrimary">Retry</button><button id="schoologyErrorClose2" class="androidSecondary">Back</button></div></div>`;
- document.body.appendChild(wrap);const close=()=>wrap.remove();wrap.querySelector('.schoologyErrorClose')?.addEventListener('click',close);wrap.querySelector('#schoologyErrorClose2')?.addEventListener('click',close);wrap.querySelector('#schoologyErrorRetry')?.addEventListener('click',async()=>{close();if(retry){try{await retry()}catch(e){showSchoologyRequestError(e,retry)}}});
+ document.body.appendChild(wrap);const close=()=>{state.assignmentSubpage=null;wrap.remove();syncToolbar()};wrap.querySelector('.schoologyErrorClose')?.addEventListener('click',close);wrap.querySelector('#schoologyErrorClose2')?.addEventListener('click',close);wrap.querySelector('#schoologyErrorRetry')?.addEventListener('click',async()=>{close();if(retry){try{await retry()}catch(e){showSchoologyRequestError(e,retry)}}});
 }
 window.schoologyShowError=showSchoologyRequestError;
 
@@ -1426,7 +1461,7 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
     document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
   }else if(state.tab==='settings'){
-    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.76</div></section>`;
+    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.79</div></section>`;
     document.getElementById('notifToggle')?.addEventListener('change',e=>{document.getElementById('notifSummary').textContent=e.target.checked?'Enabled':'Disabled'});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();state.embeddedReturn={tab:'settings',title:'Settings'};showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info',{allowBrowser:false})}catch(e){alert(e.message)}});
     document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
@@ -1504,13 +1539,15 @@ async function loadHomeTab(){
     if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);let dashboardNav=0;const startDashboardNavigation=()=>{const token=++dashboardNav;setDashboardLoading(true);setTimeout(()=>{if(token===dashboardNav)setDashboardLoading(false)},10000)};dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)startDashboardNavigation()});dw.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame){dashboardNav++;setDashboardLoading(false)}});dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame){dashboardNav++;setDashboardLoading(false)}});
       const sizeDashboard=()=>{
         const main=document.getElementById('content'),split=document.querySelector('.homeLandscapeSplit'),pane=document.querySelector('.homeLandscapeSplit .homeRightPane'),tabs=pane?.querySelector('.homeTabs'),tabContent=document.getElementById('homeTabContent'),sec=dw.closest('.dashboardHybrid');
-        if(main){main.style.position='relative';main.style.padding='0';main.style.margin='0';main.style.overflow='hidden';main.style.height='auto';main.style.minHeight='0';main.style.maxHeight='none'}
-        if(split){split.style.position='absolute';split.style.left='0';split.style.top='0';split.style.right='0';split.style.bottom='0';split.style.width='100%';split.style.height='100%';split.style.minHeight='0';split.style.overflow='hidden'}
-        if(pane){pane.style.position='relative';pane.style.height='100%';pane.style.minHeight='0';pane.style.overflow='hidden';pane.style.display='grid';pane.style.gridTemplateRows='48px minmax(0,1fr)'}
+        const toolbar=document.querySelector('.shell>.toolbar');
+        const available=Math.max(0,window.innerHeight-(toolbar?.getBoundingClientRect().height||56));
+        if(main){main.style.position='relative';main.style.padding='0';main.style.margin='0';main.style.overflow='hidden';main.style.height=available+'px';main.style.minHeight=available+'px';main.style.maxHeight=available+'px'}
+        if(split){split.style.position='absolute';split.style.left='0';split.style.top='0';split.style.right='0';split.style.bottom='0';split.style.width='100%';split.style.height=available+'px';split.style.minHeight='0';split.style.overflow='hidden'}
+        if(pane){pane.style.position='relative';pane.style.height=available+'px';pane.style.minHeight='0';pane.style.overflow='hidden';pane.style.display='grid';pane.style.gridTemplateRows='48px minmax(0,1fr)'}
         if(tabs){tabs.style.height='48px';tabs.style.minHeight='48px';tabs.style.gridRow='1'}
-        if(tabContent){tabContent.style.position='relative';tabContent.style.gridRow='2';tabContent.style.height='auto';tabContent.style.minHeight='0';tabContent.style.maxHeight='none';tabContent.style.overflow='hidden';tabContent.style.margin='0';tabContent.style.padding='0';tabContent.style.display='block'}
+        if(tabContent){tabContent.style.position='relative';tabContent.style.gridRow='2';tabContent.style.height=(Math.max(0,available-48))+'px';tabContent.style.minHeight='0';tabContent.style.maxHeight=(Math.max(0,available-48))+'px';tabContent.style.overflow='hidden';tabContent.style.margin='0';tabContent.style.padding='0';tabContent.style.display='block'}
         if(sec){sec.style.position='absolute';sec.style.left='0';sec.style.top='0';sec.style.right='0';sec.style.bottom='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='block';sec.style.overflow='hidden'}
-        const r=tabContent?.getBoundingClientRect();if(r&&r.height>0){dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.width=Math.ceil(r.width)+'px';dw.style.height=Math.ceil(r.height)+'px';dw.style.minWidth='0';dw.style.minHeight='0';dw.style.maxWidth='none';dw.style.maxHeight='none';dw.style.margin='0';dw.style.padding='0';dw.style.display='block'}
+        const r=tabContent?.getBoundingClientRect();if(r&&r.width>0&&r.height>0){dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.width=Math.ceil(r.width)+'px';dw.style.height=Math.ceil(r.height)+'px';dw.style.minWidth='0';dw.style.minHeight='0';dw.style.maxWidth='none';dw.style.maxHeight='none';dw.style.margin='0';dw.style.padding='0';dw.style.display='block'}
       };
       sizeDashboard();requestAnimationFrame(sizeDashboard);requestAnimationFrame(()=>requestAnimationFrame(sizeDashboard));window.addEventListener('resize',sizeDashboard,{passive:true});
       if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(document.getElementById('content'));ro.observe(document.querySelector('.homeLandscapeSplit'));ro.observe(document.getElementById('homeTabContent'));}

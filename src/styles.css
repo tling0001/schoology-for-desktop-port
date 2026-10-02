@@ -630,3 +630,28 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{position:absolute!important;left:0!important;right:0!important;top:48px!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;display:block!important;overflow:hidden!important;margin:0!important;padding:0!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;display:block!important;overflow:hidden!important;margin:0!important;padding:0!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
+
+/* v78: homepage Upcoming is a fixed landscape pane with its own non-scrolling header. */
+.homeLandscapeSplit{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+.homeLandscapeSplit .homeUpcomingPane{display:flex!important;flex-direction:column!important;min-height:0!important;height:100%!important;overflow:hidden!important}
+.homeUpcomingHeader{height:48px;min-height:48px;flex:0 0 48px;background:#002137;color:#fff;display:flex;align-items:center;padding:0 16px;font-size:14px;position:relative;z-index:2}
+.homeUpcomingScroll{min-height:0;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;background:#fff}
+.homeUpcomingScroll .homeUpcomingList{min-height:100%}
+@media (max-aspect-ratio:4/3){.homeUpcomingHeader{display:none!important}.homeUpcomingScroll{overflow:visible!important}.homeTabViewport #homeUpcomingPane{display:none!important}}
+
+/* v78: eliminate the remaining nested percentage-height chain around the dashboard. */
+@media (min-aspect-ratio:4/3){
+  .homeLandscapeSplit .homeRightPane{display:grid!important;grid-template-rows:48px minmax(0,1fr)!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .homeLandscapeSplit .homeRightPane .homeTabs{grid-row:1!important;height:48px!important;min-height:48px!important}
+  .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{grid-row:2!important;position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;overflow:hidden!important;padding:0!important;margin:0!important;display:block!important}
+  .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;display:block!important}
+  .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;top:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important;display:block!important}
+}
+
+/* v78: native Windows/Linux caption buttons must never cover Schoology toolbar actions. */
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:0!important;overflow:hidden!important}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot{position:static!important;width:auto!important;min-width:48px!important;height:56px!important;flex:0 0 auto!important;margin-left:auto!important;margin-right:200px!important;padding:0!important;z-index:1!important}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton{position:relative!important;z-index:2!important}

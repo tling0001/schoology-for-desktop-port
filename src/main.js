@@ -79,6 +79,23 @@ function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
   oauth.oauth_signature=crypto.createHmac('sha1',key).update(base).digest('base64');
   return 'OAuth '+['oauth_consumer_key','oauth_token','oauth_nonce','oauth_timestamp','oauth_signature_method','oauth_version'].map(k=>k+'="'+String(oauth[k])+'"').join(', ')+', oauth_signature="'+enc(oauth.oauth_signature)+'"';
 }
+function makeLegacyOAuthHeader(method,url,authToken,authSecret){
+  // Android's legacy SchoologyOauthParameters first RFC3986-escapes each
+  // parameter key/value, sorts those escaped pairs by key, then escapes the
+  // complete normalized parameter string again when building the signature.
+  const encRfc=v=>encodeURIComponent(String(v)).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
+  const u=new URL(url);
+  const oauth={oauth_consumer_key:CONSUMER_KEY,oauth_nonce:crypto.randomBytes(8).readBigUInt64BE(0).toString(16),oauth_signature_method:'HMAC-SHA1',oauth_timestamp:String(oauthTimestamp()),oauth_token:authToken==null?'':String(authToken),oauth_version:'1.0'};
+  const pairs=[];
+  for(const [k,v] of new URLSearchParams(u.search))pairs.push([encRfc(k),encRfc(v)]);
+  for(const [k,v] of Object.entries(oauth))pairs.push([encRfc(k),encRfc(v)]);
+  pairs.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+  const normalized=pairs.map(([k,v])=>k+'='+v).join('&');
+  const base=method.toUpperCase()+'&'+encRfc(u.protocol+'//'+u.host+u.pathname)+'&'+encRfc(normalized);
+  const key=encRfc(CONSUMER_SECRET)+'&'+encRfc(authSecret||'');
+  const signature=crypto.createHmac('sha1',key).update(base).digest('base64');
+  return 'OAuth '+['oauth_consumer_key','oauth_nonce','oauth_signature_method','oauth_timestamp','oauth_token','oauth_version'].map(k=>k+'=\"'+String(oauth[k])+'\"').join(', ')+', oauth_signature=\"'+encRfc(signature)+'\"';
+}
 function request(method,url,body={},opts={},redirectDepth=0){
   return new Promise((resolve,reject)=>{
     const u=new URL(url);
@@ -95,7 +112,7 @@ function request(method,url,body={},opts={},redirectDepth=0){
     }
     if(opts.headers) Object.assign(headers,opts.headers);
     if(opts.sign){
-      headers.Authorization=makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');
+      headers.Authorization=opts.legacyOAuth?makeLegacyOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||''):makeOAuthHeader(method,u.toString(),opts.authToken||'',opts.tokenSecret||'',opts.qr||'');
       headers.Cookie=MOBILE_COOKIE;
     }
     if(!isGet){headers['Content-Type']=opts.json?'application/json':'application/x-www-form-urlencoded';headers['Content-Length']=Buffer.byteLength(data)}
@@ -312,7 +329,7 @@ async function submitAssignmentFile(info){
     const meta={upload_filename:filename,upload_file_md5:md5,upload_file_size:file.length};
     const metadataUrl=new URL(`https://${API_HOST}/v1/upload`);
     for(const [k,v] of Object.entries(meta)) metadataUrl.searchParams.set(k,String(v));
-    const holder=await request('POST',metadataUrl.toString(),meta,{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+    const holder=await request('POST',metadataUrl.toString(),meta,{sign:true,legacyOAuth:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
     if(holder.status<200||holder.status>=300)throw new Error(`File upload failed: ${primaryError.message}; legacy metadata upload failed: ${holder.status} ${holder.text}`);
     let h={};try{h=JSON.parse(holder.text)}catch{}
     fileId=h.upload_file_id||h.uploadFileID||h.upload_id||h.id;

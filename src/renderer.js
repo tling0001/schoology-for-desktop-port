@@ -467,7 +467,7 @@ async function openAssignmentComments(sectionId,assignmentId,assignment){
     }).join('');
     c.innerHTML=`<div class="commentsAndroidList">${cards||'<div class="androidEmptyState">No comments yet.</div>'}</div>`;
     await hydrateMediaImages(c);
-    document.querySelectorAll('[data-comment-like]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.commentLike;if(!id)return;const liked=btn.dataset.liked==='1';try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike'}catch(e){alert('Unable to update like: '+e.message)}});
+    document.querySelectorAll('[data-comment-like]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.commentLike;if(!id)return;const liked=btn.dataset.liked==='1';try{await A.api({path:`like/${assignmentId}/comment/${id}`,method:'POST',params:{like_action:!liked},json:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike'}catch(e){alert('Unable to update like: '+e.message)}});
     document.querySelectorAll('[data-comment-user]').forEach(btn=>btn.onclick=()=>{const uid=btn.dataset.commentUser;if(uid){state.profileUser={id:uid};state.toolbarTitle=btn.textContent||'Profile';showProfile(uid,'updates')}});
     document.querySelectorAll('[data-comment-reply]').forEach(btn=>btn.onclick=()=>openAssignmentCommentComposer(sectionId,assignmentId,btn.dataset.commentReply));
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load comments.</b><br>${esc(e.message)}</div>`}
@@ -877,7 +877,7 @@ async function loadCourseUpdates(course,el){
    el.querySelectorAll('[data-course-update-like]').forEach(btn=>btn.onclick=async()=>{
      const id=btn.dataset.courseUpdateLike,liked=btn.dataset.liked==='1'; if(!id)return;
      try{
-       await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});
+       await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},json:true});
        const u=all.find(x=>String(x.id||x.update_id)===String(id));if(u){u.user_liked=!liked;u.liked=!liked;u.likes=Number(u.likes||0)+(liked?-1:1);}
        await render();
      }catch(e){alert('Unable to update like: '+e.message)}
@@ -1444,7 +1444,7 @@ async function renderUpcomingInto(c){
  body.innerHTML=renderUpcoming(sorted);
  document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;if(e.type==='assignment'&&e.section_id&&e.assignment_id){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(e.section_id,e.assignment_id));}else if(e.web_url)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url,e.title||'Upcoming'));});
 }
-async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homePaneHeader">Upcoming</div><div class="homeUpcomingList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';await renderUpcomingInto(c)}
+async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homeUpcomingHeader">Upcoming</div><div class="homeUpcomingScroll"><div class="homeUpcomingList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></div>';await renderUpcomingInto(c)}
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
  c.classList.remove('dashboardContentActive','embeddedContentActive','recentActivityScroll');
@@ -1481,7 +1481,7 @@ async function loadHomeTab(){
     document.querySelectorAll('[data-activity-like]').forEach(btn=>btn.onclick=async()=>{
       const id=btn.dataset.activityLike;if(!id)return;
       const liked=btn.dataset.liked==='1';
-      try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},signBody:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike';}
+      try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},json:true});btn.dataset.liked=liked?'0':'1';btn.textContent=liked?'Like':'Unlike';}
       catch(e){alert('Unable to update like: '+e.message)}
     });
     document.querySelectorAll('[data-activity-comments]').forEach(btn=>btn.onclick=async()=>{
@@ -1501,15 +1501,19 @@ async function loadHomeTab(){
     window.__schoologyDashboardCourses=arr;
     c.classList.remove('dashboardContentActive');c.classList.add('dashboardContentActive');c.classList.add('embeddedContentActive');c.innerHTML=`<section class="embeddedPage dashboardHybrid"><div id="dashboardWebviewLoading" class="dashboardOfficialLoading"><img src="../assets/sgy_loading.gif" alt=""></div><webview id="courseDashboardWebview" src="https://app.schoology.com/mobile/course/dashboard" allowpopups></webview></section>`;
     const dw=document.getElementById('courseDashboardWebview');
-    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);setDashboardLoading(true);dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)setDashboardLoading(true)});dw.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame)setDashboardLoading(false)});
+    if(dw){const ds=document.getElementById('dashboardWebviewLoading');const setDashboardLoading=v=>ds?.classList.toggle('hidden',!v);let dashboardNav=0;const startDashboardNavigation=()=>{const token=++dashboardNav;setDashboardLoading(true);setTimeout(()=>{if(token===dashboardNav)setDashboardLoading(false)},10000)};dw.addEventListener('did-start-navigation',e=>{if(e.isMainFrame)startDashboardNavigation()});dw.addEventListener('did-frame-finish-load',e=>{if(e.isMainFrame){dashboardNav++;setDashboardLoading(false)}});dw.addEventListener('did-fail-load',e=>{if(e.isMainFrame){dashboardNav++;setDashboardLoading(false)}});
       const sizeDashboard=()=>{
-        c.style.position='';c.style.height='';c.style.minHeight='';c.style.maxHeight='';c.style.width='';c.style.overflow='';c.style.padding='';c.style.margin='';
-        const sec=dw.closest('.dashboardHybrid');
-        if(sec){sec.style.position='relative';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='flex';sec.style.flex='1 1 auto';sec.style.overflow='hidden'}
-        dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.right='0';dw.style.bottom='0';dw.style.height='100%';dw.style.minHeight='0';dw.style.maxHeight='none';dw.style.width='100%';dw.style.minWidth='0';dw.style.display='block';dw.style.margin='0';dw.style.padding='0';
+        const main=document.getElementById('content'),split=document.querySelector('.homeLandscapeSplit'),pane=document.querySelector('.homeLandscapeSplit .homeRightPane'),tabs=pane?.querySelector('.homeTabs'),tabContent=document.getElementById('homeTabContent'),sec=dw.closest('.dashboardHybrid');
+        if(main){main.style.position='relative';main.style.padding='0';main.style.margin='0';main.style.overflow='hidden';main.style.height='auto';main.style.minHeight='0';main.style.maxHeight='none'}
+        if(split){split.style.position='absolute';split.style.left='0';split.style.top='0';split.style.right='0';split.style.bottom='0';split.style.width='100%';split.style.height='100%';split.style.minHeight='0';split.style.overflow='hidden'}
+        if(pane){pane.style.position='relative';pane.style.height='100%';pane.style.minHeight='0';pane.style.overflow='hidden';pane.style.display='grid';pane.style.gridTemplateRows='48px minmax(0,1fr)'}
+        if(tabs){tabs.style.height='48px';tabs.style.minHeight='48px';tabs.style.gridRow='1'}
+        if(tabContent){tabContent.style.position='relative';tabContent.style.gridRow='2';tabContent.style.height='auto';tabContent.style.minHeight='0';tabContent.style.maxHeight='none';tabContent.style.overflow='hidden';tabContent.style.margin='0';tabContent.style.padding='0';tabContent.style.display='block'}
+        if(sec){sec.style.position='absolute';sec.style.left='0';sec.style.top='0';sec.style.right='0';sec.style.bottom='0';sec.style.width='100%';sec.style.height='100%';sec.style.minHeight='0';sec.style.maxHeight='none';sec.style.padding='0';sec.style.margin='0';sec.style.display='block';sec.style.overflow='hidden'}
+        const r=tabContent?.getBoundingClientRect();if(r&&r.height>0){dw.style.position='absolute';dw.style.left='0';dw.style.top='0';dw.style.width=Math.ceil(r.width)+'px';dw.style.height=Math.ceil(r.height)+'px';dw.style.minWidth='0';dw.style.minHeight='0';dw.style.maxWidth='none';dw.style.maxHeight='none';dw.style.margin='0';dw.style.padding='0';dw.style.display='block'}
       };
       sizeDashboard();requestAnimationFrame(sizeDashboard);requestAnimationFrame(()=>requestAnimationFrame(sizeDashboard));window.addEventListener('resize',sizeDashboard,{passive:true});
-      if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(c);ro.observe(document.getElementById('homeTabContent'));}
+      if(window.ResizeObserver){const ro=new ResizeObserver(()=>requestAnimationFrame(sizeDashboard));ro.observe(document.getElementById('content'));ro.observe(document.querySelector('.homeLandscapeSplit'));ro.observe(document.getElementById('homeTabContent'));}
       dw.addEventListener('dom-ready',sizeDashboard);
       const handleDashboardLink=async(raw,ev)=>{const u=String(raw||'');if(!u)return false;try{if(await routeSchoologyLink(u)){ev?.preventDefault?.();return true}}catch(err){console.warn('Schoology dashboard deep link failed:',err)}return false};
       dw.addEventListener('new-window',async e=>{e.preventDefault();if(await handleDashboardLink(e.url,e))return;try{dw.src=e.url}catch{}});
@@ -1519,10 +1523,9 @@ async function loadHomeTab(){
       // Electron's webview new-window/will-navigate hooks provide the equivalent;
       // do not execute arbitrary JavaScript inside the guest page.
 
-      dw.addEventListener('did-fail-load',()=>{try{dw.reload()}catch{}});
     }
   }else{
-    c.innerHTML='<div class="homePaneHeader">Upcoming</div><div id="homeUpcomingList"></div>';
+    c.innerHTML='<div id="homeUpcomingList"></div>';
     await renderUpcomingInto(document.getElementById('homeUpcomingList'));
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}

@@ -289,6 +289,7 @@ async function downloadAuthenticatedFile(info, sender){
 }
 
 async function submitAssignmentFile(info){
+  await syncServerTime().catch(()=>{});
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
   if(!info?.sectionId||!info?.assignmentId||!info?.filePath)throw new Error('Submission information is incomplete.');
   const filePath=info.filePath, filename=path.basename(filePath), file=fs.readFileSync(filePath);
@@ -546,7 +547,7 @@ function create(){
   win.webContents.on('console-message',(_,level,message,line,source)=>console.log('Renderer:',message,'at',source+':'+line));
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
-  win.once('ready-to-show',()=>{try{win.setTitleBarOverlay?.({color:'#44505d',symbolColor:'#ffffff',height:56})}catch{};win.show();});
+  win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:process.platform==='darwin'?'#002137':'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }
 app.whenReady().then(()=>{

@@ -885,3 +885,65 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
   max-height:130px!important;
 }
 .nativeDashboardCourseImage{flex:0 0 130px!important;aspect-ratio:auto!important;}
+
+
+/* v85: course-app image loading — keep the placeholder behind the image and
+   hide it as soon as the real app icon has loaded. */
+.courseAppIcon{position:relative!important;width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important;flex:0 0 56px!important;overflow:hidden!important}
+.courseAppIcon .courseAppFallback{position:absolute!important;inset:0!important;width:56px!important;height:56px!important;margin:0!important;z-index:0!important}
+.courseAppIcon>img[data-course-image-url]{position:absolute!important;inset:0!important;width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important;max-width:56px!important;max-height:56px!important;object-fit:contain!important;z-index:1!important;margin:0!important}
+
+/* v85: native Windows/Linux caption controls occupy the far-right overlay
+   region. Do not put the Schoology action slot in that region. Absolute
+   positioning makes its safe position independent of the toolbar flex/grid
+   rules accumulated by earlier layouts. */
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{
+  position:relative!important;
+  display:flex!important;
+  align-items:center!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{
+  flex:0 0 48px!important;
+  width:48px!important;
+  margin:0!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  max-width:calc(100% - 304px)!important;
+  margin-right:0!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
+  position:absolute!important;
+  right:240px!important;
+  top:0!important;
+  width:48px!important;
+  min-width:48px!important;
+  max-width:48px!important;
+  height:56px!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 48px!important;
+  z-index:10!important;
+  pointer-events:auto!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{
+  position:relative!important;
+  z-index:11!important;
+  width:48px!important;
+  height:56px!important;
+  margin:0!important;
+}

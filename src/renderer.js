@@ -195,7 +195,7 @@ async function hydrateCourseImages(root=document){
   const els=root.querySelectorAll?.('[data-course-image-url]')||[];
   await Promise.all([...els].map(async el=>{
     const url=el.getAttribute('data-course-image-url');if(!url)return;
-    const fallback=el.parentElement?.querySelector?.('.dashboardCourseFallback,.sectionProfileFallback');
+    const fallback=el.parentElement?.querySelector?.('.dashboardCourseFallback,.sectionProfileFallback,.courseAppFallback');
     try{const data=await A.fetchImage(url);if(data){el.src=data;el.style.display='block';if(fallback)fallback.style.setProperty('display','none','important');return}}catch{}
     if(fallback)fallback.style.setProperty('display','flex','important');
   }));

@@ -308,6 +308,11 @@ async function downloadAuthenticatedFile(info, sender){
   return {path:actual,filename:path.basename(actual).replace(/^\d+-[a-f0-9]+-/i,''),mime:String(info.mime||'application/octet-stream')};
 }
 
+function sendFileUploadProgress(percent,phase='Uploading…'){try{if(win&&!win.isDestroyed())win.webContents.send('file-upload-progress',{percent,phase})}catch{}}
+async function writeUploadBuffer(req,buffer,onProgress,startPercent,endPercent){
+  const chunkSize=64*1024; let sent=0;
+  for(let off=0;off<buffer.length;off+=chunkSize){const chunk=buffer.subarray(off,Math.min(off+chunkSize,buffer.length));if(!req.write(chunk))await new Promise(resolve=>req.once('drain',resolve));sent+=chunk.length;const p=buffer.length?startPercent+(sent/buffer.length)*(endPercent-startPercent):endPercent;onProgress(Math.round(p));}
+}
 async function submitAssignmentFile(info){
   await syncServerTime().catch(()=>{});
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
@@ -336,7 +341,9 @@ async function submitAssignmentFile(info){
       'Authorization':makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),
       'Cookie':MOBILE_COOKIE
     };
-    const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(multipart);req.end()});
+    sendFileUploadProgress(0,'Uploading submission…');
+    const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));writeUploadBuffer(req,multipart,p=>sendFileUploadProgress(p,'Uploading submission…'),0,85).then(()=>req.end()).catch(reject)});
+    sendFileUploadProgress(90,'Processing uploaded file…');
     if(uploaded.status>=200&&uploaded.status<300){try{fileId=JSON.parse(uploaded.text).fileMetadataId}catch{}}
     if(!fileId)throw new Error(`FileService ${uploaded.status}: ${uploaded.text}`);
   }catch(e){primaryError=e}
@@ -350,14 +357,16 @@ async function submitAssignmentFile(info){
     try{
       const md5=crypto.createHash('md5').update(file).digest('hex');
       const meta={filename,md5_checksum:md5,filesize:file.length};
+      sendFileUploadProgress(0,'Preparing upload…');
       const holder=await request('POST',`https://${API_HOST}/v1/upload`,meta,{sign:true,legacyOAuth:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+      sendFileUploadProgress(5,'Uploading submission…');
       if(holder.status<200||holder.status>=300)throw new Error(`legacy metadata upload failed: ${holder.status} ${holder.text}`);
       let holderJson={};try{holderJson=JSON.parse(holder.text)}catch{}
       const uploadId=holderJson.id??holderJson.upload_file_id??holderJson.uploadFileID;
       if(uploadId==null)throw new Error('legacy metadata upload did not return an upload id.');
       const putUrl=`https://${API_HOST}/v1/upload/${encodeURIComponent(String(uploadId))}`;
       const putHeaders={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,'Authorization':makeOAuthHeader('PUT',putUrl,a.oauth_token,a.oauth_token_secret),'Cookie':MOBILE_COOKIE};
-      const put=await new Promise((resolve,reject)=>{const u=new URL(putUrl);const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers:putHeaders},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));req.write(file);req.end()});
+      const put=await new Promise((resolve,reject)=>{const u=new URL(putUrl);const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers:putHeaders},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));writeUploadBuffer(req,file,p=>sendFileUploadProgress(5+Math.round(p*.85),'Uploading submission…'),0,100).then(()=>req.end()).catch(reject)});
       if(put.status<200||put.status>=300)throw new Error(`legacy file upload failed: ${put.status} ${put.text}`);
       fileId=String(uploadId);
     }catch(legacyError){
@@ -365,8 +374,9 @@ async function submitAssignmentFile(info){
       throw new Error(`File upload failed: ${pmsg}; ${legacyError.message||legacyError}`);
     }
   }
+  sendFileUploadProgress(92,'Submitting assignment…');
   const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
-  if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text);return true;
+  if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text);sendFileUploadProgress(100,'Upload complete');return true;
 }
 
 async function submitAssignmentText(info){

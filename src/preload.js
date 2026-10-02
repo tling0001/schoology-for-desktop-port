@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('schoology',{
   setWindowChromeMode:x=>ipcRenderer.invoke('set-window-chrome-mode',x),
   downloadFile:x=>ipcRenderer.invoke('download-file',x),
   onFileDownloadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('file-download-progress',h);return()=>ipcRenderer.removeListener('file-download-progress',h)},
+  onFileUploadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('file-upload-progress',h);return()=>ipcRenderer.removeListener('file-upload-progress',h)},
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),
   openExternal:u=>ipcRenderer.invoke('open-external',u),

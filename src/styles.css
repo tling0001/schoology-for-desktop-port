@@ -831,3 +831,57 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 .startupOfflineError b{font-size:20px;font-weight:400}
 .startupOfflineError span{font-size:14px;color:#d6dce0}
 .startupOfflineError button{margin-top:8px;border:0;border-radius:4px;background:#2e66a3;color:#fff;padding:10px 28px;font-size:15px;cursor:pointer}
+
+/* v84: native caption controls are an overlay region. Keep every Schoology
+   action button comfortably to the LEFT of that region instead of placing it
+   directly against the native buttons. */
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{
+  position:relative!important;
+  display:flex!important;
+  padding-right:0!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
+  position:absolute!important;
+  right:240px!important;
+  top:0!important;
+  width:48px!important;
+  min-width:48px!important;
+  max-width:48px!important;
+  height:56px!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  z-index:2!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{
+  position:static!important;
+  width:44px!important;
+  min-width:44px!important;
+  max-width:44px!important;
+  height:44px!important;
+  flex:0 0 44px!important;
+}
+html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{
+  margin-right:288px!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+/* Keep dashboard cards at a fixed image height even when the grid changes its
+   number of columns. */
+.nativeDashboardCourseImage,
+.nativeDashboardCourseImage img{
+  height:130px!important;
+  min-height:130px!important;
+  max-height:130px!important;
+}
+.nativeDashboardCourseImage{flex:0 0 130px!important;aspect-ratio:auto!important;}

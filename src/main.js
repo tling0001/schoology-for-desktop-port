@@ -630,7 +630,11 @@ $form.Show()
 while(Get-Process -Id $appPid -ErrorAction SilentlyContinue){$label.Text='Closing Schoology…';[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 250}
 if(-not (Test-Path $installer)){[System.Windows.Forms.MessageBox]::Show('The update installer could not be found.','Schoology Update','OK','Error');$form.Close();exit 2}
 $label.Text='Installing update…';[System.Windows.Forms.Application]::DoEvents()
-$p=Start-Process -FilePath $installer -ArgumentList '/S',('/D='+$installDir) -Wait -PassThru
+$log=Join-Path ([System.IO.Path]::GetDirectoryName($installer)) 'schoology-update-install.log'
+$p=Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+('Installer: '+$installer)|Out-File -FilePath $log -Append -Encoding utf8
+('InstallDir: '+$installDir)|Out-File -FilePath $log -Append -Encoding utf8
+('ExitCode: '+$p.ExitCode)|Out-File -FilePath $log -Append -Encoding utf8
 if($p.ExitCode -eq 0 -and (Test-Path $exe)){
   $label.Text='Finishing…';[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 500
   Start-Process -FilePath $exe

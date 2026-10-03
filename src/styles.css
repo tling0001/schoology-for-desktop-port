@@ -994,3 +994,33 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .calendarAndroidPage{background:#fff;min-height:100%;overflow:auto}.calendarMonthHeader{height:48px!important;border:0!important;padding:0 10px!important}.calendarMonthHeader b{font-size:18px;color:#34424c}.calendarMonthHeader button{width:40px;height:40px;font-size:30px;line-height:40px;color:#778088}.calendarWeekLabels{padding:0 10px 4px!important;font-size:12px!important;color:#778088!important}.calendarGrid{margin:0 10px!important;background:#bababa!important;gap:1px!important}.calendarDay{min-height:48px!important;padding:4px!important;border:0!important;background:#fff!important}.calendarDay.outside{background:#d7d9db!important;color:#778088!important}.calendarDay b{font-size:13px;color:#778088}.calendarDay.selected b{background:#379bff!important;color:#fff!important}.calendarDay span{font-size:8px;color:#778088}.calendarUpcomingHeader{margin-top:10px!important;padding:10px 20px 7px!important;border-top:1px solid #bababa;font-size:14px!important}.calendarEventRow{padding:10px 20px!important}.calendarEventList{padding:0 0 20px}.calendarEventDate{color:#778088!important}
 /* v88 calendar: mirrors Android CalendarEventAdapter/UpcomingAdapter structure. */
 .calendarDay{position:relative;align-items:center!important;text-align:center!important;justify-content:flex-start!important}.calendarDay b{display:flex;align-items:center;justify-content:center;width:28px;height:28px;margin:0 auto}.calendarEventMarker{display:block;width:7px;height:7px;border-radius:50%;background:#379bff;margin:1px auto 0}.calendarEventIcon{width:34px;min-width:34px;display:flex;align-items:center;justify-content:center}.calendarEventIcon .officialEmbeddedIcon{width:24px!important;height:24px!important}.calendarEventText{display:flex;flex-direction:column;justify-content:center;text-align:left;margin-left:8px}.calendarEventText b{font-size:14px;font-weight:400;color:#778088}.calendarEventText small{font-size:14px;color:#778088;margin-top:3px}.calendarEventRow{align-items:center;min-height:48px;border:0!important}
+/* v90: Android-fidelity corrections */
+.toolbarLti{background:#074f7b!important}
+.toolbarActionSlot{display:flex!important;align-items:center!important;gap:0!important}
+.toolbarActionSlot .toolbarImageButton{width:48px!important;height:56px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.toolbarActionSlot .toolbarImageButton img{width:24px!important;height:24px!important}
+.assignmentActionMenu button{padding:12px 16px!important;min-height:44px!important}
+.commentAttachmentActions{display:flex;gap:1px;border-top:1px solid #e1e5e8;padding:8px 12px 0!important}
+.commentAttachmentActions button{height:48px!important;min-height:48px!important;flex:1 1 0!important;justify-content:center!important;flex-direction:column!important;padding:4px 8px!important;background:#fff!important;color:#2e66a3!important}
+.commentAttachmentActions img,.commentAttachmentActions svg{width:24px!important;height:24px!important;margin:0 auto 2px!important}
+.androidDialogIcon{width:56px!important;height:56px!important}
+.androidDialogIcon img,.androidDialogIcon .officialEmbeddedIcon{width:32px!important;height:32px!important}
+.composeMessageDialog{width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 32px);background:#fff;box-shadow:0 12px 40px #0005;overflow:hidden}
+.composeMessageDialog .composeMessagePage{max-height:calc(100vh - 100px);overflow:auto}
+.profileAvatarCircle{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;border-radius:50%!important;overflow:hidden!important;display:block!important}
+.profileAvatarCircle img{display:block!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center!important;border-radius:50%!important}
+.groupLandscapeSplit{height:calc(100vh - 56px)!important;min-height:0!important;display:flex!important;flex-direction:column!important}
+.groupMainPane{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.groupMainPane #groupTabContent{min-height:0;overflow:auto;flex:1}
+@media (min-aspect-ratio:4/3){
+  .groupLandscapeSplit{display:grid!important;grid-template-columns:minmax(0,4fr) minmax(0,1fr)!important}
+  .groupUpcomingPane{display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;overflow:hidden!important}
+  .groupUpcomingPane #groupUpcomingContent{flex:1!important;min-height:0!important;overflow:auto!important;padding:8px!important}
+  .groupUpcomingTab{display:none!important}
+}
+@media (max-aspect-ratio:4/3){.groupUpcomingPane{display:none!important}.groupMainPane{overflow:visible!important}.groupMainPane #groupTabContent{overflow:visible!important}}
+.calendarAndroidPage{background:#fff;min-height:100%;overflow:auto}
+.calendarMonthWrap{width:100%}
+.calendarEventList{width:100%;padding:0 0 20px!important}
+@media (min-aspect-ratio:4/3){.calendarMonthWrap{width:40%;min-width:280px;margin:0 auto}.calendarMonthHeader,.calendarWeekLabels,.calendarGrid{width:100%!important;max-width:none!important;margin-left:0!important;margin-right:0!important}.calendarEventList{width:100%!important}}
+.assignmentAttachmentsButton{display:block;width:calc(100% - 32px);margin:10px 16px;padding:11px 14px;border:1px solid #d8dde2;border-radius:2px;background:#fff;color:#2e66a3;text-align:left;font:inherit;cursor:pointer}

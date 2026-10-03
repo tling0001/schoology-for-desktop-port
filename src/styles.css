@@ -1114,3 +1114,27 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .discussionTabs{position:sticky!important;top:0!important;z-index:35!important;}
 .profileAndroidPage{overflow:auto!important;}
 .profileAndroidPage #profileTabContent{min-height:0;}
+
+
+/* v98: Schoology Android tab strips use the primary blue background.
+   The strip spans the full available width while individual tab widths/alignment remain unchanged. */
+.sectionProfileTabs,.assignmentTabs,.profileTabs,.groupTabs,.messageTabs,.homeTabs,.resourcePickerTabs,.discussionTabs{
+  background:#2e66a3!important;
+  color:#fff!important;
+  width:100%!important;
+}
+.sectionProfileTab,.assignmentTab,.profileTab,.groupTab,.messageTab,.homeTab,.resourcePickerTabs button,.discussionTabs .assignmentTab{
+  background:#2e66a3!important;
+  color:rgba(255,255,255,.82)!important;
+}
+.sectionProfileTab.active,.assignmentTab.active,.profileTab.active,.groupTab.active,.messageTab.active,.homeTab.active,.resourcePickerTabs button.active,.discussionTabs .assignmentTab.active{
+  color:#fff!important;
+}
+.sectionProfileTab.active:after,.assignmentTab.active:after,.profileTab.active:after,.groupTab.active:after,.messageTab.active:after,.homeTab.active:after,.resourcePickerTabs button.active,.discussionTabs .assignmentTab.active:after{
+  border-bottom-color:#fff!important;
+  background:#fff!important;
+}
+/* Preserve Android's centered tab groups where they were centered, and left-align
+   the tab groups whose existing behavior is left aligned. */
+.homeTabs,.profileTabs,.groupTabs,.sectionProfileTabs{justify-content:center!important;}
+.assignmentTabs,.messageTabs,.resourcePickerTabs,.discussionTabs{justify-content:flex-start!important;}

@@ -1024,3 +1024,48 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .calendarEventList{width:100%;padding:0 0 20px!important}
 @media (min-aspect-ratio:4/3){.calendarMonthWrap{width:40%;min-width:280px;margin:0 auto}.calendarMonthHeader,.calendarWeekLabels,.calendarGrid{width:100%!important;max-width:none!important;margin-left:0!important;margin-right:0!important}.calendarEventList{width:100%!important}}
 .assignmentAttachmentsButton{display:block;width:calc(100% - 32px);margin:10px 16px;padding:11px 14px;border:1px solid #d8dde2;border-radius:2px;background:#fff;color:#2e66a3;text-align:left;font:inherit;cursor:pointer}
+
+/* v91: Android message/composer and group resource/album fidelity */
+.messageTabs{height:48px!important;background:#002137!important;border-bottom:0!important;justify-content:flex-start!important;overflow-x:auto!important}
+.messageTab{height:48px!important;flex:0 0 auto!important;min-width:88px!important;padding:0 16px!important;border:0!important;background:#002137!important;color:#fff!important;font-size:14px!important;position:relative!important}
+.messageTab.active{color:#fff!important;font-weight:500!important}
+.messageTab.active:after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:3px;background:#fff!important}
+.messageReplyButton{width:48px!important;height:48px!important;padding:8px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.messageReplyButton .officialEmbeddedIcon{width:28px!important;height:28px!important}
+.androidCommentDialogBar .androidDialogIcon{width:48px!important;height:48px!important;min-width:48px!important;padding:8px!important}
+.androidCommentDialogBar .androidDialogIcon .officialEmbeddedIcon{width:32px!important;height:32px!important}
+.messageAttachmentChoices{display:flex;gap:0;margin:10px 0 4px;padding:0 16px}
+.messageAttachmentChoices button{flex:1;min-height:48px;border:0;border-right:1px solid #fff;background:#fff;color:#2e66a3;font-size:13px}
+.messageAttachmentChoices button:last-child{border-right:0}
+.messageAttachedItem{margin:4px 16px;padding:8px 10px;border-bottom:1px solid #ddd;color:#333}
+.messageAttachmentChoices button:active{background:#eef3f7}
+.albumListRow{width:100%;min-height:96px;display:flex;align-items:center;text-align:left;border:0;border-bottom:1px solid #ddd;background:#fff;padding:8px 16px}
+.albumListRow>img{width:80px;height:80px;object-fit:contain;flex:0 0 80px;margin-right:16px}
+.albumListRow>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.albumListRow b{font-size:16px;font-weight:400;color:#333}
+.albumListRow small{font-size:13px;color:#777}
+.albumListRow>span:last-child{font-size:26px;color:#888}
+.albumNativePage{background:#fff;min-height:100%;padding:0 16px 24px}
+.albumNativeTitle{font-size:20px;padding:14px 0;border-bottom:1px solid #ddd;color:#333}
+.albumNativeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding-top:12px}
+.albumNativeItem{border:0;background:#fff;text-align:left;padding:0;min-width:0}
+.albumNativeItem img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#eef1f3}
+.albumNativeItem span{display:block;padding:5px 2px;font-size:12px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.discussionNativePage{background:#fff;min-height:100%;padding:8px 16px 24px}
+.discussionNativeTitle{font-size:20px;color:#333;margin:0 0 4px}
+.discussionNativeDue{font-size:14px;color:#777;margin-bottom:8px}
+.discussionNativeRule{height:1px;background:#ddd;margin:0 0 8px}
+.discussionNativeBody{font-size:15px;line-height:1.45;color:#333;min-height:85px}
+.groupResourceRow{min-height:64px!important;padding:8px 16px!important;background:#fff!important;border-bottom:1px solid #ddd!important}
+.groupResourceRow .officialMaterialIcon{width:48px!important;min-width:48px!important;height:48px!important}
+.groupResourceRow .officialMaterialIcon img{width:40px!important;height:40px!important}
+.groupResourceRow>span:nth-child(2){font-size:15px!important;color:#333!important;overflow:hidden!important}
+.groupResourceRow>span:nth-child(2) b{font-weight:400!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.groupResourceRow>span:last-child{font-size:26px!important;color:#888!important}
+@media (min-aspect-ratio:4/3){.groupLandscapeSplit{grid-template-columns:minmax(0,73fr) minmax(0,27fr)!important}.groupUpcomingPane{align-self:stretch!important}.groupUpcomingPane .homePaneHeader{flex:0 0 48px!important}.groupUpcomingPane #groupUpcomingContent{padding:8px!important}}
+@media (max-aspect-ratio:4/3){.groupUpcomingPane{display:none!important}.groupUpcomingTab{display:block!important}}
+/* Android course/assignment pager tabs use the blue app tab strip rather than white. */
+.sectionProfileTabs,.assignmentTabs{background:#002137!important;color:#fff!important}
+.sectionProfileTab,.assignmentTab{background:#002137!important;color:#fff!important}
+.sectionProfileTab.active,.assignmentTab.active{color:#fff!important}
+.sectionProfileTab.active:after,.assignmentTab.active:after{background:#fff!important}

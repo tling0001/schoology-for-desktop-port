@@ -1166,3 +1166,25 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .schoologyPagerTabs,.pagerTabs{background:#002137!important}
 .schoologyPagerTabs .tab,.pagerTabs .tab{background:#002137!important;color:rgba(255,255,255,.82)!important}
 .schoologyPagerTabs .tab:hover,.pagerTabs .tab:hover{background:#001a2c!important;color:#fff!important}
+
+/* v100: Android drawer profile and modal/resource fidelity. */
+.profileRow img{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;object-fit:cover!important;object-position:center!important;border-radius:50%!important;padding:0!important;background:transparent!important;margin-right:20px!important}
+.profileRow>span:last-child{margin-left:0!important}
+.resourcePickerTabs{background:#002137!important;border-bottom:0!important}
+.resourcePickerTabs button,.resourcePickerTabs button.active{background:#002137!important;color:rgba(255,255,255,.82)!important;border-bottom:3px solid transparent!important}
+.resourcePickerTabs button:hover{background:#001a2c!important;color:#fff!important}
+.resourcePickerTabs button.active{color:#fff!important;border-bottom-color:#fff!important}
+.assignmentSubmissionDialogOverlay{position:fixed;inset:0;z-index:2147483647!important;display:flex;align-items:center;justify-content:center;background:rgba(0,33,55,.38);padding:18px}
+.assignmentSubmissionDialog{width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 36px);background:#f0f0f0;box-shadow:0 12px 40px rgba(0,0,0,.35);overflow:hidden}
+.assignmentSubmissionBar{height:48px;background:#002137;color:#fff;display:flex;align-items:center}
+.assignmentSubmissionBar .androidDialogIcon{width:48px!important;height:48px!important}
+.assignmentSubmissionBar .androidDialogTitle{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 8px;color:#fff;font-size:18px;font-weight:400}
+.assignmentSubmissionBody{background:#fff;padding:16px;max-height:calc(100vh - 102px);overflow:auto}
+.assignmentUploadSwitch{display:flex;align-items:center;gap:10px;margin:0 0 16px;font-size:15px;color:#333}
+.assignmentUploadSwitch input{width:20px;height:20px;margin:0}
+.assignmentSubmissionChoices{display:flex;gap:1px;padding:8px 0 0}
+.assignmentSubmissionChoices button{flex:1;min-height:72px;border:0;background:#f7f7f7;color:#2e66a3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+.assignmentSubmissionChoices button:hover{background:#e8eef2}
+.assignmentSubmissionChoices img{width:24px!important;height:24px!important;object-fit:contain}
+.submissionAttachmentStatus{min-height:24px;margin-top:14px;color:#666;font-size:13px}
+.groupUpcomingPane .upcomingEmpty{min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center}

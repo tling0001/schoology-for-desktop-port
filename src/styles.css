@@ -1103,3 +1103,14 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .nativeGradeItemPage .assignmentTabs{margin:0!important;padding:0!important}
 
 .folderInlineBack{display:flex;align-items:center;width:100%;min-height:48px;padding:0 16px;border:0;border-bottom:1px solid #ddd;background:#fff;color:#3183c8;font-size:15px;text-align:left;cursor:pointer}.folderInlineBack:hover{background:#f4f5f5}
+
+/* v97: Android-style persistent tab strips. Tabs remain outside the scrolling tab content. */
+.sectionProfilePage,.profileAndroidPage,.messagesAndroidPage,.groupProfilePage,.assignmentAndroidPage{min-height:100%;}
+.sectionProfileTabs,.assignmentTabs,.profileTabs,.groupTabs,.messageTabs,.homeTabs,.resourcePickerTabs{position:sticky!important;top:0!important;z-index:40!important;flex:0 0 48px!important;}
+.sectionProfileTabs,.assignmentTabs,.profileTabs,.groupTabs,.messageTabs,.homeTabs{background:#fff!important;}
+.sectionProfileTabs{border-bottom:1px solid #d8dde1!important;}
+.assignmentTabs,.groupTabs,.profileTabs,.messageTabs,.homeTabs{box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.groupMainPane #groupTabContent{position:relative;}
+.discussionTabs{position:sticky!important;top:0!important;z-index:35!important;}
+.profileAndroidPage{overflow:auto!important;}
+.profileAndroidPage #profileTabContent{min-height:0;}

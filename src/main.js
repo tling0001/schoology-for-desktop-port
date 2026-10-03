@@ -599,54 +599,10 @@ async function installUpdate(info){
   if(!file||!fs.existsSync(file))throw new Error('The update installer is no longer available.');
   if(process.platform==='win32'){
     const {spawn}=require('child_process');
-    const installDir=path.dirname(process.execPath),exePath=process.execPath;
-    const psPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.ps1`);
-    const psq=v=>String(v).replace(/'/g,"''");
-    const installer=psq(file),dir=psq(installDir),exe=psq(exePath),pid=String(process.pid),scriptPath=psq(psPath);
-    const script=`Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-$installer='${installer}'
-$installDir='${dir}'
-$exe='${exe}'
-$appPid=${pid}
-$scriptPath='${scriptPath}'
-$form=New-Object System.Windows.Forms.Form
-$form.Text='Schoology Update'
-$form.Width=420
-$form.Height=145
-$form.StartPosition='CenterScreen'
-$form.FormBorderStyle='FixedDialog'
-$form.MaximizeBox=$false
-$form.MinimizeBox=$false
-$form.ControlBox=$false
-$label=New-Object System.Windows.Forms.Label
-$label.Left=24;$label.Top=20;$label.Width=360;$label.Height=25;$label.Text='Preparing Schoology update…'
-$form.Controls.Add($label)
-$bar=New-Object System.Windows.Forms.ProgressBar
-$bar.Left=24;$bar.Top=55;$bar.Width=360;$bar.Height=22;$bar.Style='Marquee';$bar.MarqueeAnimationSpeed=25
-$form.Controls.Add($bar)
-$form.Show()
-[System.Windows.Forms.Application]::DoEvents()
-while(Get-Process -Id $appPid -ErrorAction SilentlyContinue){$label.Text='Closing Schoology…';[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 250}
-if(-not (Test-Path $installer)){[System.Windows.Forms.MessageBox]::Show('The update installer could not be found.','Schoology Update','OK','Error');$form.Close();exit 2}
-$label.Text='Installing update…';[System.Windows.Forms.Application]::DoEvents()
-$log=Join-Path ([System.IO.Path]::GetDirectoryName($installer)) 'schoology-update-install.log'
-$p=Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
-('Installer: '+$installer)|Out-File -FilePath $log -Append -Encoding utf8
-('InstallDir: '+$installDir)|Out-File -FilePath $log -Append -Encoding utf8
-('ExitCode: '+$p.ExitCode)|Out-File -FilePath $log -Append -Encoding utf8
-if($p.ExitCode -eq 0 -and (Test-Path $exe)){
-  $label.Text='Finishing…';[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 500
-  Start-Process -FilePath $exe
-}else{
-  [System.Windows.Forms.MessageBox]::Show(('The update installer returned exit code '+$p.ExitCode+'.'),'Schoology Update','OK','Error')
-}
-try{Remove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue}catch{}
-$form.Close()
-try{Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue}catch{}
-`;
-    fs.writeFileSync(psPath,script,'utf8');
-    spawn('powershell.exe',['-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',psPath],{detached:true,stdio:'ignore',windowsHide:true}).unref();
+    // Run the NSIS installer normally, with its standard UI and default arguments.
+    // This is the original Windows update behavior that worked reliably before the custom wrapper.
+    const child=spawn(file,[],{detached:true,stdio:'ignore',windowsHide:false});
+    child.unref();
     app.quit();
     return true;
   }

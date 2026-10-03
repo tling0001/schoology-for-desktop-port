@@ -1097,3 +1097,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .messageTab.active{color:#fff!important;font-weight:500!important}
 .messageTab.active:after{content:''!important;position:absolute!important;left:10px!important;right:10px!important;bottom:0!important;height:3px!important;background:#fff!important}
 .discussionCommentComposerHost{padding:12px 16px 24px;background:#fff}.commentRow{cursor:default}.commentAuthorLink{color:#2e66a3}
+
+/* v95: native discussion/event tabs intentionally match assignment tabs exactly */
+.discussionTabs{margin:0!important;padding:0!important;border:0!important;box-shadow:none!important}
+.nativeGradeItemPage .assignmentTabs{margin:0!important;padding:0!important}

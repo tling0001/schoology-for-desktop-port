@@ -1090,3 +1090,10 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
   .calendarSelectedDayList{display:none!important}
 }
 @media (max-aspect-ratio:4/3){.calendarLandscapeUpcoming{display:none!important}.calendarLandscapeMonth{display:block!important}}
+
+/* v94: Android message pager has one blue tab strip and one active indicator */
+.messageTabs{height:48px!important;background:#002137!important;border-bottom:0!important;box-shadow:none!important;display:flex!important;justify-content:flex-start!important;overflow-x:auto!important}
+.messageTab{height:48px!important;flex:0 0 auto!important;min-width:92px!important;padding:0 16px!important;border:0!important;background:#002137!important;color:rgba(255,255,255,.8)!important;position:relative!important}
+.messageTab.active{color:#fff!important;font-weight:500!important}
+.messageTab.active:after{content:''!important;position:absolute!important;left:10px!important;right:10px!important;bottom:0!important;height:3px!important;background:#fff!important}
+.discussionCommentComposerHost{padding:12px 16px 24px;background:#fff}.commentRow{cursor:default}.commentAuthorLink{color:#2e66a3}

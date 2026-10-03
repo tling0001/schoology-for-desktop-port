@@ -1101,3 +1101,5 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 /* v95: native discussion/event tabs intentionally match assignment tabs exactly */
 .discussionTabs{margin:0!important;padding:0!important;border:0!important;box-shadow:none!important}
 .nativeGradeItemPage .assignmentTabs{margin:0!important;padding:0!important}
+
+.folderInlineBack{display:flex;align-items:center;width:100%;min-height:48px;padding:0 16px;border:0;border-bottom:1px solid #ddd;background:#fff;color:#3183c8;font-size:15px;text-align:left;cursor:pointer}.folderInlineBack:hover{background:#f4f5f5}

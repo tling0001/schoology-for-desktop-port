@@ -1119,12 +1119,12 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 /* v98: Schoology Android tab strips use the primary blue background.
    The strip spans the full available width while individual tab widths/alignment remain unchanged. */
 .sectionProfileTabs,.assignmentTabs,.profileTabs,.groupTabs,.messageTabs,.homeTabs,.resourcePickerTabs,.discussionTabs{
-  background:#2e66a3!important;
+  background:#002137!important;
   color:#fff!important;
   width:100%!important;
 }
 .sectionProfileTab,.assignmentTab,.profileTab,.groupTab,.messageTab,.homeTab,.resourcePickerTabs button,.discussionTabs .assignmentTab{
-  background:#2e66a3!important;
+  background:#002137!important;
   color:rgba(255,255,255,.82)!important;
 }
 .sectionProfileTab.active,.assignmentTab.active,.profileTab.active,.groupTab.active,.messageTab.active,.homeTab.active,.resourcePickerTabs button.active,.discussionTabs .assignmentTab.active{
@@ -1138,3 +1138,31 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
    the tab groups whose existing behavior is left aligned. */
 .homeTabs,.profileTabs,.groupTabs,.sectionProfileTabs{justify-content:center!important;}
 .assignmentTabs,.messageTabs,.resourcePickerTabs,.discussionTabs{justify-content:flex-start!important;}
+
+/* v99: Android uses color_primary (#002137) for pager tab strips. Hover is a subtle darker state on desktop. */
+.sectionProfileTabs,.assignmentTabs,.profileTabs,.groupTabs,.messageTabs,.homeTabs,.resourcePickerTabs,.discussionTabs{background:#002137!important}
+.sectionProfileTab,.assignmentTab,.profileTab,.groupTab,.messageTab,.homeTab,.resourcePickerTabs button,.discussionTabs .assignmentTab{background:#002137!important}
+.sectionProfileTab:hover,.assignmentTab:hover,.profileTab:hover,.groupTab:hover,.messageTab:hover,.homeTab:hover,.resourcePickerTabs button:hover,.discussionTabs .assignmentTab:hover{background:#001a2c!important;color:#fff!important}
+.calendarPagerPage{height:100%;min-height:0;display:flex;flex-direction:column;background:#fff;overflow:hidden}
+.calendarPagerTabs{height:48px;min-height:48px;display:flex;flex:0 0 48px;background:#002137;overflow-x:auto}
+.calendarPagerTab{height:48px;min-width:96px;padding:0 18px;border:0;background:#002137;color:rgba(255,255,255,.82);position:relative;cursor:pointer}
+.calendarPagerTab:hover{background:#001a2c;color:#fff}
+.calendarPagerTab.active{color:#fff;font-weight:500}
+.calendarPagerTab.active:after{content:'';position:absolute;left:10px;right:10px;bottom:0;height:3px;background:#fff}
+.calendarPagerContent{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.calendarStandaloneUpcoming{height:100%;min-height:0;overflow:auto;background:#fff}
+.calendarUpcomingList{padding:0 16px 24px}
+.calendarUpcomingDate{margin:14px 0 0;padding:0 4px 6px;border-bottom:1px solid #778088;color:#778088;font-size:14px}
+.calendarUpcomingList .calendarEventRow{padding:8px 4px;min-height:48px}
+.calendarUpcomingListEmpty{padding:60px 20px;text-align:center;color:#778088}
+.calendarUpcomingListEmpty h2{margin:0 0 8px;font-size:20px;font-weight:400;color:#34424c}
+.calendarUpcomingListEmpty p{margin:0;font-size:14px}
+.composeMessageDialog{position:relative;z-index:12001}
+#composeMessageDialog{z-index:999999!important;isolation:isolate}
+.resourceCollectionRow>span:last-child,.resourceFileRow>span:last-child{margin-left:auto!important;flex:0 0 24px!important;text-align:center}
+@media (min-aspect-ratio:4/3){.calendarAndroidPage{height:100%!important;min-height:0!important}}
+
+/* v99: any remaining Schoology pager-style .tab controls use the same Android primary blue. */
+.schoologyPagerTabs,.pagerTabs{background:#002137!important}
+.schoologyPagerTabs .tab,.pagerTabs .tab{background:#002137!important;color:rgba(255,255,255,.82)!important}
+.schoologyPagerTabs .tab:hover,.pagerTabs .tab:hover{background:#001a2c!important;color:#fff!important}

@@ -26,7 +26,7 @@ let serverTimeOffset=0;
 const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
-  try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay!==false}catch{return true}
+  try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{return false}
 }
 function saveWindowChromeOverlay(enabled){fs.mkdirSync(path.dirname(windowChromeSettingsFile),{recursive:true});fs.writeFileSync(windowChromeSettingsFile,JSON.stringify({overlay:!!enabled},null,2),'utf8')}
 

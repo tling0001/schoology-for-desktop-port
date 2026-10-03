@@ -9,7 +9,7 @@ let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
 let loadTabGeneration=0;
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,groupJoinOpen:false,embeddedTheme:''};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarCanCreate:false,groupJoinOpen:false,embeddedTheme:''};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
@@ -68,20 +68,20 @@ function externalSelect(){
 function qr(){return `<div class="qr loginAnimated"><button id="back" class="back">‹</button><h1>QR Code Login</h1><p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><div class="qrbox"></div><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function shell(){
  const drawerItems=[
-  ['profile','Profile','profile'],['messages','Messages','ic_menu_messages'],['notifications','Notifications','ic_menu_notifications'],['requests','Requests','ic_menu_requests'],
+  ['messages','Messages','ic_menu_messages'],['notifications','Notifications','ic_menu_notifications'],['requests','Requests','ic_menu_requests'],
   ['home','Home','ic_menu_home'],['courses','Courses','ic_menu_courses'],['groups','Groups','ic_menu_groups'],['resources','Resources','ic_menu_resources'],['grades','Grades','ic_menu_grades'],['calendar','Calendar','ic_menu_calender'],
   ['settings','Settings','ic_menu_account_settings'],['logout','Logout','ic_menu_logout']
  ];
  const drawerPage=state.drawerPage==='courses'||state.drawerPage==='groups'||state.drawerPage==='grades'?`
    <div class="drawerSub">
-    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${state.drawerPage==='grades'?'Grades':state.drawerPage==='groups'?'Groups':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':state.drawerPage==='groups'?'<button id="joinGroup" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
+    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${state.drawerPage==='grades'?'Grades':state.drawerPage==='groups'?'Groups':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction" style="display:none">+</button>':state.drawerPage==='groups'?'<button id="joinGroup" class="drawerHeaderAction" style="display:none">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
  return `<div class="shell">
  <header class="toolbar">${state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">‹</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></main>
  <div id="drawerShade" class="drawerShade ${drawerPage?'submenuShade':''}"></div><aside id="drawer" class="drawer ${drawerPage?'drawerSubMode':''}">
-   ${drawerPage||`<button id="profileButton" class="profileRow"><span class="profileAvatarCircle"><img data-profile-drawer-image="1" src="../assets/icons/profile_default_website.png" alt=""></span><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
+   ${drawerPage||`<button id="drawerProfile" class="profileRow" aria-label="Open profile"><span class="profileAvatarCircle"><img data-profile-drawer-image="1" src="../assets/icons/profile_default_website.png" alt=""></span><span>${esc(state.auth?.user?.name_display||state.auth?.user?.name||'Profile')}</span></button>
    <div class="drawerList">${drawerItems.map(([id,label,icon],i)=>i===4||i===11?`<div class="drawerDivider"></div><button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span class="drawerLabel">${label}</span>${['messages','notifications','requests'].includes(id)?'<span class="drawerBadge"></span>':''}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`:`<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${icon==='profile'?'<span class="drawerProfileGlyph">●</span>':`<img src="../assets/icons/${icon}.svg" alt="">`}</span><span class="drawerLabel">${label}</span>${['messages','notifications','requests'].includes(id)?'<span class="drawerBadge"></span>':''}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`).join('')}</div>`}
  </aside>
  </div>`
@@ -103,6 +103,12 @@ async function downloadWithFeedback(button,params){
   finally{stop?.();setDownloadButtonState(button,false);}
 }
 
+async function showJoinCourseDialog(){
+  const old=document.getElementById('joinCourseDialog');old?.remove();const wrap=document.createElement('div');wrap.id='joinCourseDialog';wrap.className='assignmentCommentDialogOverlay';
+  wrap.innerHTML=`<section class="androidSimpleDialog" role="dialog" aria-modal="true"><header><b>Join Course</b><button id="joinCourseCancel" class="androidDialogIcon">${officialIcon('ic_action_discard_icon.png','Cancel')}</button></header><div class="androidSimpleDialogBody"><label>Access Code</label><input id="joinCourseCode" autocomplete="off" placeholder="Enter access code"><div id="joinCourseStatus"></div></div><footer><button id="joinCourseSubmit" class="androidPrimary">Join</button></footer></section>`;
+  document.body.appendChild(wrap);const close=()=>wrap.remove();wrap.querySelector('#joinCourseCancel')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  wrap.querySelector('#joinCourseSubmit')?.addEventListener('click',async()=>{const code=wrap.querySelector('#joinCourseCode')?.value.trim();const st=wrap.querySelector('#joinCourseStatus');if(!code){st.textContent='Enter an access code.';return}try{st.textContent='Joining…';const x=await A.api({path:'sections/accesscode',method:'POST',json:true,params:{access_code:code}});const status=String(x?.status||x?.enrollment?.status||'').toLowerCase();st.textContent=status==='pending'?'Course request sent.':status==='active'?'You joined the course.':'Course request submitted.';setTimeout(()=>{close();loadCourseSubmenu()},500)}catch(e){st.textContent='Unable to join course: '+e.message}});requestAnimationFrame(()=>wrap.querySelector('#joinCourseCode')?.focus());
+}
 async function showJoinGroupDialog(){
   const old=document.getElementById('joinGroupDialog');old?.remove();
   const wrap=document.createElement('div');wrap.id='joinGroupDialog';wrap.className='assignmentCommentDialogOverlay';
@@ -115,19 +121,94 @@ async function showJoinGroupDialog(){
 function showHomeCreateMenu(){
   document.getElementById('homeCreateMenu')?.remove();const plus=document.getElementById('homeCreatePlus');if(!plus)return;const r=plus.getBoundingClientRect();
   const m=document.createElement('div');m.id='homeCreateMenu';m.className='assignmentActionMenu';m.innerHTML=`<button id="createHomeDiscussion">${officialIcon('ic_action_comment.png','')}<span>Discussion</span></button><button id="createHomeEvent">${officialIcon('ic_action_new.png','')}<span>Event</span></button>`;document.body.appendChild(m);m.style.top=(r.bottom+6)+'px';m.style.right=(window.innerWidth-r.right)+'px';
-  document.getElementById('createHomeDiscussion')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('discussion','users',state.auth?.userId||state.auth?.user?.id)});
-  document.getElementById('createHomeEvent')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('event','users',state.auth?.userId||state.auth?.user?.id)});
+  document.getElementById('createHomeDiscussion')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('discussion','',null)});
+  document.getElementById('createHomeEvent')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('event','',null)});
   setTimeout(()=>document.addEventListener('mousedown',function f(e){if(!m.contains(e.target)&&e.target!==plus){m.remove();document.removeEventListener('mousedown',f)}},0),0);
 }
 function showCreatePostDialog(kind,realm,realmId){
-  const old=document.getElementById('createPostDialog');old?.remove();const wrap=document.createElement('div');wrap.id='createPostDialog';wrap.className='assignmentCommentDialogOverlay';
-  const title=kind==='discussion'?'New Discussion':'New Event';
-  wrap.innerHTML=`<section class="androidCreatePostDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button id="createPostCancel" class="androidDialogIcon">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">${title}</div><button id="createPostSend" class="androidDialogIcon">${officialIcon('ic_action_send_icon.png','Post')}</button></header><div class="androidCreatePostBody"><input id="createPostTitle" placeholder="Title"><textarea id="createPostBody" placeholder="${kind==='discussion'?'Write a discussion…':'Description…'}"></textarea>${kind==='event'?'<label>Date and time</label><input id="createPostDate" type="datetime-local">':''}<div id="createPostStatus"></div></div></section>`;
-  document.body.appendChild(wrap);const close=()=>wrap.remove();wrap.querySelector('#createPostCancel')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
-  wrap.querySelector('#createPostSend')?.addEventListener('click',async()=>{const title=wrap.querySelector('#createPostTitle')?.value.trim();const body=wrap.querySelector('#createPostBody')?.value.trim();const st=wrap.querySelector('#createPostStatus');if(!title){st.textContent='Enter a title.';return}try{st.textContent='Posting…';if(kind==='discussion')await A.api({path:`${realm}/${realmId}/discussions`,method:'POST',params:{title,body},json:true});else{const dt=wrap.querySelector('#createPostDate')?.value||'';await A.api({path:`${realm}/${realmId}/events`,method:'POST',params:{title,description:body,start:dt,end:dt,all_day:0},json:true})}close();loadTab()}catch(e){st.textContent='Unable to create '+kind+': '+e.message}});
+  const old=document.getElementById('createPostDialog');old?.remove();
+  const wrap=document.createElement('div');wrap.id='createPostDialog';wrap.className='assignmentCommentDialogOverlay';
+  const isEvent=kind==='event', title=isEvent?'New Event':'New Discussion';
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const dateValue=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const timeValue=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const postTo=(realm==='users'?'My Account':`${realm.charAt(0).toUpperCase()+realm.slice(1)} ${realmId||''}`).trim();
+  wrap.innerHTML=`<section class="androidCreatePostDialog" role="dialog" aria-modal="true">
+    <header class="androidCommentDialogBar"><button id="createPostCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">${title}</div><button id="createPostSend" class="androidDialogIcon" aria-label="Post">${officialIcon('ic_action_send_icon.png','Post')}</button></header>
+    <div class="androidCreatePostBody">
+      <label class="androidFieldLabel">Post To</label><div class="androidPostToField">${esc(postTo)}</div>
+      <input id="createPostTitle" placeholder="Title" autocomplete="off">
+      <textarea id="createPostBody" placeholder="${isEvent?'Description':'Description'}"></textarea>
+      ${isEvent?`<div class="androidSwitchRow"><label><input id="createEventAllDay" type="checkbox" checked> All Day</label></div>
+      <div class="androidDateRow"><span>When</span><input id="createEventStartDate" type="date" value="${dateValue}"><input id="createEventStartTime" type="time" value="${timeValue}"></div>
+      <label class="androidCheckRow"><input id="createEventAddEnd" type="checkbox"> End Date</label>
+      <div id="createEventEndWrap" class="androidDateRow" style="display:none"><input id="createEventEndDate" type="date" value="${dateValue}"><input id="createEventEndTime" type="time" value="${timeValue}"><button id="createEventEndCancel" type="button">×</button></div>
+      <label class="androidFieldLabel">RSVP</label><select id="createEventRsvp"><option value="0">No RSVP</option><option value="1">Yes</option><option value="2">Maybe</option></select>
+      <label class="androidCheckRow"><input id="createEventComments" type="checkbox" checked> Enable comments</label>`:
+      `<label class="androidCheckRow"><input id="createDiscussionDue" type="checkbox"> Due Date</label>
+      <div id="createDiscussionDueWrap" class="androidDateRow" style="display:none"><input id="createDiscussionDueDate" type="date" value="${dateValue}"><input id="createDiscussionDueTime" type="time" value="${timeValue}"></div>
+      <label class="androidCheckRow"><input id="createDiscussionGrading" type="checkbox"> Enable Grading</label>
+      <div id="createDiscussionGradingWrap" class="androidGradingBox" style="display:none"><label>Max Points <input id="createDiscussionMaxPoints" type="number" min="0" step="0.01"></label><label>Factor <input id="createDiscussionFactor" type="number" min="0" step="0.01" value="1.0"></label></div>
+      <label class="androidCheckRow"><input id="createDiscussionPublished" type="checkbox" checked> Published</label>`}
+      <div id="createPostStatus" class="androidCreatePostStatus"></div>
+    </div>
+  </section>`;
+  document.body.appendChild(wrap);
+  let selectedRealm=realm||'', selectedId=realmId||null;
+  const postToEl=wrap.querySelector('.androidPostToField');
+  if(!selectedRealm){
+    postToEl.innerHTML='<span class="androidPostToLoading">Loading destinations…</span>';
+    (async()=>{try{
+      const uid=state.auth?.userId||state.auth?.user?.id;const [sx,gx]=await Promise.all([A.api({path:`users/${uid}/sections`,params:{limit:100}}).catch(()=>({})),A.api({path:`users/${uid}/groups`,params:{limit:100}}).catch(()=>({}))]);
+      const sections=sx?.section||sx?.sections||[],groups=gx?.group||gx?.groups||[];const opts=[{realm:'users',id:uid,label:'My Account'},...sections.map(x=>({realm:'sections',id:x.id||x.section_id,label:x.section_title||x.course_title||x.title||'Course'})),...groups.map(x=>({realm:'groups',id:x.id||x.group_id,label:x.name||x.title||'Group'}))].filter(x=>x.id!=null);
+      if(!opts.length)throw new Error('No posting destinations were found.');
+      postToEl.innerHTML='<select id="createPostDestination">'+opts.map((x,i)=>`<option value="${i}">${esc(x.label)}</option>`).join('')+'</select>';
+      const sel=postToEl.querySelector('#createPostDestination');const apply=()=>{const o=opts[Number(sel.value)||0];selectedRealm=o.realm;selectedId=o.id};sel?.addEventListener('change',apply);apply();
+    }catch(e){postToEl.innerHTML='<span class="androidCreatePostStatus">Unable to load posting destinations.</span>';postToEl.dataset.error=e.message||String(e)}})();
+  }
+
+  const close=()=>wrap.remove();
+  wrap.querySelector('#createPostCancel')?.addEventListener('click',close);
+  wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  if(isEvent){
+    const all=wrap.querySelector('#createEventAllDay'),end=wrap.querySelector('#createEventAddEnd'),endWrap=wrap.querySelector('#createEventEndWrap');
+    const sync=()=>{wrap.querySelector('#createEventStartTime').disabled=all.checked;wrap.querySelector('#createEventEndWrap').style.display=end.checked?'flex':'none';};
+    all?.addEventListener('change',sync);end?.addEventListener('change',sync);wrap.querySelector('#createEventEndCancel')?.addEventListener('click',()=>{end.checked=false;sync()});sync();
+  }else{
+    const due=wrap.querySelector('#createDiscussionDue'),grading=wrap.querySelector('#createDiscussionGrading');
+    due?.addEventListener('change',()=>wrap.querySelector('#createDiscussionDueWrap').style.display=due.checked?'flex':'none');
+    grading?.addEventListener('change',()=>wrap.querySelector('#createDiscussionGradingWrap').style.display=grading.checked?'block':'none');
+  }
+  wrap.querySelector('#createPostSend')?.addEventListener('click',async()=>{
+    const titleText=wrap.querySelector('#createPostTitle')?.value.trim(), body=wrap.querySelector('#createPostBody')?.value.trim(), st=wrap.querySelector('#createPostStatus'), send=wrap.querySelector('#createPostSend');
+    if(!titleText){st.textContent=isEvent?'Enter a title.':'Enter a title.';return}
+    if(!selectedRealm||!selectedId){st.textContent=wrap.querySelector('.androidPostToField')?.dataset.error||'Choose where to post this first.';return}
+    send.disabled=true;st.textContent='Posting…';
+    try{
+      if(isEvent){
+        const all=!!wrap.querySelector('#createEventAllDay')?.checked;
+        const sd=wrap.querySelector('#createEventStartDate')?.value,stt=wrap.querySelector('#createEventStartTime')?.value||'00:00';
+        const ed=wrap.querySelector('#createEventEndDate')?.value,ett=wrap.querySelector('#createEventEndTime')?.value||'00:00';
+        const start=all?`${sd} 00:00:00`:`${sd} ${stt}:00`;
+        const hasEnd=!!wrap.querySelector('#createEventAddEnd')?.checked;
+        if(hasEnd && ed && new Date(`${ed}T${ett}`)<new Date(`${sd}T${stt}`))throw new Error('The end date cannot be before the start date.');
+        const params={title:titleText,description:body,start,is_all_day:all?1:0,rsvp:Number(wrap.querySelector('#createEventRsvp')?.value||0),comments_enabled:wrap.querySelector('#createEventComments')?.checked?1:0};
+        if(hasEnd){params.has_end=1;params.end=all?`${ed} 23:59:00`:`${ed} ${ett}:00`}
+        await A.api({path:`${selectedRealm}/${selectedId}/events`,method:'POST',params,json:true});
+      }else{
+        const params={title:titleText,body,published:wrap.querySelector('#createDiscussionPublished')?.checked?1:0};
+        if(wrap.querySelector('#createDiscussionDue')?.checked){const d=wrap.querySelector('#createDiscussionDueDate')?.value,t=wrap.querySelector('#createDiscussionDueTime')?.value||'00:00';params.due_date=`${d} ${t}:00`}
+        if(wrap.querySelector('#createDiscussionGrading')?.checked){const max=wrap.querySelector('#createDiscussionMaxPoints')?.value;if(!max){throw new Error('Enter maximum points.')}params.graded=1;params.max_points=Number(max);params.factor=Number(wrap.querySelector('#createDiscussionFactor')?.value||1)}
+        await A.api({path:`${selectedRealm}/${selectedId}/discussions`,method:'POST',params,json:true});
+      }
+      close();loadTab();
+    }catch(e){send.disabled=false;st.textContent='Unable to create '+kind+': '+(e.message||e)}
+  });
+  requestAnimationFrame(()=>wrap.querySelector('#createPostTitle')?.focus());
 }
 
-async function hydrateProfileDrawer(){const el=document.querySelector('[data-profile-drawer-image]');const u=state.auth?.user;const url=normalizeImageUrl(u?.picture_url||u?.pictureUrl||u?.picture||u?.photo_url||'');if(el&&url){try{const d=await A.fetchImage(url);if(d)el.src=d}catch{}}}
+async function hydrateProfileDrawer(){const el=document.querySelector('[data-profile-drawer-image]');let u=state.auth?.user||{};let url=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||u.photo_url||'');if(!url){const uid=state.auth?.userId||u.id;if(uid){try{const r=await A.api({path:`users/${uid}`,params:{picture_size:'sm'}});u=r?.user||r||u;state.auth.user={...(state.auth.user||{}),...u};url=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||u.photo_url||'')}catch{}}}if(el&&url){try{const d=await A.fetchImage(url);if(d)el.src=d}catch{}}}
 
 async function updateDrawerBadges(){
   const checks=[['messages','messages/inbox'],['notifications','notifications'],['requests',`users/${state.auth?.userId||state.auth?.user?.id||0}/requests/friends`]];
@@ -180,19 +261,19 @@ function bind(){
   document.getElementById('menuButton')?.addEventListener('click',()=>setDrawer(true));
   shade?.addEventListener('click',()=>setDrawer(false));
 
-  hydrateProfileDrawer();updateDrawerBadges();document.getElementById('profileButton')?.addEventListener('click',()=>{closeDrawerThen(()=>{state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.embeddedTitle=null;state.profileUser=state.auth?.user||null;state.tab='profile';state.toolbarTitle='Profile';render();loadTab()})});
+  hydrateProfileDrawer();updateDrawerBadges();document.getElementById('drawerProfile')?.addEventListener('click',()=>{closeDrawerThen(()=>{state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.embeddedTitle=null;state.profileUser=state.auth?.user||null;state.tab='profile';state.toolbarTitle='Profile';render();loadTab()})});
   document.getElementById('drawerBack')?.addEventListener('click',()=>{const d=document.getElementById('drawer'); if(!d)return; d.classList.add('noSlide'); state.drawerPage=null; render(); requestAnimationFrame(()=>{document.getElementById('drawer')?.classList.add('open'); requestAnimationFrame(()=>document.getElementById('drawer')?.classList.remove('noSlide'))})});
   document.getElementById('joinCourse')?.addEventListener('click',()=>{state.drawerPage=null;render();document.getElementById('drawer')?.classList.add('open')});
 
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
     if(id==='courses'||id==='groups'||id==='grades'){
-      state.drawerPage=id;const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${id==='grades'?'Grades':id==='groups'?'Groups':'Courses'}</span>${id==='courses'?'<button id="joinCourse" class="drawerHeaderAction">+</button>':id==='groups'?'<button id="joinGroup" class="drawerHeaderAction">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div><div id="courseSubList" class="courseSubList"><div class="drawerLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading ${id==='grades'?'grades':id==='groups'?'groups':'courses'}…</span></div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadCourseSubmenu();return;
+      state.drawerPage=id;const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">‹</button><span>${id==='grades'?'Grades':id==='groups'?'Groups':'Courses'}</span>${id==='courses'?'<button id="joinCourse" class="drawerHeaderAction" style="display:none">+</button>':id==='groups'?'<button id="joinGroup" class="drawerHeaderAction" style="display:none">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div><div id="courseSubList" class="courseSubList"><div class="drawerLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading ${id==='grades'?'grades':id==='groups'?'groups':'courses'}…</span></div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadCourseSubmenu();return;
     }
     closeDrawerThen(async()=>{
       if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
       if(id==='settings'){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab='settings';state.toolbarTitle='Settings';state.screen='app';render();loadTab();return}
-      if(['home','calendar','grades','messages','notifications','requests','resources','profile','groups','people'].includes(id)){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
+      if(['home','calendar','grades','messages','notifications','requests','resources','profile','groups'].includes(id)){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
     });
   }));
 
@@ -227,7 +308,7 @@ async function hydrateCourseImages(root=document){
   const els=root.querySelectorAll?.('[data-course-image-url]')||[];
   await Promise.all([...els].map(async el=>{
     const url=el.getAttribute('data-course-image-url');if(!url)return;
-    const fallback=el.parentElement?.querySelector?.('.dashboardCourseFallback,.sectionProfileFallback,.courseAppFallback');
+    const fallback=el.parentElement?.querySelector?.('.dashboardCourseFallback,.sectionProfileFallback,.courseAppFallback,.groupImageFallback,.courseImageFallback');
     try{const data=await A.fetchImage(url);if(data){el.src=data;el.style.display='block';if(fallback)fallback.style.setProperty('display','none','important');return}}catch{}
     if(fallback)fallback.style.setProperty('display','flex','important');
   }));
@@ -248,6 +329,8 @@ async function loadCourseSubmenu(){
    }
    const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
    c.innerHTML=arr.length?arr.map((s,i)=>{const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';const sectionTitle=s.section_title||s.sectionTitle||'';const image=normalizeImageUrl(s.profile_url||s.profileUrl||s.course_profile_url||s.courseProfileUrl||s.course_theme||s.courseTheme||s.image||s.course_image||'');return `<button class="courseSubItem" data-course-sub="${i}"><span class="courseThumb">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span></span><span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span><span class="disclosure">›</span></button>`}).join(''):'<div class="drawerEmpty">No courses found.</div>';
+   const joinCourseButton=document.getElementById('joinCourse');
+   if(page==='courses'&&joinCourseButton){try{const perm=await A.api({path:'sections/accesscode',params:{}});const allowed=!!(perm?.permission?.post??perm?.permissions?.post??perm?.permission_map?.post??perm?.can_join);joinCourseButton.style.display=allowed?'':'none'}catch{joinCourseButton.style.display='none'}joinCourseButton.onclick=showJoinCourseDialog;}
    document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const course=window.__schoologyCourses[+b.dataset.courseSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab=page==='grades'?'grades':'courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);state.screen='app';render();showCourse(course,page==='grades'?'grades':'materials')});});
    await hydrateCourseImages(c);
  }catch(e){c.innerHTML=`<div class="drawerError">${esc(e.message)}</div>`}
@@ -277,7 +360,7 @@ async function resolveCourseSchoolName(course){
   if(direct)return String(direct);
   const schoolId=course?.school_id??course?.schoolId??course?.school?.id;
   if(!schoolId)return '';
-  try{const x=await A.api({path:`schools/${schoolId}`,params:{}});const school=x?.school||x;return String(school?.district_name||school?.districtName||school?.title||school?.name||school?.school_name||'')}catch{return ''}
+  try{const x=await A.api({path:`schools/${schoolId}`,params:{}});const school=x?.school||x;return String(school?.school_name||school?.schoolName||school?.title||school?.name||'')}catch{return ''}
 }
 function courseTitleOf(course){return course?.course_title||course?.courseTitle||course?.title||course?.section_title||'Course'}
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
@@ -293,7 +376,7 @@ function syncToolbar(){
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
   if(state.tab==='home'&&!state.courseView&&!state.assignmentView&&!state.embeddedTitle){slot.innerHTML=`<button id="homeCreatePlus" class="iconButton toolbarImageButton" aria-label="Create">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('homeCreatePlus')?.addEventListener('click',showHomeCreateMenu);return;}
-  if(state.tab==='calendar'&&!state.courseView&&!state.embeddedTitle){slot.innerHTML=`<button id="calendarCreatePlus" class="iconButton toolbarImageButton" aria-label="Create event">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('calendarCreatePlus')?.addEventListener('click',()=>showCreatePostDialog('event','users',state.auth?.userId||state.auth?.user?.id));return;}
+  if(state.tab==='calendar'&&!state.courseView&&!state.embeddedTitle){if(state.calendarCanCreate){slot.innerHTML=`<button id="calendarCreatePlus" class="iconButton toolbarImageButton" aria-label="Create event">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('calendarCreatePlus')?.addEventListener('click',()=>showCreatePostDialog('event','',null));}return;}
   if(state.embeddedTitle && state.embeddedTheme==='account'){slot.innerHTML=`<button id="accountReload" class="iconButton toolbarImageButton" aria-label="Reload"><img src="../assets/icons/ic_action_refresh.png" alt=""></button>`;document.getElementById('accountReload')?.addEventListener('click',()=>{const w=document.getElementById('schoologyWebview');try{w?.reload()}catch{}});return;}
   if(state.embeddedTitle && state.embeddedCanOpenExternal){slot.innerHTML='<button id="embeddedOpenBrowser" class="iconButton toolbarImageButton" aria-label="Open in browser" title="Open in browser">↗</button>';document.getElementById('embeddedOpenBrowser')?.addEventListener('click',()=>{const w=document.getElementById('schoologyWebview');const u=w?.getURL?.()||'';if(u)A.openExternal(u).catch(e=>alert('Unable to open browser: '+e.message))});return;}
   if(state.assignmentView&&state.assignmentLandscape&&!state.assignmentSubpage&&(state.assignmentTab==='info'||state.assignmentTab==='comments')){
@@ -407,7 +490,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  state.selectedCourse=course;state.courseView='course';state.courseTab=activeTab;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;
  state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);syncToolbar();
  const title=courseTitleOf(course), section=sectionTitleOf(course);
- const school=course.school_name||course.schoolName||course.school_title||course.schoolTitle||course.school?.school_name||course.school?.name||course.school?.title||'';
+ const school=await resolveCourseSchoolName(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const navPerms=await getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null);
  if(renderToken!==courseRenderToken||state.screen!=='app'||state.courseView!=='course'||state.selectedCourse!==course)return;
@@ -545,16 +628,22 @@ function openAssignmentCommentComposer(sectionId,assignmentId,parentId='0'){
   state.assignmentSubpage='commentComposer';
   const old=document.getElementById('assignmentCommentDialog');old?.remove();
   const wrap=document.createElement('div');wrap.id='assignmentCommentDialog';wrap.className='assignmentCommentDialogOverlay';
-  wrap.innerHTML=`<section class="assignmentCommentDialog" role="dialog" aria-modal="true"><div class="androidCommentDialogBar"><button id="assignmentCommentCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">Comment</div><button id="assignmentCommentSend" class="androidDialogIcon" aria-label="Submit">${officialIcon('ic_action_send_icon.png','Submit')}</button></div><div class="androidCommentDialogBody"><textarea id="assignmentCommentBody" placeholder="Post a comment…" autofocus></textarea></div></section>`;
+  wrap.innerHTML=`<section class="assignmentCommentDialog" role="dialog" aria-modal="true"><div class="androidCommentDialogBar"><button id="assignmentCommentCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">Comment</div><button id="assignmentCommentSend" class="androidDialogIcon" aria-label="Submit">${officialIcon('ic_action_send_icon.png','Submit')}</button></div><div class="androidCommentDialogBody"><textarea id="assignmentCommentBody" placeholder="Post a comment…" autofocus></textarea><div class="commentAttachmentActions"><button id="commentAttachFile">${officialOrAssetIcon('ic_action_ic_menu_folder.png','')}File</button><button id="commentAttachResource">${officialOrAssetIcon('ic_attach_resourcesv3.png','')}Resource</button></div><div id="commentAttachmentStatus"></div></div></section>`;
   document.body.appendChild(wrap);
   const close=()=>{state.assignmentSubpage=null;wrap.remove();syncToolbar()};
-  wrap.querySelector('#assignmentCommentCancel')?.addEventListener('click',close);wrap.querySelector('#commentAttachFile')?.addEventListener('click',async()=>{try{const f=await A.pickFile?.();if(f)wrap.dataset.attachment=f.path||f.filePath||''}catch(e){}});wrap.querySelector('#commentAttachResource')?.addEventListener('click',()=>{state.resourceCollection='root';alert('Choose a Schoology resource to attach.');});
+  wrap.querySelector('#assignmentCommentCancel')?.addEventListener('click',close);wrap.querySelector('#commentAttachFile')?.addEventListener('click',async()=>{try{const f=await A.pickFile?.();if(f){wrap.dataset.attachment=f.path||f.filePath||'';wrap.querySelector('#commentAttachmentStatus').textContent='File attached: '+(f.name||f.fileName||f.path||'Selected file')}}catch(e){alert('Unable to select file: '+e.message)}});wrap.querySelector('#commentAttachResource')?.addEventListener('click',async()=>{try{const x=await A.api({path:'users/'+(state.auth?.userId||state.auth?.user?.id)+'/resources',params:{limit:100}});const items=x.resource||x.resources||x.collection||[];const labels=items.map((r,i)=>`${i+1}. ${r.title||r.name||'Resource'}`).join('\n');showAppDialog('Attach Resource',labels||'No resources available.',items.length?items.map((r,i)=>({label:String(i+1),action:()=>{wrap.dataset.resourceId=r.id||r.resource_id||'';wrap.querySelector('#commentAttachmentStatus').textContent='Resource attached: '+(r.title||r.name||'Resource')}})).concat([{label:'Cancel'}]):[{label:'OK'}])}catch(e){alert('Unable to load resources: '+e.message)}});
   wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
   wrap.querySelector('#assignmentCommentSend')?.addEventListener('click',async()=>{
     const body=wrap.querySelector('#assignmentCommentBody')?.value.trim();if(!body)return;
     const send=wrap.querySelector('#assignmentCommentSend');send.disabled=true;
-    try{await A.api({path:`sections/${sectionId}/assignments/${assignmentId}/comments`,method:'POST',params:{comment:body,parent_id:Number(parentId)||0},json:true});close();await openAssignmentComments(sectionId,assignmentId,state.assignmentData||{})}
-    catch(e){send.disabled=false;alert('Unable to post comment: '+e.message)}
+    try{
+      const params={comment:body,parent_id:Number(parentId)||0};
+      const filePath=wrap.dataset.attachment||'';const resourceId=wrap.dataset.resourceId||'';
+      if(filePath){const fileId=await A.uploadSchoologyFile({filePath});params['file-attachment']={id:[Number(fileId)||fileId]}}
+      if(resourceId)params.attachments=[{resource:Number(resourceId)||resourceId}];
+      await A.api({path:`course/${sectionId}/materials/assignments/${assignmentId}/${Number(parentId)?`create_reply/${Number(parentId)}`:'create_comment'}`,method:'POST',params,json:true});
+      close();await openAssignmentComments(sectionId,assignmentId,state.assignmentData||{})
+    }catch(e){send.disabled=false;alert('Unable to post comment: '+e.message)}
   });
   requestAnimationFrame(()=>wrap.querySelector('#assignmentCommentBody')?.focus());
 }
@@ -625,8 +714,29 @@ function showSubmissionMenu(){
   menu.innerHTML='<button id="uploadSubmissionAction">Upload Submission</button><button id="textSubmissionAction">Create Text Submission</button>';
   document.body.appendChild(menu);
   const b=document.getElementById('assignmentPlus');const r=b?.getBoundingClientRect();if(r){menu.style.top=(r.bottom+6)+'px';menu.style.right=(window.innerWidth-r.right)+'px';}
-  document.getElementById('uploadSubmissionAction')?.addEventListener('click',async()=>{state.submissionMenu=false;menu.remove();await chooseAndSubmitAssignmentFile()});
+  document.getElementById('uploadSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();showAssignmentAttachmentChooser()});
   document.getElementById('textSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();openTextSubmissionComposer()});
+}
+function showAssignmentAttachmentChooser(){
+  const dlg=showAppDialog('New submission','Choose an attachment type.',[
+    {label:'File',action:()=>chooseAndSubmitAssignmentFile()},
+    {label:'Resource',action:()=>chooseAndSubmitAssignmentResource()},
+    {label:'Cancel',action:null}
+  ]);return dlg;
+}
+async function chooseAndSubmitAssignmentResource(){
+  const v=state.assignmentView;if(!v||!state.assignmentCanSubmit)return;
+  try{
+    const uid=state.auth?.userId||state.auth?.user?.id;
+    const x=await A.api({path:`users/${uid}/resources`,params:{limit:100}});
+    const raw=x?.resource||x?.resources||x?.collection||x?.items||[];const items=Array.isArray(raw)?raw:[];
+    if(!items.length){showAppDialog('Attach Resource','No resources are available.',[{label:'OK',action:null}]);return}
+    const actions=items.slice(0,50).map(r=>({label:String(r.title||r.name||'Resource'),action:async()=>{
+      const resourceId=r.id??r.resource_id??r.resourceId??r.template_id??r.templateID;if(resourceId==null){showAppDialog('Attach Resource','This resource does not have a usable Schoology resource ID.');return}
+      const dlg=showAppDialog('Submitting resource','Submitting…',[]);try{await A.submitAssignmentResource({sectionId:v.sectionId,assignmentId:v.assignmentId,resourceId});dlg?.classList.remove('open');await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){dlg?.classList.remove('open');showAppDialog('Unable to submit resource',e.message||String(e))}
+    }}));
+    actions.push({label:'Cancel',action:null});showAppDialog('Attach Resource','Select a resource:',actions);
+  }catch(e){showAppDialog('Unable to load resources',e.message||String(e))}
 }
 
 async function chooseAndSubmitAssignmentFile(){
@@ -700,7 +810,7 @@ function materialIconForType(item){
  if(type==='folder'){const color=String(item?.color||item?.folder_color||item?.folderColor||'gray').toLowerCase();const allowed=['black','blue','gray','green','orange','pink','purple','red','yellow'];return `ic_folder_${allowed.includes(color)?color:'gray'}.png`;}
  if(type==='assignment')return 'ic_assignment.png';
  if(type==='discussion')return 'ic_discussion.png';
- if(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'||type==='quiz')return 'ic_assessment_16dp.svg';
+ if(type==='assessment'||type==='assessment_v2'||type==='managed_assessment'||type==='quiz')return 'ic_test_quiz.png';
  if(type==='page')return 'ic_pages.png'; if(type==='album')return 'ic_albums.png'; if(type==='scorm')return 'ic_scorm.png';
  if(type==='web_content'||docType==='external_tool')return 'ic_web_content.png';
  if(type==='document'||docType){
@@ -959,7 +1069,7 @@ async function loadCourseUpdates(course,el){
      const liked=!!(u.user_liked??u.liked??u.is_liked);
      const canDelete=uid&&String(u.uid||u.user_id||u.author_id||'')===String(uid);
      return `<article class="androidActivityCard sectionFullUpdate" data-update-card="${esc(id)}">
-       <div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(author).charAt(0))}</span>`}<span class="activityUser">${esc(author)}</span>${canDelete?`<button class="updateDeleteButton" data-update-delete="${esc(id)}" aria-label="Delete update">⋮</button>`:''}</div>
+       <div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(author).charAt(0))}</span>`}<button class="activityUser activityAuthorLink" data-course-author-id="${esc(au.id||u.user_id||u.uid||u.author_id||u.authorId||'')}">${esc(author)}</button>${canDelete?`<button class="updateDeleteButton" data-update-delete="${esc(id)}" aria-label="Delete update">⋮</button>`:''}</div>
        <div class="activityBody">${body}</div>
        ${renderAttachments(u.attachments||u.attachment||u.files||{})}
        ${u.poll||u.pollUpdateModel?`<div class="updatePoll"><b>Poll</b></div>`:''}
@@ -970,6 +1080,7 @@ async function loadCourseUpdates(course,el){
    }).join('');
    el.innerHTML=`${cards||'<div class="empty"><h2>No updates</h2><p>There are no updates in this course.</p></div>'}${next?'<button id="courseUpdateMore" class="androidMoreButton">Load more</button>':''}`;
    await hydrateMediaImages(el);
+   el.querySelectorAll('[data-course-author-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.courseAuthorId;if(id){state.profileUser={id};state.toolbarTitle=b.textContent||'Profile';showProfile(id,'updates')}});
    el.querySelector('#courseUpdateRefresh')?.addEventListener('click',()=>{start=0;all=[];next=true;loadPage(true)});
    el.querySelector('#courseUpdateMore')?.addEventListener('click',()=>loadPage(false));
    el.querySelectorAll('[data-course-update-like]').forEach(btn=>btn.onclick=async()=>{
@@ -1188,12 +1299,12 @@ async function showGroup(group,activeTab='updates'){
           const au=users[Number(u.user_id||u.uid||u.author_id||u.authorId)]||{};
           const name=u.display_name||u.author_name||au.name_display||au.display_name||au.name||'Schoology';
           const avatar=normalizeImageUrl(au.picture_url||au.pictureUrl||au.picture||au.photo_url||'');
-          return `<article class="androidActivityCard groupFullUpdate"><div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(name).charAt(0))}</span>`}<button class="activityUser activityAuthorLink" data-author-id="${esc(au.id||u.user_id||u.uid||u.author_id||u.authorId||'')}">${esc(name)}</button></div><div class="activityBody">${u.body||u.message||''}</div>${renderAttachments(u.attachments||u.attachment||u.files||{})}<div class="activityMeta">${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</div><div class="activityActions"><button>Comment${u.num_comments?` (${esc(u.num_comments)})`:''}</button><button>${u.liked?'Unlike':'Like'}${u.likes?` (${esc(u.likes)})`:''}</button></div></article>`;
+          return `<article class="androidActivityCard groupFullUpdate"><div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(name).charAt(0))}</span>`}<button class="activityUser activityAuthorLink" data-author-id="${esc(u.id||u.user_id||u.uid||x.user_id||x.uid||x.author_id||x.authorId||'')}">${esc(name)}</button></div><div class="activityBody">${u.body||u.message||''}</div>${renderAttachments(u.attachments||u.attachment||u.files||{})}<div class="activityMeta">${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</div><div class="activityActions"><button>Comment${u.num_comments?` (${esc(u.num_comments)})`:''}</button><button>${u.liked?'Unlike':'Like'}${u.likes?` (${esc(u.likes)})`:''}</button></div></article>`;
         }).join(''):'<div class="empty">No updates.</div>';
         await hydrateMediaImages(gc);document.querySelectorAll('[data-author-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.authorId;if(id){state.profileUser={id};state.toolbarTitle=b.textContent||'Profile';showProfile(id,'updates')}});
       }
       else if(tab==='upcoming'){const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool'].includes(String(e.type||'')));gc.innerHTML=renderUpcoming(a);}
-      else if(tab==='discussions'){const x=await A.api({path:`groups/${gid}/discussions`,params:{limit:50}});const a=x.discussion||x.discussions||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||'Discussion')}</b><small>${esc(d.created||d.timestamp||'')}</small></button>`).join(''):'<div class="empty">No discussions.</div>';}
+      else if(tab==='discussions'){const x=await A.api({path:`groups/${gid}/discussions`,params:{limit:50}});const a=x.discussion||x.discussions||[];gc.innerHTML=a.length?a.map(d=>{const creator=d.creater_id??d.creator_id??d.created_by??d.user_id??d.uid??d.author_id??'';return `<button class="groupDiscussionRow" data-group-discussion-id="${esc(d.id||d.discussion_id||'')}"><img src="../assets/icons/ic_discussion.png" alt=""><span><b>${esc(d.title||'Discussion')}</b><small>Created by ${esc(creator)}</small></span></button>`}).join(''):'<div class="empty">No discussions.</div>';gc.querySelectorAll('[data-group-discussion-id]').forEach(b=>b.onclick=async()=>{const d=a.find(v=>String(v.id||v.discussion_id||'')===String(b.dataset.groupDiscussionId));if(!d)return;const u=d.web_url||d.webUrl||`https://app.schoology.com/group/${gid}/discussion/view/${d.id||d.discussion_id}`;try{await A.prepareWebSession();showEmbeddedWeb(u,d.title||'Discussion',{allowBrowser:false})}catch(e){alert('Unable to open discussion: '+e.message)}});}
       else if(tab==='albums'){const x=await A.api({path:`groups/${gid}/albums`,params:{limit:50}});const a=x.album||x.albums||[];gc.innerHTML=a.length?a.map(d=>`<button class="groupRow"><b>${esc(d.title||d.name||'Album')}</b></button>`).join(''):'<div class="empty">No albums.</div>';}
       else {const x=await A.api({path:`groups/${gid}/resources`,params:{limit:50}});const a=x.resource||x.resources||x.collection||x.items||[];gc.innerHTML=a.length?a.map((d,i)=>`<button class="groupRow groupResourceRow" data-group-resource-index="${i}"><span class="officialMaterialIcon"><img src="../assets/icons/${materialIconForType(d)}" alt="></span><span><b>${esc(d.title||d.name||'Resource')}</b></span><span>›</span></button>`).join(''):'<div class="empty">No resources.</div>';window.__groupResources=a;gc.querySelectorAll('[data-group-resource-index]').forEach(b=>b.onclick=async()=>{const d=window.__groupResources[+b.dataset.groupResourceIndex];try{const t=String(d.type||'').toLowerCase(),dt=String(d.document_type||d.documentType||'').toLowerCase();if(t==='folder'){await showGroupResourceFolder(gid,d.id,d.title||'Folder');return}if(t==='assignment'){const u=d.web_url||d.webUrl||d.url||d.href||`https://app.schoology.com/assignment/${d.id}`;await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Assignment');return}if(['link','web_content','external_tool','embed','video'].includes(t)||['link','external_tool','embed','video'].includes(dt)){const u=d.web_url||d.webUrl||d.url||d.href||d.launch_url||d.launchUrl||d.location;if(u){await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Link');return}}let u=d.download_path||d.downloadPath||d.converted_download_path||d.convertedDownloadPath||d.file_url||d.fileUrl||d.download_url||d.downloadUrl||d.location||d.url;if(!u){const aa=d.attachments||d.attachment||{};const ff=aa.files?.file||aa.files||aa.file||[];const f=Array.isArray(ff)?ff[0]:ff;u=f?.converted_download_path||f?.convertedDownloadPath||f?.download_path||f?.downloadPath||f?.url||''}if(!u)throw new Error('Schoology did not provide a resource URL.');const r=await downloadWithFeedback(b,{url:u,filename:d.filename||d.fileName||d.title||d.name||'Schoology file',mime:d.filemime||d.fileMIME||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open resource: '+e.message)}}); }
     }catch(e){gc.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
@@ -1445,17 +1556,19 @@ async function loadTab(){
     document.querySelectorAll('[data-group-index]').forEach(b=>b.onclick=()=>showGroup(window.__schoologyGroups[+b.dataset.groupIndex]));
   }else if(state.tab==='calendar'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const today=state.calendarDate?new Date(state.calendarDate):new Date(); const ym=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    const monthStart=new Date(today.getFullYear(),today.getMonth(),1); const monthEnd=new Date(today.getFullYear(),today.getMonth()+1,0);
-    const start=`${ym(monthStart)}-01`; const end=`${ym(monthEnd)}-${String(monthEnd.getDate()).padStart(2,'0')}`;
-    const x=await A.api({path:`users/${uid}/events`,params:{start,end,limit:200}}); const arr=x.event||x.events||[];
-    const byDay={}; for(const e of arr){const raw=e.start||e.start_date||e.date||e.startDate||'';const key=String(raw).slice(0,10);(byDay[key]||(byDay[key]=[])).push(e)}
-    const days=new Date(monthStart.getFullYear(),monthStart.getMonth(),1).getDay(); const total=days+monthEnd.getDate(); const rows=Math.ceil(total/7); const cells=[];
-    for(let i=0;i<rows*7;i++){const n=i-days+1; const inMonth=n>=1&&n<=monthEnd.getDate(); const d=inMonth?new Date(monthStart.getFullYear(),monthStart.getMonth(),n):null; const key=d?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(n).padStart(2,'0')}`:''; const evs=key?(byDay[key]||[]):[]; cells.push(`<button class="calendarDay ${d&&n===today.getDate()?'today':''} ${inMonth?'':'outside'}" data-calendar-day="${key}"><b>${inMonth?n:''}</b>${evs.slice(0,2).map(e=>`<span>${esc(e.title||'Event')}</span>`).join('')}</button>`)}
-    const eventRows=Object.keys(byDay).sort().flatMap(k=>byDay[k].map(e=>({e,k}))).filter(({k})=>k>=start&&k<=end).map(({e,k})=>`<button class="calendarEventRow" data-calendar-event="${esc(e.id||'')}"><span class="calendarEventDate">${esc(new Date(k+'T12:00:00').toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}))}</span><span><b>${esc(e.title||'Event')}</b><small>${esc(e.start||e.start_date||'')}</small></span></button>`).join('');
-    c.innerHTML=`<section class="calendarAndroidPage"><header class="calendarMonthHeader"><button id="calendarPrev">‹</button><b>${esc(today.toLocaleDateString([], {month:'long',year:'numeric'}))}</b><button id="calendarNext">›</button></header><div class="calendarWeekLabels">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<span>${d}</span>`).join('')}</div><div class="calendarGrid">${cells.join('')}</div><div class="calendarUpcomingHeader">Upcoming</div><div class="calendarEventList">${eventRows||'<div class="androidEmptyState">No upcoming events</div>'}</div></section>`;
-    document.getElementById('calendarPrev')?.addEventListener('click',()=>{const d=new Date(today.getFullYear(),today.getMonth()-1,1);state.calendarDate=d;loadTab()});
-    document.getElementById('calendarNext')?.addEventListener('click',()=>{const d=new Date(today.getFullYear(),today.getMonth()+1,1);state.calendarDate=d;loadTab()});document.querySelectorAll('[data-calendar-day]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.calendarDay;if(k){const evs=byDay[k]||[];if(evs.length)showAppDialog(new Date(k+'T12:00:00').toLocaleDateString(),evs.map(e=>e.title||'Event').join('\n'))}}));
+    const month=state.calendarDate?new Date(state.calendarDate):new Date();
+    const selected=state.calendarSelectedDate?new Date(state.calendarSelectedDate):new Date();
+    const monthStart=new Date(month.getFullYear(),month.getMonth(),1),monthEnd=new Date(month.getFullYear(),month.getMonth()+1,0);
+    const ym=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const start=`${ym(monthStart)}-01`,end=`${ym(monthEnd)}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+    const [x,perm]=await Promise.all([A.api({path:`users/${uid}/events`,params:{start,end,limit:200}}),A.api({path:`users/${uid}/events/permissions`,params:{}}).catch(()=>({}))]);
+    state.calendarCanCreate=!!(perm?.permission?.post??perm?.permissions?.post??perm?.permission_map?.post??perm?.canPOST??perm?.can_post);
+    const arr=x.event||x.events||[],byDay={};for(const e of arr){const raw=e.start||e.start_date||e.date||e.startDate||'';const key=String(raw).slice(0,10);if(key)(byDay[key]||(byDay[key]=[])).push(e)}
+    const selectedKey=formatApiDate(selected),days=monthStart.getDay(),rows=Math.ceil((days+monthEnd.getDate())/7),cells=[];
+    for(let i=0;i<rows*7;i++){const n=i-days+1,inMonth=n>=1&&n<=monthEnd.getDate(),d=inMonth?new Date(month.getFullYear(),month.getMonth(),n):null,key=d?formatApiDate(d):'',evs=key?(byDay[key]||[]):[];cells.push(`<button class="calendarDay ${key===selectedKey?'selected':''} ${inMonth?'':'outside'}" data-calendar-day="${key}"><b>${inMonth?n:''}</b>${evs.slice(0,2).map(e=>`<span>${esc(e.title||'Event')}</span>`).join('')}</button>`)}
+    const selectedEvents=byDay[selectedKey]||[],eventRows=selectedEvents.map(e=>`<button class="calendarEventRow" data-calendar-event="${esc(e.id||'')}"><span class="calendarEventDate">${esc(selected.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}))}</span><span><b>${esc(e.title||'Event')}</b><small>${esc(e.start||e.start_date||'')}</small></span></button>`).join('');
+    c.innerHTML=`<section class="calendarAndroidPage"><header class="calendarMonthHeader"><button id="calendarPrev" aria-label="Previous month">‹</button><b>${esc(month.toLocaleDateString([], {month:'long',year:'numeric'}))}</b><button id="calendarNext" aria-label="Next month">›</button></header><div class="calendarWeekLabels">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<span>${d}</span>`).join('')}</div><div class="calendarGrid">${cells.join('')}</div><div class="calendarUpcomingHeader">${esc(selected.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'}))}</div><div class="calendarEventList">${eventRows||'<div class="androidEmptyState">No upcoming events</div>'}</div></section>`;
+    document.getElementById('calendarPrev')?.addEventListener('click',()=>{state.calendarDate=new Date(month.getFullYear(),month.getMonth()-1,1);loadTab()});document.getElementById('calendarNext')?.addEventListener('click',()=>{state.calendarDate=new Date(month.getFullYear(),month.getMonth()+1,1);loadTab()});document.querySelectorAll('[data-calendar-day]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.calendarDay;if(k){state.calendarSelectedDate=new Date(k+'T12:00:00');loadTab()}}));
+    document.querySelectorAll('[data-calendar-event]').forEach(b=>b.addEventListener('click',()=>{const e=selectedEvents.find(v=>String(v.id||'')===String(b.dataset.calendarEvent));if(e)showAppDialog(e.title||'Event',e.description||e.body||'')}));
   }else if(state.tab==='grades'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=x.section||x.sections||[];
@@ -1526,7 +1639,7 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
     document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
   }else if(state.tab==='settings'){
-    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.86</div></section>`;
+    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.88</div></section>`;
     document.getElementById('notifToggle')?.addEventListener('change',e=>{document.getElementById('notifSummary').textContent=e.target.checked?'Enabled':'Disabled'});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();state.embeddedReturn={tab:'settings',title:'Settings'};showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info',{allowBrowser:false,accountInfo:true})}catch(e){alert(e.message)}});
     document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
@@ -1570,7 +1683,7 @@ async function loadHomeTab(){
       const media=renderAttachments(x.attachments||x.attachment||x.files||{});
       const comments=Number(x.num_comments||x.comment_count||0);
       return `<article class="androidActivityCard">
-        <div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(name).charAt(0))}</span>`}<button class="activityUser activityAuthorLink" data-author-id="${esc(au.id||u.user_id||u.uid||u.author_id||u.authorId||'')}">${esc(name)}</button></div>
+        <div class="activityHeader">${avatar?`<img class="activityAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="activityAvatar">${esc(String(name).charAt(0))}</span>`}<button class="activityUser activityAuthorLink" data-author-id="${esc(u.id||u.user_id||u.uid||x.user_id||x.uid||x.author_id||x.authorId||'')}">${esc(name)}</button></div>
         <div class="activityBody">${body}</div>
         ${media}
         <div class="activityMeta">${esc(created)}</div>
@@ -1578,6 +1691,8 @@ async function loadHomeTab(){
       </article>`;
     }).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>';
     await hydrateMediaImages(c);
+    document.querySelectorAll('[data-activityAuthorLink],[data-activity-author-id]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.activityAuthorId||btn.dataset.authorId;if(id){state.profileUser={id};state.toolbarTitle=btn.textContent||'Profile';showProfile(id,'updates')}});
+    document.querySelectorAll('.activityAuthorLink[data-author-id]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.authorId;if(id){state.profileUser={id};state.toolbarTitle=btn.textContent||'Profile';showProfile(id,'updates')}});
     document.querySelectorAll('[data-activity-like]').forEach(btn=>btn.onclick=async()=>{
       const id=btn.dataset.activityLike;if(!id)return;
       const liked=btn.dataset.liked==='1';

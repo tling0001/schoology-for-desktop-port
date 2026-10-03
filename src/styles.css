@@ -962,3 +962,28 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{max-width:calc(100% - 336px)!important}
 .groupLandscapeSplit{min-height:0;display:flex;flex-direction:column}.groupUpcomingPane{display:none}@media (min-aspect-ratio:4/3){.groupLandscapeSplit{display:grid;grid-template-columns:minmax(0,17fr) minmax(0,7fr);height:calc(100vh - 56px);min-height:0}.groupLandscapeSplit>#groupTabContent{min-width:0;min-height:0;overflow:auto}.groupUpcomingPane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-left:1px solid #d9dee2}.groupUpcomingPane #groupUpcomingContent{flex:1;min-height:0;overflow:auto;padding:8px}}
 .loginIconButton{display:flex!important;align-items:center;justify-content:center;gap:10px}.loginIconButton img{width:30px;height:30px;object-fit:contain}.loginIconButton>span{display:inline-block}
+/* v87: group Upcoming follows the same 1/5 side-pane proportion as Course Apps/Upcoming. */
+@media (min-aspect-ratio:4/3){.groupLandscapeSplit{grid-template-columns:minmax(0,4fr) minmax(0,1fr)!important}.groupProfilePage .groupTabs,.sectionProfileTabs{justify-content:center!important}}
+.calendarDay.selected b{background:#2e66a3;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+
+/* v88 Android-style create-post controls */
+.androidCreatePostBody{background:#fff;padding:16px 20px 24px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 58px);overflow:auto}
+.androidFieldLabel{font-size:12px;color:#7b858c;margin-top:2px}
+.androidPostToField{border:1px solid #d6dce0;border-radius:2px;min-height:38px;padding:10px 8px;color:#53606a;background:#fff}
+.androidCreatePostBody>input,.androidCreatePostBody>textarea,.androidCreatePostBody select,.androidCreatePostBody input[type="date"],.androidCreatePostBody input[type="time"]{box-sizing:border-box;width:100%;border:0;border-bottom:1px solid #cbd2d7;border-radius:0;background:#fff;padding:10px 4px;font:inherit;color:#34424c}
+.androidCreatePostBody>textarea{min-height:110px;resize:vertical;border:1px solid #d6dce0;padding:10px}
+.androidSwitchRow,.androidCheckRow{display:flex;align-items:center;gap:8px;color:#65717a;font-size:14px;padding:5px 0}
+.androidDateRow{display:flex;align-items:center;gap:10px;color:#65717a;font-size:13px}
+.androidDateRow span{min-width:42px}.androidDateRow input{flex:1;min-width:0}.androidDateRow button{border:0;background:none;font-size:24px;color:#7b858c}
+.androidGradingBox{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:10px 0}.androidGradingBox label{font-size:12px;color:#7b858c}.androidGradingBox input{width:100%;box-sizing:border-box;margin-top:4px;padding:8px;border:1px solid #d6dce0}
+.androidCreatePostStatus{font-size:13px;color:#a94442;min-height:18px}
+@media (max-width:700px){.androidDateRow{flex-wrap:wrap}.androidDateRow span{width:100%}.androidGradingBox{grid-template-columns:1fr}}
+@media (min-aspect-ratio:4/3){
+  .calendarAndroidPage .calendarMonthHeader,
+  .calendarAndroidPage .calendarWeekLabels,
+  .calendarAndroidPage .calendarGrid{width:40%;max-width:40%;margin-left:auto;margin-right:auto;box-sizing:border-box}
+  .calendarAndroidPage .calendarGrid{min-width:280px}
+  .calendarAndroidPage .calendarMonthHeader{min-width:280px}
+  .calendarAndroidPage .calendarWeekLabels{min-width:280px}
+}
+.androidPostToField select{width:100%;border:0;background:#fff;font:inherit;color:#53606a;outline:none}

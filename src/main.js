@@ -313,6 +313,33 @@ async function writeUploadBuffer(req,buffer,onProgress,startPercent,endPercent){
   const chunkSize=64*1024; let sent=0;
   for(let off=0;off<buffer.length;off+=chunkSize){const chunk=buffer.subarray(off,Math.min(off+chunkSize,buffer.length));if(!req.write(chunk))await new Promise(resolve=>req.once('drain',resolve));sent+=chunk.length;const p=buffer.length?startPercent+(sent/buffer.length)*(endPercent-startPercent):endPercent;onProgress(Math.round(p));}
 }
+async function uploadSchoologyFile(info){
+  await syncServerTime().catch(()=>{}); const a=loadAuth(); if(!a)throw new Error('Not signed in');
+  if(!info?.filePath)throw new Error('File information is incomplete.');
+  const filePath=info.filePath, filename=path.basename(filePath), file=fs.readFileSync(filePath);
+  const mimeByExt={'.pdf':'application/pdf','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.ppt':'application/vnd.ms-powerpoint','.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation','.txt':'text/plain','.csv':'text/csv','.zip':'application/zip','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif'};
+  const mime=mimeByExt[path.extname(filename).toLowerCase()]||String(info.mime||'application/octet-stream'); let fileId=null,primaryError=null;
+  try{
+    const boundary=crypto.randomUUID(),quoted=s=>String(s).replace(/\\/g,'\\\\').replace(/"/g,'%22').replace(/\r/g,'%0D').replace(/\n/g,'%0A');
+    const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quoted(filename)}\"\r\nContent-Type: multipart/form-data\r\nContent-Length: ${file.length}\r\n\r\n`),post=Buffer.from(`\r\n--${boundary}--\r\n`),multipart=Buffer.concat([pre,file,post]);
+    const uploadUrl=new URL(`https://${API_HOST}/v1/file`);uploadUrl.searchParams.set('name',filename);
+    const headers={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':multipart.length,'Authorization':makePlaintextOAuthHeader(a.oauth_token,a.oauth_token_secret),'Cookie':MOBILE_COOKIE};
+    sendFileUploadProgress(0,'Uploading attachment…');
+    const uploaded=await new Promise((resolve,reject)=>{const req=https.request({hostname:uploadUrl.hostname,path:uploadUrl.pathname+uploadUrl.search,method:'POST',headers},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));writeUploadBuffer(req,multipart,p=>sendFileUploadProgress(p,'Uploading attachment…'),0,85).then(()=>req.end()).catch(reject)});
+    if(uploaded.status>=200&&uploaded.status<300){try{fileId=JSON.parse(uploaded.text).fileMetadataId}catch{}} if(!fileId)throw new Error(`FileService ${uploaded.status}: ${uploaded.text}`);
+  }catch(e){primaryError=e}
+  if(!fileId){
+    try{
+      const md5=crypto.createHash('md5').update(file).digest('hex');const holder=await request('POST',`https://${API_HOST}/v1/upload`,{filename,md5_checksum:md5,filesize:file.length},{sign:true,legacyOAuth:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+      if(holder.status<200||holder.status>=300)throw new Error(`legacy metadata upload failed: ${holder.status} ${holder.text}`);let j={};try{j=JSON.parse(holder.text)}catch{};const uploadId=j.id??j.upload_file_id??j.uploadFileID;if(uploadId==null)throw new Error('legacy metadata upload did not return an upload id.');
+      const putUrl=`https://${API_HOST}/v1/upload/${encodeURIComponent(String(uploadId))}`,putHeaders={'User-Agent':ANDROID_OKHTTP_UA,'Accept':'application/json','Content-Type':mime,'Content-Length':file.length,'Authorization':makeOAuthHeader('PUT',putUrl,a.oauth_token,a.oauth_token_secret),'Cookie':MOBILE_COOKIE};
+      const put=await new Promise((resolve,reject)=>{const u=new URL(putUrl),req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PUT',headers:putHeaders},res=>{let out='';res.setEncoding('utf8');res.on('data',c=>out+=c);res.on('end',()=>resolve({status:res.statusCode||0,text:out}))});req.on('error',reject);req.setTimeout(120000,()=>req.destroy(new Error('File upload timed out')));writeUploadBuffer(req,file,p=>sendFileUploadProgress(5+Math.round(p*.85),'Uploading attachment…'),0,100).then(()=>req.end()).catch(reject)});
+      if(put.status<200||put.status>=300)throw new Error(`legacy file upload failed: ${put.status} ${put.text}`);fileId=String(uploadId);
+    }catch(e){throw new Error(`File upload failed: ${primaryError?.message||primaryError}; ${e.message||e}`)}
+  }
+  sendFileUploadProgress(100,'Attachment uploaded');return String(fileId);
+}
+
 async function submitAssignmentFile(info){
   await syncServerTime().catch(()=>{});
   const a=loadAuth(); if(!a)throw new Error('Not signed in');
@@ -327,8 +354,8 @@ async function submitAssignmentFile(info){
     // includes a Content-Length header, and the multipart boundary is a UUID.
     const boundary=crypto.randomUUID();
     const quoted=s=>String(s).replace(/\\/g,'\\\\').replace(/\"/g,'%22').replace(/\r/g,'%0D').replace(/\n/g,'%0A');
-    const pre=Buffer.from(`--${boundary}\\r\\nContent-Disposition: form-data; name=\\"file\\"; filename=\\"${quoted(filename)}\\"\\r\\nContent-Type: multipart/form-data\\r\\nContent-Length: ${file.length}\\r\\n\\r\\n`);
-    const post=Buffer.from(`\\r\\n--${boundary}--\\r\\n`);
+    const pre=Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quoted(filename)}\"\r\nContent-Type: multipart/form-data\r\nContent-Length: ${file.length}\r\n\r\n`);
+    const post=Buffer.from(`\r\n--${boundary}--\r\n`);
     const multipart=Buffer.concat([pre,file,post]);
     const uploadUrl=new URL(`https://${API_HOST}/v1/file`);
     // Android Multipart upload adds @Query("name") to the request URL.
@@ -377,6 +404,15 @@ async function submitAssignmentFile(info){
   sendFileUploadProgress(92,'Submitting assignment…');
   const result=await request('POST',`https://${API_HOST}/v1/section/${info.sectionId}/assignment/${info.assignmentId}/submission`,{files:[{id:String(fileId)}]},{sign:true,signBody:false,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
   if(result.status<200||result.status>=300)throw new Error('Assignment submission failed: '+result.status+' '+result.text);sendFileUploadProgress(100,'Upload complete');return true;
+}
+
+async function submitAssignmentResource(info){
+  const a=loadAuth(); if(!a)throw new Error('Not signed in');
+  if(!info?.sectionId||!info?.assignmentId||!info?.resourceId)throw new Error('Resource submission information is incomplete.');
+  const url=`https://${API_HOST}/v1/course/${encodeURIComponent(info.sectionId)}/materials/assignments/${encodeURIComponent(info.assignmentId)}/dropbox/create_resource_submission`;
+  const result=await request('POST',url,{files:[{schoology_resource_id:String(info.resourceId)}]},{sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret,json:true});
+  if(result.status<200||result.status>=300)throw new Error('Resource submission failed: '+result.status+' '+result.text);
+  return true;
 }
 
 async function submitAssignmentText(info){
@@ -564,13 +600,49 @@ async function installUpdate(info){
   if(process.platform==='win32'){
     const {spawn}=require('child_process');
     const installDir=path.dirname(process.execPath),exePath=process.execPath;
-    const cmdPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.cmd`);
-    const q=v=>String(v).replace(/%/g,'%%').replace(/"/g,'""');
-    const installer=q(file),dir=q(installDir),exe=q(exePath),pid=String(process.pid);
-    const script=`@echo off\r\nsetlocal EnableExtensions\r\nset "INSTALLER=${installer}"\r\nset "INSTALLDIR=${dir}"\r\nset "EXE=${exe}"\r\nset "APPPID=${pid}"\r\n:WAIT_FOR_SCHOOLOGY\r\ntasklist /FI "PID eq %APPPID%" 2>nul | findstr /R /C:" %APPPID% " >nul\r\nif not errorlevel 1 (timeout /t 1 /nobreak >nul & goto WAIT_FOR_SCHOOLOGY)\r\nif not exist "%INSTALLER%" exit /b 2\r\nstart "" /wait "%INSTALLER%" "/D=%INSTALLDIR%"\r\nset "RC=%ERRORLEVEL%"\r\nif "%RC%"=="0" if exist "%EXE%" start "" "%EXE%"\r\nif exist "%INSTALLER%" del /f /q "%INSTALLER%" >nul 2>&1\r\ndel /f /q "%~f0" >nul 2>&1\r\nexit /b %RC%\r\n`;
-    fs.writeFileSync(cmdPath,script,'utf8');
-    const command=`call "${cmdPath.replace(/"/g,'\\"')}"`;
-    spawn('cmd.exe',['/d','/c',command],{detached:true,stdio:'ignore',windowsHide:true}).unref();
+    const psPath=path.join(app.getPath('temp'),`schoology-update-${process.pid}-${Date.now()}.ps1`);
+    const psq=v=>String(v).replace(/'/g,"''");
+    const installer=psq(file),dir=psq(installDir),exe=psq(exePath),pid=String(process.pid),scriptPath=psq(psPath);
+    const script=`Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$installer='${installer}'
+$installDir='${dir}'
+$exe='${exe}'
+$appPid=${pid}
+$scriptPath='${scriptPath}'
+$form=New-Object System.Windows.Forms.Form
+$form.Text='Schoology Update'
+$form.Width=420
+$form.Height=145
+$form.StartPosition='CenterScreen'
+$form.FormBorderStyle='FixedDialog'
+$form.MaximizeBox=$false
+$form.MinimizeBox=$false
+$form.ControlBox=$false
+$label=New-Object System.Windows.Forms.Label
+$label.Left=24;$label.Top=20;$label.Width=360;$label.Height=25;$label.Text='Preparing Schoology update…'
+$form.Controls.Add($label)
+$bar=New-Object System.Windows.Forms.ProgressBar
+$bar.Left=24;$bar.Top=55;$bar.Width=360;$bar.Height=22;$bar.Style='Marquee';$bar.MarqueeAnimationSpeed=25
+$form.Controls.Add($bar)
+$form.Show()
+[System.Windows.Forms.Application]::DoEvents()
+while(Get-Process -Id $appPid -ErrorAction SilentlyContinue){$label.Text='Closing Schoology…';[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 250}
+if(-not (Test-Path $installer)){[System.Windows.Forms.MessageBox]::Show('The update installer could not be found.','Schoology Update','OK','Error');$form.Close();exit 2}
+$label.Text='Installing update…';[System.Windows.Forms.Application]::DoEvents()
+$p=Start-Process -FilePath $installer -ArgumentList '/S',('/D='+$installDir) -Wait -PassThru
+if($p.ExitCode -eq 0 -and (Test-Path $exe)){
+  $label.Text='Finishing…';[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 500
+  Start-Process -FilePath $exe
+}else{
+  [System.Windows.Forms.MessageBox]::Show(('The update installer returned exit code '+$p.ExitCode+'.'),'Schoology Update','OK','Error')
+}
+try{Remove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue}catch{}
+$form.Close()
+try{Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue}catch{}
+`;
+    fs.writeFileSync(psPath,script,'utf8');
+    spawn('powershell.exe',['-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',psPath],{detached:true,stdio:'ignore',windowsHide:true}).unref();
     app.quit();
     return true;
   }
@@ -631,6 +703,8 @@ app.whenReady().then(()=>{
   ipcMain.handle('prepare-web-session',()=>prepareWebSession());
   ipcMain.handle('submit-assignment-file',(_,x)=>submitAssignmentFile(x));
   ipcMain.handle('submit-assignment-text',(_,x)=>submitAssignmentText(x));
+  ipcMain.handle('submit-assignment-resource',(_,x)=>submitAssignmentResource(x));
+  ipcMain.handle('upload-schoology-file',(_,x)=>uploadSchoologyFile(x));
   ipcMain.handle('update-assignment-grade',(_,x)=>updateAssignmentGrade(x));
   ipcMain.handle('check-for-updates',()=>checkForUpdates(true));
   ipcMain.handle('set-window-chrome',(_,x)=>{if(process.platform==='win32'||process.platform==='linux'){try{if(windowChromeOverlayEnabled())win?.setTitleBarOverlay?.({color:String(x?.color||'#002137'),symbolColor:String(x?.symbolColor||'#ffffff'),height:Number(x?.height||56)})}catch{}}return true});

@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('schoology',{
   fetchImage:u=>ipcRenderer.invoke('fetch-image',u),
   submitAssignmentFile:x=>ipcRenderer.invoke('submit-assignment-file',x),
   submitAssignmentText:x=>ipcRenderer.invoke('submit-assignment-text',x),
+  submitAssignmentResource:x=>ipcRenderer.invoke('submit-assignment-resource',x),
+  uploadSchoologyFile:x=>ipcRenderer.invoke('upload-schoology-file',x),
   updateAssignmentGrade:x=>ipcRenderer.invoke('update-assignment-grade',x),
   checkForUpdates:()=>ipcRenderer.invoke('check-for-updates'),
   installUpdate:info=>ipcRenderer.invoke('install-update',info),

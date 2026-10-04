@@ -376,9 +376,13 @@ function normalizeSchoologyWebUrl(value){
   return 'https://'+s;
 }
 async function resolveCourseSchoolName(course){
-  const schoolId=course?.school_id??course?.schoolId??course?.school?.id;
-  if(!schoolId)return String(course?.school?.title||course?.school?.name||'');
-  try{const x=await A.api({path:`schools/${schoolId}`,params:{}});const school=x?.school||x;return String(school?.title||school?.name||'')}catch{return ''}
+  const sid=course?.id??course?.section_id??course?.sectionId;
+  let schoolId=course?.school_id??course?.schoolId;
+  try{
+    if(sid){const sx=await A.api({path:`sections/${sid}`,params:{}});const section=sx?.section||sx;schoolId=section?.school_id??section?.schoolId??schoolId;}
+    if(!schoolId)return '';
+    const x=await A.api({path:`schools/${schoolId}`,params:{}});const school=x?.school||x;return String(school?.title||school?.name||'');
+  }catch{return ''}
 }
 function courseTitleOf(course){return course?.course_title||course?.courseTitle||course?.title||course?.section_title||'Course'}
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
@@ -566,12 +570,13 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
    <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
    <section class="courseMainPane">
     <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
-    <div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div>${school?`<div class="courseIdentitySchool">${esc(school)}</div>`:''}</div></div>
+    <div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div>${school?`<button class="courseSchoolLink" data-course-school-id="${esc(sectionDetail?.school_id??sectionDetail?.schoolId??course?.school_id??course?.schoolId??'')}" type="button">${esc(school)}</button>`:''}</div></div>
     <div class="sectionProfileRule"></div>
     <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>
    </section>
    <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
  </section>`;
+ document.querySelector('[data-course-school-id]')?.addEventListener('click',b=>{const id=Number(b.dataset.courseSchoolId);if(id)openSchoolProfile(id,b.textContent||'School')});
  hydrateCourseImages(c);
  document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{
    const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';
@@ -821,41 +826,54 @@ function showSubmissionMenu(){
 function showAssignmentAttachmentChooser(){
   document.getElementById('assignmentUploadSubmissionDialog')?.remove();
   const wrap=document.createElement('div');wrap.id='assignmentUploadSubmissionDialog';wrap.className='assignmentSubmissionDialogOverlay';
-  wrap.innerHTML=`<section class="assignmentSubmissionDialog" role="dialog" aria-modal="true"><div class="assignmentSubmissionBar"><button id="submissionDialogCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">New Submission</div><button id="submissionDialogSend" class="androidDialogIcon" aria-label="Submit">${officialIcon('ic_action_send_icon.png','Submit')}</button></div><div class="assignmentSubmissionBody"><label class="assignmentUploadSwitch"><input id="assignmentUploadSwitch" type="checkbox" checked><span>Upload</span></label><div class="assignmentSubmissionChoices"><button id="submissionFileChoice">${officialOrAssetIcon('ic_action_ic_menu_folder.png','')}<span>File</span></button><button id="submissionResourceChoice">${officialOrAssetIcon('ic_attach_resourcesv3.png','')}<span>Resource</span></button></div><div id="submissionAttachmentStatus" class="submissionAttachmentStatus"></div></div></section>`;
+  wrap.innerHTML=`<section class="assignmentSubmissionDialog" role="dialog" aria-modal="true"><div class="assignmentSubmissionBar"><button id="submissionDialogCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">New Submission</div><button id="submissionDialogSend" class="androidDialogIcon" aria-label="Submit">${officialIcon('ic_action_send_icon.png','Submit')}</button></div><div class="assignmentSubmissionBody"><div class="assignmentSubmissionChoices"><button id="submissionFileChoice">${officialOrAssetIcon('ic_action_ic_menu_folder.png','')}<span>File</span></button><button id="submissionResourceChoice">${officialOrAssetIcon('ic_attach_resourcesv3.png','')}<span>Resource</span></button></div><div id="submissionAttachmentStatus" class="submissionAttachmentStatus">No attachment selected</div></div></section>`;
   document.body.appendChild(wrap);wrap.style.zIndex='2147483647';
-  const close=()=>wrap.remove();wrap.querySelector('#submissionDialogCancel')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
-  wrap.querySelector('#submissionFileChoice')?.addEventListener('click',async()=>{close();await chooseAndSubmitAssignmentFile()});
-  wrap.querySelector('#submissionResourceChoice')?.addEventListener('click',async()=>{close();await chooseAndSubmitAssignmentResource()});
-  wrap.querySelector('#submissionDialogSend')?.addEventListener('click',()=>showAppDialog('New submission','Choose File or Resource before submitting.'));
+  let selected=null;
+  const status=()=>wrap.querySelector('#submissionAttachmentStatus');
+  const close=()=>wrap.remove();
+  const showSelected=label=>{if(status)status.textContent=label?`Selected: ${label}`:'No attachment selected'};
+  wrap.querySelector('#submissionDialogCancel')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  wrap.querySelector('#submissionFileChoice')?.addEventListener('click',async()=>{
+    try{
+      const picked=await A.pickFile();if(!picked)return;
+      const filePath=typeof picked==='string'?picked:picked.path;if(!filePath)throw new Error('The selected file could not be accessed.');
+      const filename=typeof picked==='object'&&picked.name?picked.name:filePath.split(/[\\/]/).pop();
+      const mime=typeof picked==='object'?picked.mime:'';
+      selected={type:'file',filePath,filename,mime};showSelected(filename||'File');
+    }catch(e){showAppDialog('Unable to prepare file submission',e.message||String(e))}
+  });
+  wrap.querySelector('#submissionResourceChoice')?.addEventListener('click',async()=>{
+    try{
+      await chooseSchoologyResource(async r=>{
+        const resourceId=r.template_id??r.templateID??r.resource_id??r.resourceId??r.id;
+        if(resourceId==null)throw new Error('This resource does not have a usable Schoology resource ID.');
+        const label=r.title||r.name||'Resource';selected={type:'resource',resourceId};showSelected(label);
+      },'Attach Resource');
+    }catch(e){showAppDialog('Unable to load resources',e.message||String(e))}
+  });
+  wrap.querySelector('#submissionDialogSend')?.addEventListener('click',async()=>{
+    if(!selected){showAppDialog('New submission','Choose a File or Resource before submitting.');return}
+    const btn=wrap.querySelector('#submissionDialogSend');if(btn)btn.disabled=true;
+    try{
+      const v=state.assignmentView;if(!v||!state.assignmentCanSubmit)throw new Error('This assignment is no longer available for submission.');
+      if(selected.type==='resource'){
+        const dlg=showAppDialog('Submitting resource','Submitting…',[]);
+        try{await A.submitAssignmentResource({sectionId:v.sectionId,assignmentId:v.assignmentId,resourceId:selected.resourceId});dlg?.classList.remove('open');close();await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){dlg?.classList.remove('open');throw e}
+      }else{
+        const dlg=showAppDialog('Uploading submission','Uploading…',[]);const msg=dlg?.querySelector('.appDialogMessage');
+        if(msg)msg.innerHTML='<div class="fileUploadProgressWrap"><div class="fileUploadProgressTrack"><div id="fileUploadProgressBar" class="fileUploadProgressBar" style="width:0%"></div></div><div id="fileUploadProgressText" class="fileUploadProgressText">Uploading… 0%</div></div>';
+        const off=A.onFileUploadProgress?.(d=>{const bar=document.getElementById('fileUploadProgressBar'),txt=document.getElementById('fileUploadProgressText');if(bar&&d?.percent!=null)bar.style.width=Math.max(0,Math.min(100,d.percent))+'%';if(txt)txt.textContent=d?.phase?`${d.phase}${d.percent!=null?` ${d.percent}%`:''}`:`Uploading… ${d?.percent??0}%`});
+        try{await A.submitAssignmentFile({sectionId:v.sectionId,assignmentId:v.assignmentId,filePath:selected.filePath,filename:selected.filename,mime:selected.mime});off?.();dlg?.classList.remove('open');close();await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){off?.();dlg?.classList.remove('open');throw e}
+      }
+    }catch(e){if(btn)btn.disabled=false;showAppDialog('Unable to submit',e.message||String(e))}
+  });
   return wrap;
 }
 async function chooseAndSubmitAssignmentResource(){
-  const v=state.assignmentView;if(!v||!state.assignmentCanSubmit)return;
-  try{
-    await chooseSchoologyResource(async r=>{
-      const resourceId=r.template_id??r.templateID??r.resource_id??r.resourceId??r.id;
-      if(resourceId==null)throw new Error('This resource does not have a usable Schoology resource ID.');
-      const dlg=showAppDialog('Submitting resource','Submitting…',[]);
-      try{await A.submitAssignmentResource({sectionId:v.sectionId,assignmentId:v.assignmentId,resourceId});dlg?.classList.remove('open');await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){dlg?.classList.remove('open');showAppDialog('Unable to submit resource',e.message||String(e))}
-    },'Attach Resource');
-  }catch(e){showAppDialog('Unable to load resources',e.message||String(e))}
+  return showAssignmentAttachmentChooser();
 }
-
 async function chooseAndSubmitAssignmentFile(){
- const v=state.assignmentView;if(!v||!state.assignmentCanSubmit)return;
- try{
-   const picked=await A.pickFile();
-   if(!picked)return;
-   const filePath=typeof picked==='string'?picked:picked.path;
-   if(!filePath)throw new Error('The selected file could not be accessed.');
-   const filename=typeof picked==='object'&&picked.name?picked.name:filePath.split(/[\\/]/).pop();
-   const mime=typeof picked==='object'?picked.mime:'';
-   const dlg=showAppDialog('Uploading submission','Uploading…',[ ]);
-   const msg=dlg?.querySelector('.appDialogMessage');
-   if(msg)msg.innerHTML='<div class="fileUploadProgressWrap"><div class="fileUploadProgressTrack"><div id="fileUploadProgressBar" class="fileUploadProgressBar" style="width:0%"></div></div><div id="fileUploadProgressText" class="fileUploadProgressText">Uploading… 0%</div></div>';
-   const off=A.onFileUploadProgress?.(d=>{const bar=document.getElementById('fileUploadProgressBar'),txt=document.getElementById('fileUploadProgressText');if(bar&&d?.percent!=null)bar.style.width=Math.max(0,Math.min(100,d.percent))+'%';if(txt)txt.textContent=d?.phase?`${d.phase}${d.percent!=null?` ${d.percent}%`:''}`:`Uploading… ${d?.percent??0}%`;});
-   try{await A.submitAssignmentFile({sectionId:v.sectionId,assignmentId:v.assignmentId,filePath,filename,mime});off?.();if(dlg)dlg.classList.remove('open');await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){off?.();if(dlg)dlg.classList.remove('open');alert('Unable to submit file: '+e.message)}
- }catch(e){alert('Unable to prepare file submission: '+e.message)}
+  return showAssignmentAttachmentChooser();
 }
 function openTextSubmissionComposer(){
  const v=state.assignmentView;if(!v)return;
@@ -1446,17 +1464,25 @@ async function openGroupResourceItem(d,b,gid){
   if(dt==='link'||t==='link'){await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Link');return;}
   const r=await downloadWithFeedback(b,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err);
 }
+async function openSchoolProfile(schoolId,title='School'){
+  const c=document.getElementById('content');if(!c)return;
+  state.embeddedTitle=title;state.embeddedTheme='';state.embeddedReturn={tab:state.tab,title:state.toolbarTitle};state.toolbarTitle=title;syncToolbar();
+  c.innerHTML='<section class="schoolProfileNativePage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></section>';
+  try{const x=await A.api({path:`schools/${schoolId}`,params:{}});const sch=x?.school||x;c.innerHTML=`<section class="schoolProfileNativePage"><div class="schoolProfileHeader"><h1>${esc(sch?.title||sch?.name||title)}</h1><p>${esc(sch?.description||sch?.location||'')}</p></div></section>`;}catch(e){c.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}
+}
+
 async function showGroup(group,activeTab='updates'){
   if(!group)return;
   state.currentGroup=group;state.groupTab=activeTab;state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.embeddedTitle=null;state.profileUser=null;state.message=null;state.composeMessage=false;state.toolbarTitle=group.name||group.title||'Group';syncToolbar();
   const c=document.getElementById('content');if(!c)return;
   const gid=group.id||group.group_id;
   let groupDetail=group;try{const gx=await A.api({path:`groups/${gid}`,params:{}});groupDetail=gx?.group||gx||group}catch{}
-  const groupSchoolId=groupDetail?.school_id??groupDetail?.schoolId??groupDetail?.school?.id;
-  let groupSchool=String(groupDetail?.school_name||groupDetail?.schoolName||groupDetail?.school?.name||groupDetail?.school?.title||'');
-  if(!groupSchool&&groupSchoolId){try{const sx=await A.api({path:`schools/${groupSchoolId}`,params:{}});const sch=sx?.school||sx;groupSchool=String(sch?.title||sch?.name||'')}catch{}}
-  c.innerHTML=`<section class="groupProfilePage"><div class="groupLandscapeSplit"><section class="groupMainPane"><div class="groupTabs">${['updates','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''} ${id==='upcoming'?'groupUpcomingTab':''}" data-group-tab="${id}">${({updates:'Updates',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${group.picture_url||group.pictureUrl?`<img src="${esc(normalizeImageUrl(group.picture_url||group.pictureUrl))}" alt="">`:`<span>${esc(String(group.name||group.title||'G').charAt(0))}</span>`}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><p>${esc(groupSchool)}</p></div></div><div id="groupTabContent"></div></section><aside id="groupUpcomingPane" class="groupUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="groupUpcomingContent"></div></aside></div></section>`;
+  let groupSchoolId=groupDetail?.school_id??groupDetail?.schoolId;
+  let groupSchool='';
+  if(groupSchoolId){try{const sx=await A.api({path:`schools/${groupSchoolId}`,params:{}});const sch=sx?.school||sx;groupSchool=String(sch?.title||sch?.name||'')}catch{}}
+  c.innerHTML=`<section class="groupProfilePage"><div class="groupLandscapeSplit"><section class="groupMainPane"><div class="groupTabs">${['updates','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''} ${id==='upcoming'?'groupUpcomingTab':''}" data-group-tab="${id}">${({updates:'Updates',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${group.picture_url||group.pictureUrl?`<img src="${esc(normalizeImageUrl(group.picture_url||group.pictureUrl))}" alt="">`:`<span>${esc(String(group.name||group.title||'G').charAt(0))}</span>`}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><button class="groupSchoolLink" data-group-school-id="${esc(groupSchoolId||'')}" type="button">${esc(groupSchool)}</button></div></div><div id="groupTabContent"></div></section><aside id="groupUpcomingPane" class="groupUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="groupUpcomingContent"></div></aside></div></section>`;
   const gc=document.getElementById('groupTabContent');
+  document.querySelector('[data-group-school-id]')?.addEventListener('click',async b=>{const id=Number(b.dataset.groupSchoolId);if(id)openSchoolProfile(id,b.textContent||'School')});
   const loadGroupUpcoming=async()=>{const up=document.getElementById('groupUpcomingContent');if(!up)return;try{const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));up.innerHTML=a.length?renderUpcoming(a):'<div class="empty upcomingEmpty"><h2>No upcoming events</h2></div>';up.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=a.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;if(String(e.type||'').toLowerCase()==='assignment'&&aid){openWithPressTransition(b,()=>showAssignment(gid,aid));}else if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(e.type||'').toLowerCase())){const id=aid??e.id;openWithPressTransition(b,async()=>{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true})})}else if(String(e.type||'').toLowerCase()==='event'&&e.id){openWithPressTransition(b,()=>showEventNative('groups',gid,e.id,e.title||'Event'));}})}catch(e){up.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}};
   const load=async(tab)=>{
     state.groupTab=tab;document.querySelectorAll('[data-group-tab]').forEach(b=>b.classList.toggle('active',b.dataset.groupTab===tab));
@@ -1504,30 +1530,26 @@ async function loadMessageThread(m){
     for(const u of (Array.isArray(userList)?userList:[userList])){const id=Number(u?.id||u?.user_id||u?.uid||0);if(id)users[id]=u?.user||u}
     const ids=[...new Set(msgs.flatMap(v=>[v.author_id,v.authorId,v.author?.id,v.author?.user_id,v.user_id,v.uid,v.sender_id,v.senderId,v.sender?.id,v.sender?.user_id].map(Number).filter(Boolean)))];
     await Promise.all(ids.filter(id=>!users[id]).map(async uid=>{try{const u=await A.api({path:`users/${uid}`,params:{}});users[uid]=u?.user||u}catch{}}));
-    state.messageThread={messages:msgs,users}; render(); await hydrateMediaImages(document.querySelector('.messageDetail')); document.getElementById('messageRefresh')?.addEventListener('click',async()=>{const b=document.getElementById('messageRefresh');b?.classList.add('spinning');await loadMessageThread(m);b?.classList.remove('spinning')}); document.getElementById('messageReply')?.addEventListener('click',()=>showComposeMessage(m,true));
+    state.messageThread={messages:msgs,users}; render(); await hydrateMediaImages(document.querySelector('.messageDetail')); document.getElementById('messageRefresh')?.addEventListener('click',async()=>{const b=document.getElementById('messageRefresh');b?.classList.add('spinning');await loadMessageThread(m);b?.classList.remove('spinning')}); document.getElementById('messageReply')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showComposeMessage(m,true)});
     if(folder==='inbox')try{await A.api({path:`messages/inbox/${id}`,method:'PUT',params:{message_status:'read'}})}catch{}
   }catch(e){state.messageThread={messages:[],users:{},error:e.message};render();const el=document.querySelector('.messageDetail');if(el)el.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`}
 }
 
 function showComposeMessage(replyMessage=null,isReply=false){
   state.composeMessage=true;
-  const c=document.getElementById('content');if(!c)return;
-  c.classList.remove('webContentHost');
   document.getElementById('composeMessageDialog')?.remove();
-  const wrap=document.createElement('div');wrap.id='composeMessageDialog';wrap.className='assignmentCommentDialogOverlay';wrap.innerHTML=`<section class="composeMessageDialog"><div class="androidCommentDialogBar"><button id="composeMessageCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">${isReply?'Reply':'New Message'}</div><button id="sendMessage" class="androidDialogIcon" aria-label="Send">${officialIcon('ic_action_send_icon.png','Send')}</button></div><div class="composeMessagePage">${isReply?'':`<div class="composeField recipientField"><label>To</label><input id="composeToSearch" autocomplete="off" placeholder="Search for a recipient"><div id="recipientSuggestions" class="recipientSuggestions"></div><div id="recipientChips" class="recipientChips"></div><input id="composeTo" type="hidden"></div><div class="composeField"><label>Subject</label><input id="composeSubject" placeholder="Subject"></div>`}<div class="composeField composeBody"><label>Message</label><textarea id="composeBody" placeholder="Write a message…"></textarea></div><div class="messageAttachmentChoices"><button id="messageAttachPhoto" type="button">Photo</button><button id="messageAttachVideo" type="button">Video</button><button id="messageAttachFile" type="button">File</button><button id="messageAttachResource" type="button">Resource</button></div><div id="messageAttachmentList"></div><div id="composeStatus"></div></div></section>`;
+  const wrap=document.createElement('div');wrap.id='composeMessageDialog';wrap.className='assignmentCommentDialogOverlay';wrap.innerHTML=`<section class="composeMessageDialog"><div class="androidCommentDialogBar"><button id="composeMessageCancel" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">${isReply?'Reply':'New Message'}</div><button id="sendMessage" class="androidDialogIcon" aria-label="Send">${officialIcon('ic_action_send_icon.png','Send')}</button></div><div class="composeMessagePage">${isReply?'':`<div class="composeField recipientField"><label>To</label><input id="composeToSearch" autocomplete="off" placeholder="Search for a recipient"><div id="recipientSuggestions" class="recipientSuggestions"></div><div id="recipientChips" class="recipientChips"></div><input id="composeTo" type="hidden"></div><div class="composeField"><label>Subject</label><input id="composeSubject" placeholder="Subject"></div>`}<div class="composeField composeBody"><label>Message</label><textarea id="composeBody" placeholder="Write a message…"></textarea></div><div class="messageAttachmentChoices"><button id="messageAttachFile" type="button"><img src="../assets/icons/ic_attach_file_black_24dp.svg" alt="">File</button><button id="messageAttachResource" type="button"><img src="../assets/icons/ic_attach_resourcesv3.png" alt="">Resource</button></div><div id="messageAttachmentList"></div><div id="composeStatus"></div></div></section>`;
   document.body.appendChild(wrap);
   wrap.style.zIndex='2147483647';
   const closeCompose=()=>{state.composeMessage=false;wrap.remove();syncToolbar()};
   wrap.querySelector('#composeMessageCancel')?.addEventListener('click',closeCompose);
   wrap.addEventListener('click',e=>{if(e.target===wrap)closeCompose()});
-  const selected=[]; const attachments={files:[],resources:[]}; if(isReply&&replyMessage){const authorId=replyMessage.author_id||replyMessage.authorId||replyMessage.author?.id||replyMessage.author?.user_id||replyMessage.sender_id||replyMessage.senderId||replyMessage.sender?.id||replyMessage.sender?.user_id||replyMessage.user_id||replyMessage.uid; if(authorId)selected.push({id:Number(authorId),name:replyMessage.author?.name_display||replyMessage.author?.display_name||replyMessage.author?.name||replyMessage.sender?.name_display||replyMessage.sender?.display_name||replyMessage.sender?.name||'Reply recipient'});}
+  const selected=[]; const attachments={files:[],resources:[]}; if(isReply&&replyMessage){const replySource=replyMessage||state.messageThread?.messages?.[state.messageThread.messages.length-1]||{};const authorId=replySource.author_id||replySource.authorId||replySource.author?.id||replySource.author?.user_id||replySource.sender_id||replySource.senderId||replySource.sender?.id||replySource.sender?.user_id||replySource.user_id||replySource.uid; if(authorId)selected.push({id:Number(authorId),name:replySource.author?.name_display||replySource.author?.display_name||replySource.author?.name||replySource.sender?.name_display||replySource.sender?.display_name||replySource.sender?.name||'Reply recipient'});}
   const search=document.getElementById('composeToSearch'), suggestions=document.getElementById('recipientSuggestions'), chips=document.getElementById('recipientChips');
   const renderRecipients=()=>{chips.innerHTML=selected.map((u,i)=>`<span class="recipientChip">${esc(u.name)} <button type="button" data-remove-recipient="${i}">×</button></span>`).join('');document.getElementById('composeTo').value=selected.map(u=>u.id).join(',');chips.querySelectorAll('[data-remove-recipient]').forEach(b=>b.onclick=()=>{selected.splice(+b.dataset.removeRecipient,1);renderRecipients()})};
   if(isReply){document.querySelector('.recipientField')?.remove();document.querySelector('#composeSubject')?.closest('.composeField')?.remove();}
   document.getElementById('messageAttachFile')?.addEventListener('click',async()=>{try{const p=await A.pickFile();if(!p)return;const fp=typeof p==='string'?p:p.path;const fid=await A.uploadSchoologyFile({filePath:fp,mime:typeof p==='object'?p.mime:''});attachments.files.push(String(fid));document.getElementById('messageAttachmentList').innerHTML+=`<div class="messageAttachedItem">${esc(typeof p==='object'&&p.name?p.name:fp.split(/[\\/]/).pop())}</div>`}catch(e){showAppDialog('Unable to attach file',e.message||String(e))}});
   document.getElementById('messageAttachResource')?.addEventListener('click',()=>chooseSchoologyResource(r=>{const id=r.template_id??r.templateID??r.resource_id??r.resourceId??r.template?.id??r.id;if(id!=null){attachments.resources.push(String(id));document.getElementById('messageAttachmentList').innerHTML+=`<div class="messageAttachedItem">${esc(r.template_title||r.title||r.name||'Resource')}</div>`}},'Attach Resource'));
-  document.getElementById('messageAttachPhoto')?.addEventListener('click',()=>showAppDialog('Photo','Photo attachments are not enabled in the desktop port yet.'));
-  document.getElementById('messageAttachVideo')?.addEventListener('click',()=>showAppDialog('Video','Video attachments are not enabled in the desktop port yet.'));
   let searchTimer=null; search?.addEventListener('input',()=>{clearTimeout(searchTimer);const q=search.value.trim();if(q.length<2){suggestions.innerHTML='';return}searchTimer=setTimeout(async()=>{try{const x=await A.api({path:'messages/recipients',params:{name:q,limit:10}});const arr=x.user||x.users||x.recipient||x.recipients||[];suggestions.innerHTML=arr.map(u=>`<button type="button" class="recipientSuggestion" data-recipient-id="${esc(u.id)}" data-recipient-name="${esc(u.name_display||u.nameDisplay||u.display_name||u.name||'User')}">${esc(u.name_display||u.nameDisplay||u.display_name||u.name||'User')}</button>`).join('')||'<div class="recipientNone">No recipients found.</div>';suggestions.querySelectorAll('[data-recipient-id]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.recipientId),name=b.dataset.recipientName;if(id&&!selected.some(u=>u.id===id)){selected.push({id,name});renderRecipients()}search.value='';suggestions.innerHTML=''})}catch(e){suggestions.innerHTML=`<div class="recipientNone">${esc(e.message)}</div>`}},250)});
   document.getElementById('sendMessage')?.addEventListener('click',async()=>{
     const to=document.getElementById('composeTo')?.value.trim(),subject=document.getElementById('composeSubject')?.value.trim(),message=document.getElementById('composeBody')?.value.trim();
@@ -1780,8 +1802,14 @@ async function loadTab(){
     c.innerHTML=`<section class="calendarPagerPage"><div class="calendarPagerTabs"><button class="calendarPagerTab ${state.calendarTab==='calendar'?'active':''}" data-calendar-tab="calendar">Calendar</button><button class="calendarPagerTab ${state.calendarTab==='upcoming'?'active':''}" data-calendar-tab="upcoming">Upcoming</button></div><div id="calendarPagerContent" class="calendarPagerContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></section>`;
     const pager=document.getElementById('calendarPagerContent');
     const renderCalendarRows=events=>events.map(e=>{const type=String(e.type||'').toLowerCase();const icon=type==='assignment'?'ic_assignment.png':type==='assessment'?'ic_test_quiz.png':['assessment_v2','managed_assessment','quiz'].includes(type)?'ic_assessment_48dp.png':type==='discussion'?'ic_discussion.png':type==='external_tool'?'ic_external_tool.png':'home_dash_upcoming.png';const allDay=String(e.all_day??e.allDay??'')==='1'||e.allDay===1;const start=e.start||e.start_date||e.startDate||'';let time='';if(!allDay&&start){const dt=new Date(String(start).replace(' ','T'));if(!Number.isNaN(dt.getTime()))time=dt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}return `<button class="calendarEventRow" data-calendar-event="${esc(e.id||'')}"><span class="calendarEventIcon">${officialOrAssetIcon(icon,'')}</span><span class="calendarEventText"><b>${esc(e.title||'Event')}</b>${time?`<small>${esc(time)}</small>`:''}</span></button>`}).join('');
-    const bindEventRows=(events)=>document.querySelectorAll('[data-calendar-event]').forEach(btn=>{if(btn.dataset.boundCalendar)return;btn.dataset.boundCalendar='1';btn.addEventListener('click',()=>{const e=events.find(v=>String(v.id||'')===String(btn.dataset.calendarEvent));if(!e)return;const type=String(e.type||'').toLowerCase();if(type==='event')showEventNative(e.section_id?'sections':'users',e.section_id||state.auth?.userId,e.id,e.title||'Event');else showAppDialog(e.title||'Event',e.description||e.body||'')})});
+    const bindEventRows=(events)=>document.querySelectorAll('[data-calendar-event]').forEach(btn=>{if(btn.dataset.boundCalendar)return;btn.dataset.boundCalendar='1';btn.addEventListener('click',()=>{const e=events.find(v=>String(v.id||'')===String(btn.dataset.calendarEvent));if(!e)return;const type=String(e.type||'').toLowerCase();const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const sid=e.section_id??e.sectionId;if(type==='assignment'&&aid){showAssignment(sid,aid);return}if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){const id=aid??e.id;if(id){A.prepareWebSession().then(()=>showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true}));return}}if(type==='discussion'&&e.id){showDiscussionNative(sid?'sections':'users',sid||state.auth?.userId,e.discussion_id??e.id,e.title||'Discussion');return}if(type==='event'&&e.id){showEventNative(sid?'sections':'users',sid||state.auth?.userId,e.id,e.title||'Event');return}if(e.web_url||e.webUrl){showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming');return}})});
+    const loadCalendarUpcomingData=async()=>{
+      if(!Array.isArray(state.calendarUpcomingEvents)){const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),limit:100}});state.calendarUpcomingEvents=x.event||x.events||[];}
+      return Array.isArray(state.calendarUpcomingEvents)?state.calendarUpcomingEvents:[];
+    };
+    const upcomingNow=()=>{const now=new Date();return (Array.isArray(state.calendarUpcomingEvents)?state.calendarUpcomingEvents:[]).filter(e=>{const d=new Date(String(e.start||e.start_date||e.startDate||'').replace(' ','T'));return Number.isNaN(d.getTime())||d>=now}).sort((a,b)=>new Date(String(a.start||a.start_date||a.startDate||'').replace(' ','T'))-new Date(String(b.start||b.start_date||b.startDate||'').replace(' ','T')))};
     const loadCalendarMonth=async()=>{
+      await loadCalendarUpcomingData();
       const month=state.calendarDate?new Date(state.calendarDate):new Date(); state.calendarDate=new Date(month.getFullYear(),month.getMonth(),1);
       const selected=state.calendarSelectedDate?new Date(state.calendarSelectedDate):new Date();
       const monthStart=new Date(month.getFullYear(),month.getMonth(),1),monthEnd=new Date(month.getFullYear(),month.getMonth()+1,0); const monthKey=`${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}`;
@@ -1789,17 +1817,17 @@ async function loadTab(){
       const arr=Array.isArray(state.calendarEvents)?state.calendarEvents:[];const byDay={};for(const e of arr){const raw=e.start||e.start_date||e.date||e.startDate||'';const key=String(raw).slice(0,10);if(key)(byDay[key]||(byDay[key]=[])).push(e)}
       const selectedKey=formatApiDate(selected),days=monthStart.getDay(),rows=Math.ceil((days+monthEnd.getDate())/7),cells=[];
       for(let i=0;i<rows*7;i++){const n=i-days+1,inMonth=n>=1&&n<=monthEnd.getDate(),d=inMonth?new Date(month.getFullYear(),month.getMonth(),n):null,key=d?formatApiDate(d):'',evs=key?(byDay[key]||[]):[];cells.push(`<button class="calendarDay ${key===selectedKey?'selected':''} ${inMonth?'':'outside'}" data-calendar-day="${key}"><b>${inMonth?n:''}</b>${evs.length?'<i class="calendarEventMarker" aria-hidden="true"></i>':''}</button>`)}
-      pager.innerHTML=`<section class="calendarAndroidPage"><div class="calendarLandscapeMonth"><div class="calendarMonthWrap"><header class="calendarMonthHeader"><button id="calendarPrev" aria-label="Previous month">‹</button><b>${esc(month.toLocaleDateString([], {month:'long',year:'numeric'}))}</b><button id="calendarNext" aria-label="Next month">›</button></header><div class="calendarWeekLabels">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<span>${d}</span>`).join('')}</div><div class="calendarGrid">${cells.join('')}</div></div><div class="calendarLandscapeUpcoming"><div class="calendarUpcomingHeader">Upcoming</div><div id="calendarUpcomingAll" class="calendarEventList">${renderCalendarRows(arr)||'<div class="androidEmptyState">No upcoming events</div>'}</div></div></div><div id="calendarEventList" class="calendarEventList calendarSelectedDayList">${renderCalendarRows(byDay[selectedKey]||[])||'<div class="androidEmptyState">No upcoming events</div>'}</div></section>`;
+      pager.innerHTML=`<section class="calendarAndroidPage"><div class="calendarLandscapeMonth"><div class="calendarMonthWrap"><header class="calendarMonthHeader"><button id="calendarPrev" aria-label="Previous month">‹</button><b>${esc(month.toLocaleDateString([], {month:'long',year:'numeric'}))}</b><button id="calendarNext" aria-label="Next month">›</button></header><div class="calendarWeekLabels">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<span>${d}</span>`).join('')}</div><div class="calendarGrid">${cells.join('')}</div></div><div class="calendarLandscapeUpcoming"><div class="calendarUpcomingHeader">Upcoming</div><div id="calendarUpcomingAll" class="calendarEventList">${renderCalendarRows(upcomingNow())||'<div class="androidEmptyState">No upcoming events</div>'}</div></div></div><div id="calendarEventList" class="calendarEventList calendarSelectedDayList">${renderCalendarRows(byDay[selectedKey]||[])||'<div class="androidEmptyState">No upcoming events</div>'}</div></section>`;
       document.getElementById('calendarPrev')?.addEventListener('click',async()=>{state.calendarDate=new Date(month.getFullYear(),month.getMonth()-1,1);state.calendarEventsMonth='';await loadCalendarMonth()});
       document.getElementById('calendarNext')?.addEventListener('click',async()=>{state.calendarDate=new Date(month.getFullYear(),month.getMonth()+1,1);state.calendarEventsMonth='';await loadCalendarMonth()});
       document.querySelectorAll('[data-calendar-day]').forEach(btn=>btn.addEventListener('click',()=>{const key=btn.dataset.calendarDay;if(!key)return;state.calendarSelectedDate=new Date(key+'T12:00:00');document.querySelectorAll('[data-calendar-day]').forEach(x=>x.classList.toggle('selected',x===btn));const list=document.getElementById('calendarEventList');if(list)list.innerHTML=renderCalendarRows(byDay[key]||[])||'<div class="androidEmptyState">No upcoming events</div>';bindEventRows(arr)}));
-      bindEventRows(arr);
+      bindEventRows([...upcomingNow(),...arr]);
     };
     const loadCalendarUpcoming=async()=>{
-      if(!Array.isArray(state.calendarUpcomingEvents)){const uid=Number(state.auth?.userId||state.auth?.user?.id||0);if(!uid)throw new Error('The current Schoology user ID is unavailable.');const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),limit:20}});state.calendarUpcomingEvents=x.event||x.events||[];}
-      const arr=Array.isArray(state.calendarUpcomingEvents)?state.calendarUpcomingEvents:[];const sorted=arr.filter(e=>{const d=new Date(String(e.start||e.start_date||e.startDate||'').replace(' ','T'));return Number.isNaN(d.getTime())||d>=new Date()}).sort((a,b)=>new Date(String(a.start||a.start_date||a.startDate||'').replace(' ','T'))-new Date(String(b.start||b.start_date||b.startDate||'').replace(' ','T')));
-      if(!sorted.length){pager.innerHTML='<section class="calendarStandaloneUpcoming"><div class="calendarUpcomingListEmpty"><h2>Nothing upcoming</h2><p>Your upcoming assignments will appear here.</p></div></section>';return;}
-      let lastDay='';let html='';for(const e of sorted){const d=new Date(String(e.start||e.start_date||e.startDate||'').replace(' ','T'));const day=Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'});if(day&&day!==lastDay){html+=`<div class="calendarUpcomingDate">${esc(day)}</div>`;lastDay=day;}html+=renderCalendarRows([e]);}
+      await loadCalendarUpcomingData();
+      const arr=upcomingNow();
+      if(!arr.length){pager.innerHTML='<section class="calendarStandaloneUpcoming"><div class="calendarUpcomingListEmpty"><h2>No upcoming events</h2></div></section>';return;}
+      let lastDay='';let html='';for(const e of arr){const d=new Date(String(e.start||e.start_date||e.startDate||'').replace(' ','T'));const day=Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'});if(day&&day!==lastDay){html+=`<div class="calendarUpcomingDate">${esc(day)}</div>`;lastDay=day;}html+=renderCalendarRows([e]);}
       pager.innerHTML=`<section class="calendarStandaloneUpcoming"><div class="calendarUpcomingList">${html}</div></section>`;bindEventRows(arr);
     };
     const selectCalendarTab=async(tab)=>{state.calendarTab=tab;document.querySelectorAll('[data-calendar-tab]').forEach(b=>b.classList.toggle('active',b.dataset.calendarTab===tab));pager.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';try{if(tab==='calendar')await loadCalendarMonth();else await loadCalendarUpcoming()}catch(e){pager.innerHTML=`<div class="error apiError">Unable to load Calendar.<br>${esc(e.message)}</div>`}};

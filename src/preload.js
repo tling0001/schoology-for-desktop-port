@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('schoology',{
   updateAssignmentGrade:x=>ipcRenderer.invoke('update-assignment-grade',x),
   checkForUpdates:()=>ipcRenderer.invoke('check-for-updates'),
   downloadLiquidGlass:()=>ipcRenderer.invoke('download-liquid-glass'),
+  downloadExpressive:()=>ipcRenderer.invoke('download-expressive'),
   installUpdate:info=>ipcRenderer.invoke('install-update',info),
   onUpdateAvailable:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('update-available',h);return()=>ipcRenderer.removeListener('update-available',h)},
   onUpdateDownloadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('update-download-progress',h);return()=>ipcRenderer.removeListener('update-download-progress',h)},

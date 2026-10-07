@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   windows:
-    name: Windows installer + unpacked (no portable build)
+    name: Windows installer
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,19 +21,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build Windows installer
         run: npx electron-builder --win nsis --publish never
-      - name: Build Windows unpacked
-        run: npx electron-builder --win dir --publish never
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: Schoology-Windows-Installer-x64
           path: dist/*Setup*.exe
-          if-no-files-found: error
-      - name: Upload Windows unpacked build
-        uses: actions/upload-artifact@v4
-        with:
-          name: Schoology-Windows-Unpacked-x64
-          path: dist/win-unpacked
           if-no-files-found: error
 
   macos:
@@ -87,16 +79,6 @@ jobs:
         with:
           name: Schoology-Windows-Installer-x64
           path: release-assets/windows
-      - name: Download Windows unpacked
-        uses: actions/download-artifact@v4
-        with:
-          name: Schoology-Windows-Unpacked-x64
-          path: release-assets/windows/unpacked
-      - name: Package Windows unpacked build for release
-        run: |
-          cd release-assets/windows
-          zip -r Schoology-Windows-Unpacked-x64.zip unpacked
-          rm -rf unpacked
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:

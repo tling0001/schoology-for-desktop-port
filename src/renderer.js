@@ -1354,11 +1354,22 @@ async function loadSectionGrades(course){
    const collapsed=parent.classList.toggle('collapsed');b.setAttribute('aria-expanded',String(!collapsed));
  });
 }
+function getFinalGradeDisplay(sec){
+ const final=(sec?.final_grade||sec?.finalGrade||[])[0]||{};
+ const periods=final.period||final.periods||final.final_period||final.finalPeriod||[];
+ const period=Array.isArray(periods)?(periods.find(p=>String(p?.period_id||p?.periodId||'')==='0')||periods.find(p=>p?.is_final||p?.isFinal)||periods[0]||{}):(periods||{});
+ const overrideStr=period.override_str??period.overrideStr??final.override_str??final.overrideStr??sec?.override_str??sec?.overrideStr;
+ const overrideNumeric=period.override_numeric??period.overrideNumeric??final.override_numeric??final.overrideNumeric;
+ const grade=period.grade??final.grade??final.grade_override??final.gradeOverride??final.calculated_grade??final.calculatedGrade;
+ if(overrideStr!==undefined&&overrideStr!==null&&String(overrideStr).trim()!=='')return {value:String(overrideStr),overridden:true,final,period};
+ if(overrideNumeric!==undefined&&overrideNumeric!==null&&String(overrideNumeric).trim()!=='')return {value:String(overrideNumeric),overridden:true,final,period};
+ return {value:grade!==undefined&&grade!==null&&String(grade).trim()!==''?String(grade):'—',overridden:false,final,period};
+}
 function renderOverallGrade(sec){
- const final=(sec.final_grade||sec.finalGrade||[])[0]||{};
- const val=final.grade||final.grade_override||final.calculated_grade||'—';
+ const display=getFinalGradeDisplay(sec);
+ const final=display.final;
  const comment=typeof final.comment==='string'?final.comment:(final.comment?.comment||final.comment?.body||'');
- return `<div class="gradeOverallCard"><div class="label">Overall Grade</div><div class="value">${esc(val)}</div>${comment?`<div class="gradeOverallTeacherComment"><b>Teacher Comment</b><div>${comment}</div></div>`:''}</div>`;
+ return `<div class="gradeOverallCard"><div class="label">Overall Grade</div><div class="value">${esc(display.value)}</div>${comment?`<div class="gradeOverallTeacherComment"><b>Teacher Comment</b><div>${comment}</div></div>`:''}</div>`;
 }
 function renderGradePeriods(rows,periods,categories){
  const ps=periods.grading_period||periods.gradePeriod||periods.period||periods.periods||[];
@@ -1851,7 +1862,7 @@ async function loadTab(){
   }else if(state.tab==='grades'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=x.section||x.sections||[];
-    c.innerHTML=`<section class="page"><h1>Grades</h1><div class="sectionListRows">${ss.map((s,i)=>`<button class="sectionListItem" data-user-grade-section="${i}"><span class="sectionLabels"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc((s.final_grade||[])[0]?.grade||'')}</small></span><span>›</span></button>`).join('')||'<div class="empty"><h2>No grades</h2></div>'}</div></section>`;
+    c.innerHTML=`<section class="page"><h1>Grades</h1><div class="sectionListRows">${ss.map((s,i)=>{const gd=getFinalGradeDisplay(s);return `<button class="sectionListItem" data-user-grade-section="${i}"><span class="sectionLabels"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc(gd.value)}</small></span><span>›</span></button>`}).join('')||'<div class="empty"><h2>No grades</h2></div>'}</div></section>`;
     window.__schoologyUserGradeSections=ss;
     document.querySelectorAll('[data-user-grade-section]').forEach(b=>b.onclick=()=>{const ss=window.__schoologyUserGradeSections[+b.dataset.userGradeSection];showCourse({id:ss.section_id,section_title:ss.section_title||ss.course_title,course_title:ss.course_title},'grades')});
   }else if(state.tab==='messages'){

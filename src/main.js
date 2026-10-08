@@ -613,24 +613,24 @@ function updateMacProgress(status,percent){
   updateProgressWindow.webContents.executeJavaScript(`(()=>{const d=${payload};const s=document.getElementById('status'),b=document.getElementById('bar'),p=document.getElementById('percent');if(s)s.textContent=d.status;if(b)b.style.width=d.percent+'%';if(p)p.textContent=d.percent+'%'})()`).catch(()=>{});
 }
 async function installUpdate(info){
+  if(process.platform==='win32'&&info&&typeof info==='object'&&info.useWindowsUpdater){
+    const updaterPath=path.join(process.resourcesPath,'SchoologyUpdater.exe');
+    const devUpdater=path.join(__dirname,'../updater/dist/SchoologyUpdater.exe');
+    const helper=fs.existsSync(updaterPath)?updaterPath:(fs.existsSync(devUpdater)?devUpdater:null);
+    if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
+    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),parentPid:process.pid};
+    const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
+    const {spawn}=require('child_process');
+    const child=spawn(helper,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
+    child.unref();
+    app.quit();
+    return true;
+  }
   const macProgress=process.platform==='darwin'?showMacUpdateProgressWindow():null;
   if(macProgress)macProgress.once('ready-to-show',()=>{macProgress.show();updateMacProgress('Downloading update…',0)});
   const file=typeof info==='string'?info:await downloadAndVerifyUpdate(info);
   if(!file||!fs.existsSync(file))throw new Error('The update installer is no longer available.');
   if(process.platform==='win32'){
-    if(info && typeof info==='object' && info.useWindowsUpdater){
-      const updaterPath=path.join(process.resourcesPath,'SchoologyUpdater.exe');
-      const devUpdater=path.join(__dirname,'../updater/dist/SchoologyUpdater.exe');
-      const helper=fs.existsSync(updaterPath)?updaterPath:(fs.existsSync(devUpdater)?devUpdater:null);
-      if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
-      const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),parentPid:process.pid};
-      const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
-      const {spawn}=require('child_process');
-      const child=spawn(helper,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
-      child.unref();
-      app.quit();
-      return true;
-    }
     // Alternate builds use their own installer when the Windows updater is not
     // selected, such as a non-Windows platform.
     const {spawn}=require('child_process');

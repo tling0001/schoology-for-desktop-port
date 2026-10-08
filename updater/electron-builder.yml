@@ -1,5 +1,6 @@
 appId: com.schoology.app.updater
 productName: Schoology Updater
+icon: assets/ic_launcher_256.ico
 asar: true
 directories:
   app: updater

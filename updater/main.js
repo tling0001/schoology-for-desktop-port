@@ -12,33 +12,42 @@ try { const encoded = payloadArg ? payloadArg.slice('--payload-base64='.length) 
 const TEMP_DIR = path.join(process.env.LOCALAPPDATA || app.getPath('temp'), 'Temp', 'schoology-updater');
 const SCHOOLGY_DIR = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Schoology');
 const LOCAL_7ZIP = path.join(SCHOOLGY_DIR, '7-Zip');
-const LOCAL_7ZG = path.join(LOCAL_7ZIP, '7zg.exe');
 const SEVENZIP_URL = 'https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.msi';
 const schoologyExe = path.join(SCHOOLGY_DIR, 'Schoology.exe');
 let win;
+let activeStep='';
 
 function esc(s){return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function createWindow(){
-  win = new BrowserWindow({width:520,height:430,resizable:false,fullscreenable:false,minimizable:false,maximizable:false,closable:false,alwaysOnTop:true,center:true,backgroundColor:'#ffffff',title:'Schoology Update',webPreferences:{contextIsolation:true,nodeIntegration:false}});
+  win = new BrowserWindow({width:520,height:430,resizable:false,fullscreenable:false,minimizable:false,maximizable:false,closable:false,alwaysOnTop:true,center:true,backgroundColor:'#ffffff',title:'Schoology Update',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{contextIsolation:true,nodeIntegration:false}});
   win.removeMenu();
-  const steps=[['sevenDownload','Download 7-Zip','determinate'],['sevenInstall','Install 7-Zip','indeterminate'],['schoologyDownload','Download Schoology','determinate'],['install','Install Schoology','indeterminate']];
+  const steps=[['sevenDownload','Download 7-Zip'],['sevenInstall','Install 7-Zip'],['schoologyDownload','Download Schoology'],['install','Install Schoology']];
   const html=`<!doctype html><html><head><meta charset="utf-8"><style>
-  *{box-sizing:border-box}body{margin:0;padding:28px 30px;font-family:"Segoe UI",system-ui,sans-serif;color:#202124;background:#fff}h1{font-size:21px;margin:0 0 8px;font-weight:600}#status{font-size:14px;color:#5f6368;margin:0 0 22px}.step{margin:0 0 18px}.row{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:7px}.name{font-weight:600}.state{color:#6b7280}.track{height:7px;background:#e5e7eb;border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:#2e66a3}.indeterminate .bar{width:38%;animation:slide 1.15s ease-in-out infinite}@keyframes slide{0%{transform:translateX(-110%)}50%{transform:translateX(165%)}100%{transform:translateX(290%)}}.done .bar{width:100%;animation:none}.error{color:#b3261e}.foot{font-size:12px;color:#777;margin-top:4px}</style></head><body><h1>Updating Schoology</h1><p id="status">Preparing…</p>${steps.map(([id,name])=>`<div class="step" id="${id}"><div class="row"><span class="name">${name}</span><span class="state">Waiting</span></div><div class="track"><div class="bar"></div></div></div>`).join('')}<div class="foot" id="foot">Please keep this window open.</div></body></html>`;
+  *{box-sizing:border-box}body{margin:0;padding:28px 30px;font-family:"Segoe UI",system-ui,sans-serif;color:#202124;background:#fff}h1{font-size:21px;margin:0 0 8px;font-weight:600}#status{font-size:14px;color:#5f6368;margin:0 0 22px}.screen{margin:0 0 18px}.screen[hidden]{display:none}.row{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:7px}.name{font-weight:600}.state{color:#6b7280}.track{height:7px;background:#e5e7eb;border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:#2e66a3}.indeterminate .bar{width:38%;animation:slide 1.15s ease-in-out infinite}@keyframes slide{0%{transform:translateX(-110%)}50%{transform:translateX(165%)}100%{transform:translateX(290%)}}.done .bar{width:100%;animation:none}.error{color:#b3261e}.foot{font-size:12px;color:#777;margin-top:4px}</style></head><body><h1>Updating Schoology</h1><p id="status">Preparing…</p>${steps.map(([id,name])=>`<div class="screen" id="${id}" hidden><div class="row"><span class="name">${name}</span><span class="state">Waiting</span></div><div class="track"><div class="bar"></div></div></div>`).join('')}<div class="foot" id="foot">Please keep this window open.</div></body></html>`;
   win.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(html));
+}
+function configureSevenZip(required){
+  if(!win||win.isDestroyed())return;
+  const hidden=required?'false':'true';
+  win.webContents.executeJavaScript(`['sevenDownload','sevenInstall'].forEach(id=>{const e=document.getElementById(id);if(e)e.hidden=${hidden}})`).catch(()=>{});
 }
 function ui(id,state,text,percent){
   if(!win||win.isDestroyed())return;
+  activeStep=id;
   const p=JSON.stringify({id,state,text,percent});
-  win.webContents.executeJavaScript(`(()=>{const d=${p},e=document.getElementById(d.id);if(!e)return;const s=e.querySelector('.state'),b=e.querySelector('.bar');if(s)s.textContent=d.text||'';e.classList.toggle('done',d.state==='done');e.classList.toggle('indeterminate',d.state==='indeterminate');if(b&&d.percent!=null)b.style.width=Math.max(0,Math.min(100,d.percent))+'%';if(d.state==='error'){if(s)s.className='state error';}})()`).catch(()=>{});
+  win.webContents.executeJavaScript(`(()=>{const d=${p},e=document.getElementById(d.id);if(!e)return;document.querySelectorAll('.screen').forEach(screen=>{screen.hidden=screen.id!==d.id});e.hidden=false;const s=e.querySelector('.state'),b=e.querySelector('.bar');if(s)s.textContent=d.text||'';e.classList.toggle('done',d.state==='done');e.classList.toggle('indeterminate',d.state==='indeterminate');if(b&&d.percent!=null)b.style.width=Math.max(0,Math.min(100,d.percent))+'%';if(d.state==='error'){if(s)s.className='state error';}})()`).catch(()=>{});
 }
 function status(text){if(!win||win.isDestroyed())return;win.webContents.executeJavaScript(`document.getElementById('status').textContent=${JSON.stringify(String(text))}`).catch(()=>{});}
-function fail(err){status('Update failed.');if(win&&!win.isDestroyed())win.webContents.executeJavaScript(`document.getElementById('foot').textContent=${JSON.stringify(String(err?.message||err||'Unknown error'))};document.getElementById('foot').className='foot error'`).catch(()=>{});}
+function fail(err){if(activeStep)ui(activeStep,'error','Failed');status('Update failed.');if(win&&!win.isDestroyed())win.webContents.executeJavaScript(`document.getElementById('foot').textContent=${JSON.stringify(String(err?.message||err||'Unknown error'))};document.getElementById('foot').className='foot error'`).catch(()=>{});}
 function download(url,target,onProgress){return new Promise((resolve,reject)=>{fs.mkdirSync(path.dirname(target),{recursive:true});const get=(href,depth=0)=>{if(depth>8)return reject(new Error('Too many redirects.'));const u=new URL(href);const req=https.request({hostname:u.hostname,path:u.pathname+u.search,headers:{'User-Agent':'Schoology-Updater/1.0','Accept':'application/octet-stream'}},res=>{const code=res.statusCode||0;if([301,302,303,307,308].includes(code)&&res.headers.location){res.resume();return get(new URL(res.headers.location,u).toString(),depth+1)}if(code<200||code>=300){res.resume();return reject(new Error(`Download failed (HTTP ${code})`));}const total=Number(res.headers['content-length']||0),out=fs.createWriteStream(target);let received=0;res.on('data',d=>{received+=d.length;if(onProgress)onProgress(received,total)});res.pipe(out);out.on('finish',()=>out.close(()=>resolve(target)));out.on('error',reject)});req.setTimeout(15*60*1000,()=>req.destroy(new Error('Download timed out')));req.on('error',reject);req.end()};get(url)});}
 function sha256(file){return new Promise((resolve,reject)=>{const crypto=require('crypto'),h=crypto.createHash('sha256'),s=fs.createReadStream(file);s.on('data',d=>h.update(d));s.on('end',()=>resolve(h.digest('hex')));s.on('error',reject)})}
 function find7z(){
-  const candidates=[LOCAL_7ZG,path.join(process.env.ProgramFiles||'C:\\Program Files','7-Zip','7zg.exe')];
+  const names=['7z.exe','7zz.exe','7zg.exe'];
+  const candidates=[];
+  for(const name of names)candidates.push(path.join(LOCAL_7ZIP,name));
+  for(const name of names)candidates.push(path.join(process.env.ProgramFiles||'C:\\Program Files','7-Zip',name));
   const pathDirs=String(process.env.PATH||'').split(';').filter(Boolean);
-  for(const dir of pathDirs)candidates.push(path.join(dir,'7zg.exe'));
+  for(const dir of pathDirs)for(const name of names)candidates.push(path.join(dir,name));
   return candidates.find(p=>{try{return fs.existsSync(p)}catch{return false}})||null;
 }
 function run(exe,args,options={}){return new Promise((resolve,reject)=>{const cp=spawn(exe,args,{windowsHide:true,...options});let stderr='';cp.stderr?.on('data',d=>stderr+=d);cp.on('error',reject);cp.on('close',code=>{const ok=options.acceptCodes?options.acceptCodes.includes(code):code===0;ok?resolve({code,stderr}):reject(new Error(`${path.basename(exe)} exited with code ${code}${stderr?`: ${stderr.trim().slice(0,400)}`:''}`))})});}
@@ -52,11 +61,12 @@ async function main(){
   const outer=path.join(TEMP_DIR,'installer-outer');
   const inner=path.join(TEMP_DIR,'inner-installer');
   let seven=find7z();
-  if(seven){ui('sevenDownload','done','Already installed',100);ui('sevenInstall','done','Already installed',100);}
+  if(seven){configureSevenZip(false);}
   else{
+    configureSevenZip(true);
     status('Downloading 7-Zip…');ui('sevenDownload','determinate','Downloading…',0);await download(SEVENZIP_URL,sevenMsi,(n,t)=>ui('sevenDownload','determinate',t?`${Math.round(n*100/t)}%`:'Downloading…',t?Math.round(n*100/t):0));ui('sevenDownload','done','Complete',100);
-    status('Installing 7-Zip…');ui('sevenInstall','indeterminate','Installing…');await run('msiexec.exe',['/a',sevenMsi,'/qb',`TARGETDIR=${LOCAL_7ZIP}`]);
-    const installed=fs.existsSync(LOCAL_7ZG)?LOCAL_7ZG:find7z();if(!installed)throw new Error('7-Zip installation completed but 7zg.exe was not found.');seven=installed;ui('sevenInstall','done','Complete',100);
+    status('Installing 7-Zip…');ui('sevenInstall','indeterminate','Installing…');fs.mkdirSync(LOCAL_7ZIP,{recursive:true});await run('msiexec.exe',['/a',sevenMsi,'/qb',`TARGETDIR=${LOCAL_7ZIP}`]);
+    const installed=find7z();if(!installed)throw new Error('7-Zip installation completed but no console extractor was found.');seven=installed;ui('sevenInstall','done','Complete',100);
   }
   status('Downloading Schoology…');ui('schoologyDownload','determinate','Downloading…',0);await download(String(payload.url),installer,(n,t)=>ui('schoologyDownload','determinate',t?`${Math.round(n*100/t)}%`:'Downloading…',t?Math.round(n*100/t):0));
   if(payload.size&&fs.statSync(installer).size!==Number(payload.size))throw new Error('The downloaded Schoology installer size does not match the release metadata.');
@@ -65,9 +75,9 @@ async function main(){
   status('Installing Schoology…');ui('install','indeterminate','Closing Schoology and extracting…');
   await waitForPid(Number(payload.parentPid||0));
   fs.rmSync(outer,{recursive:true,force:true});fs.rmSync(inner,{recursive:true,force:true});fs.mkdirSync(outer,{recursive:true});fs.mkdirSync(inner,{recursive:true});
-  await run(seven,['x',installer,`-o${outer}`]);
+  await run(seven,['x',installer,`-o${outer}`,'-y']);
   const app7z=path.join(outer,'$PLUGINSDIR','app-64.7z');if(!fs.existsSync(app7z))throw new Error('The Schoology installer did not contain $PLUGINSDIR\\app-64.7z.');
-  await run(seven,['x',app7z,`-o${inner}`]);
+  await run(seven,['x',app7z,`-o${inner}`,'-y']);
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7]});
   ui('install','done','Complete',100);status('Update complete. Launching Schoology…');

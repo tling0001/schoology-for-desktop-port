@@ -9,7 +9,11 @@ let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
 let loadTabGeneration=0;
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system'};
+function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
+function applyTheme(mode,save=false){const selected=['light','dark','system'].includes(mode)?mode:'system';state.themeMode=selected;document.documentElement.dataset.theme=resolveTheme(selected);document.documentElement.dataset.themeMode=selected;if(save){try{Promise.resolve(A.setThemeMode?.(selected)).catch(()=>{})}catch{}}}
+window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.themeMode==='system')applyTheme('system')});
+A.getThemeMode?.().then(mode=>applyTheme(mode||'system')).catch(()=>applyTheme('system'));
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
@@ -536,65 +540,53 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  if(!course){loadTab();return}
  const sid=course.id||course.section_id||course.sectionId;
  const sameCourse=!forceRebuild&&state.courseView==='course'&&state.selectedCourse&&String(state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId)===String(sid)&&!!c.querySelector('.courseLandscapePage');
- // Android keeps the SectionProfilePagerFragment alive while switching tabs. Only
- // replace the tab content; the apps/upcoming split and course header remain mounted.
  if(sameCourse){
-   const tab=activeTab;
-   const buttons=[...c.querySelectorAll('[data-course-tab]')];
-   const target=buttons.find(b=>b.dataset.courseTab===tab);
+   const tab=activeTab;const buttons=[...c.querySelectorAll('[data-course-tab]')];const target=buttons.find(b=>b.dataset.courseTab===tab);
    if(target){buttons.forEach(b=>b.classList.toggle('active',b===target));}
    state.courseTab=tab;state.toolbarTitle=target?.textContent||state.toolbarTitle;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;syncToolbar();
-   const tabContent=document.getElementById('sectionProfileContent');
-   if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
-   await loadCourseTab(course,tab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
-   return;
+   const tabContent=document.getElementById('sectionProfileContent');if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
+   await loadCourseTab(course,tab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});return;
  }
+ // Mount the course screen synchronously. Network lookups run only after the course
+ // identity, tabs, and loading indicators are visible, so slow connections don't leave
+ // the previous screen under a changed app bar.
  state.selectedCourse=course;state.courseView='course';state.courseTab=activeTab;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;
  state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);syncToolbar();
  const title=courseTitleOf(course), section=sectionTitleOf(course);
- const [sectionDetail,schoolFromList]=await Promise.all([
-   A.api({path:`sections/${sid}`,params:{}}).catch(()=>course),
-   resolveCourseSchoolName(course)
- ]);
- const school=await resolveCourseSchoolName(sectionDetail||course)||schoolFromList;
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
- const navPerms=await getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null);
- if(renderToken!==courseRenderToken||state.screen!=='app'||state.courseView!=='course'||state.selectedCourse!==course)return;
- const canGradebook=!!navPerms?.sectionGradesPut, canGrades=!!navPerms?.userGradesGet, attendanceEnabled=!!navPerms?.attendanceGet;
  const landscape=window.matchMedia('(min-aspect-ratio: 4/3)').matches;
- const tabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
- let effectiveTab=activeTab;
- if(effectiveTab==='grades'&&canGradebook)effectiveTab='gradebook';
- if(effectiveTab==='gradebook'&&!canGradebook)effectiveTab='grades';
- if(effectiveTab==='attendance'&&!attendanceEnabled)effectiveTab='materials';
- if(landscape&&effectiveTab==='upcoming')effectiveTab='materials';
- if(landscape&&effectiveTab==='courseapp')effectiveTab='materials';
+ const baseTabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),['grades','Grades'],['attendance','Attendance'],...(landscape?[]:[['courseapp','Course App']])];
+ let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
    <aside class="courseAppsSidePane"><div class="homePaneHeader">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
-   <section class="courseMainPane">
-    <div class="sectionProfileTabs">${tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
-    <div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div>${school?`<button class="courseSchoolLink" data-course-school-id="${esc(sectionDetail?.school_id??sectionDetail?.schoolId??'')}" type="button">${esc(school)}</button>`:''}</div></div>
-    <div class="sectionProfileRule"></div>
-    <div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>
-   </section>
-   <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
- </section>`;
- const courseSchoolButton=document.querySelector('[data-course-school-id]');
- if(courseSchoolButton){courseSchoolButton.onclick=()=>{const id=Number(courseSchoolButton.getAttribute('data-course-school-id')||0);if(id)openSchoolProfile(id,courseSchoolButton.textContent||'School')}}
+   <section class="courseMainPane"><div class="sectionProfileTabs">${baseTabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
+    <div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolName" class="courseSchoolName"></div></div></div>
+    <div class="sectionProfileRule"></div><div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></section>
+   <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside></section>`;
  hydrateCourseImages(c);
- document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{
-   const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';
-   document.querySelectorAll('[data-course-tab]').forEach(x=>x.classList.toggle('active',x===b));
-   state.folderStack=[];state.currentFolderId=0;syncToolbar();
-   const tabContent=document.getElementById('sectionProfileContent');
-   if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
-   loadCourseTab(course,id).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
- });
+ document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';document.querySelectorAll('[data-course-tab]').forEach(x=>x.classList.toggle('active',x===b));state.folderStack=[];state.currentFolderId=0;syncToolbar();const tabContent=document.getElementById('sectionProfileContent');if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';loadCourseTab(course,id).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});});
+ // First show the page, then resolve school metadata and permissions in parallel.
+ const [sectionResponse,schoolFromList,navPerms]=await Promise.all([
+   A.api({path:`sections/${sid}`,params:{}}).catch(()=>course),
+   resolveCourseSchoolName(course),
+   getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null)
+ ]);
+ if(renderToken!==courseRenderToken||state.screen!=='app'||state.courseView!=='course'||state.selectedCourse!==course)return;
+ const sectionDetail=sectionResponse?.section||sectionResponse||course;
+ let school=await resolveCourseSchoolName(sectionDetail)||schoolFromList;
+ const schoolId=sectionDetail?.school_id??sectionDetail?.schoolId??'';
+ const schoolEl=document.getElementById('courseSchoolName');if(schoolEl&&school){schoolEl.innerHTML=`<button class="courseSchoolLink" data-course-school-id="${esc(schoolId)}" type="button">${esc(school)}</button>`;const btn=schoolEl.querySelector('button');btn.onclick=()=>{const id=Number(btn.dataset.courseSchoolId||0);if(id)openSchoolProfile(id,btn.textContent||'School')}}
+ const canGradebook=!!navPerms?.sectionGradesPut,canGrades=!!navPerms?.userGradesGet,attendanceEnabled=!!navPerms?.attendanceGet;
+ const tabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
+ if(effectiveTab==='grades'&&canGradebook)effectiveTab='gradebook';if(effectiveTab==='gradebook'&&!canGradebook)effectiveTab=canGrades?'grades':'materials';if(effectiveTab==='attendance'&&!attendanceEnabled)effectiveTab='materials';
+ const tabBar=document.querySelector('.sectionProfileTabs');if(tabBar)tabBar.innerHTML=tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('');
+ document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';document.querySelectorAll('[data-course-tab]').forEach(x=>x.classList.toggle('active',x===b));state.folderStack=[];state.currentFolderId=0;syncToolbar();const tabContent=document.getElementById('sectionProfileContent');if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';loadCourseTab(course,id).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});});
+ state.courseTab=effectiveTab;state.toolbarTitle=tabs.find(t=>t[0]===effectiveTab)?.[1]||'Course';syncToolbar();
+ const contentEl=document.getElementById('sectionProfileContent');if(contentEl)contentEl.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
  loadCourseTab(course,effectiveTab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
  loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
- loadCourseApps(course,document.getElementById('courseAppsSideContent')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
- installCourseLayoutWatcher();
+ loadCourseApps(course,document.getElementById('courseAppsSideContent')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});installCourseLayoutWatcher();
 }
 function collectAssignmentAttachments(a){
   const out=[],seen=new Set();
@@ -1361,15 +1353,21 @@ async function loadSectionGrades(course){
  });
 }
 function getFinalGradeDisplay(sec){
- const rawFinal=sec?.final_grade??sec?.finalGrade??[];const final=(Array.isArray(rawFinal)?rawFinal[0]:rawFinal)||{};
- const periods=final.period||final.periods||final.final_period||final.finalPeriod||[];
- const period=Array.isArray(periods)?(periods.find(p=>p?.is_final===true||p?.isFinal===true||String(p?.is_final||p?.isFinal||'').toLowerCase()==='true')||periods.find(p=>String(p?.period_id??p?.periodId??'')==='0')||periods[0]||{}):(periods||{});
- const overrideStr=period.override_str??period.overrideStr??period.override_string??period.overrideString??final.override_str??final.overrideStr??final.override_string??final.overrideString??sec?.override_str??sec?.overrideStr;
- const overrideNumeric=period.override_numeric??period.overrideNumeric??final.override_numeric??final.overrideNumeric;
- const grade=period.grade??final.grade??final.grade_override??final.gradeOverride??final.calculated_grade??final.calculatedGrade;
- if(overrideStr!==undefined&&overrideStr!==null&&String(overrideStr).trim()!=='')return {value:String(overrideStr),overridden:true,final,period};
- if(overrideNumeric!==undefined&&overrideNumeric!==null&&String(overrideNumeric).trim()!=='')return {value:String(overrideNumeric),overridden:true,final,period};
- return {value:grade!==undefined&&grade!==null&&String(grade).trim()!==''?String(grade):'—',overridden:false,final,period};
+ const firstDefined=(...values)=>values.find(v=>v!==undefined&&v!==null&&String(v).trim()!=='');
+ const rawFinal=sec?.final_grade??sec?.finalGrade??sec?.final_grades??sec?.finalGrades??[];
+ const finals=(Array.isArray(rawFinal)?rawFinal:(rawFinal?[rawFinal]:[])).filter(f=>f&&typeof f==='object');
+ const periodList=f=>{const v=f?.period??f?.periods??f?.final_period??f?.finalPeriod??f?.final_grade_period??f?.finalGradePeriod??[];return Array.isArray(v)?v:(v?[v]:[])};
+ const entries=finals.flatMap(f=>{const ps=periodList(f);return ps.length?ps.map(p=>({final:f,period:p||{}})):[{final:f,period:{}}]});
+ // Official Android FinalGradePeriod.isFinal() matches period_id="final".
+ // Prefer a non-empty teacher string override from that period across every returned
+ // enrollment/final-grade object, before considering numeric overrides or percentages.
+ const finalEntries=entries.filter(e=>String(e.period?.period_id??e.period?.periodId??'').toLowerCase()==='final');
+ const preferred=[...finalEntries,...entries.filter(e=>!finalEntries.includes(e))];
+ for(const e of preferred){const v=firstDefined(e.period.override_str,e.period.overrideStr,e.period.override_string,e.period.overrideString,e.final.override_str,e.final.overrideStr,e.final.override_string,e.final.overrideString);if(v!==undefined)return {value:String(v),overridden:true,final:e.final,period:e.period};}
+ for(const e of preferred){const v=firstDefined(e.period.override_numeric,e.period.overrideNumeric,e.final.override_numeric,e.final.overrideNumeric);if(v!==undefined)return {value:String(v),overridden:true,final:e.final,period:e.period};}
+ const e=preferred[0]||{final:finals[0]||{},period:{}};
+ const grade=firstDefined(e.period.grade,e.final.grade,e.final.grade_override,e.final.gradeOverride,e.final.calculated_grade,e.final.calculatedGrade,sec?.grade);
+ return {value:grade!==undefined?String(grade):'—',overridden:false,final:e.final,period:e.period};
 }
 function renderOverallGrade(sec){
  const display=getFinalGradeDisplay(sec);
@@ -1925,7 +1923,8 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
     document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
   }else if(state.tab==='settings'){
-    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.128</div></section>`;
+    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Appearance</h2><label class="settingRow"><span><b>Theme</b><small>Choose light, dark, or follow your system appearance</small></span><select id="themeModeSelect" class="settingSelect"><option value="system" ${state.themeMode==='system'?'selected':''}>System default</option><option value="light" ${state.themeMode==='light'?'selected':''}>Light</option><option value="dark" ${state.themeMode==='dark'?'selected':''}>Dark</option></select></label></div><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.129</div></section>`;
+    document.getElementById('themeModeSelect')?.addEventListener('change',e=>applyTheme(e.target.value,true));
     document.getElementById('notifToggle')?.addEventListener('change',e=>{document.getElementById('notifSummary').textContent=e.target.checked?'Enabled':'Disabled'});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();state.embeddedReturn={tab:'settings',title:'Settings'};showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info',{allowBrowser:false,accountInfo:true})}catch(e){alert(e.message)}});
     document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});

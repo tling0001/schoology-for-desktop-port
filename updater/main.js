@@ -22,6 +22,8 @@ let cancelled=false;
 let completed=false;
 const LOG_FILE = path.join(TEMP_DIR, 'updater.log');
 const productName = String(payload.productName || 'Schoology');
+const darkTheme = payload.themeMode === 'dark' || (payload.themeMode !== 'light' && require('electron').nativeTheme?.shouldUseDarkColors === true);
+const theme = darkTheme ? {background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'} : {background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'};
 
 function log(message, details){
   try{
@@ -57,15 +59,15 @@ process.on('unhandledRejection',reason=>{log('unhandledRejection',reason?.stack|
 
 function esc(s){return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function createWindow(){
-  win = new BrowserWindow({width:520,height:430,resizable:false,fullscreenable:false,minimizable:false,maximizable:false,closable:true,alwaysOnTop:true,center:true,backgroundColor:'#ffffff',title:'Schoology Update',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{contextIsolation:true,nodeIntegration:false}});
+  win = new BrowserWindow({width:520,height:430,resizable:false,fullscreenable:false,minimizable:false,maximizable:false,closable:true,alwaysOnTop:true,center:true,backgroundColor:theme.background,title:'Schoology Update',icon:path.join(__dirname,'../assets/ic_launcher_256.png'),webPreferences:{contextIsolation:true,nodeIntegration:false}});
   win.removeMenu();
   win.on('close',event=>{if(!completed&&!cancelled){event.preventDefault();cancelUpdate();}});
   const switchMode=productName!=='Schoology';
   const steps=[['sevenDownload','Download 7-Zip'],['sevenInstall','Install 7-Zip'],['schoologyDownload',`Download ${productName}`],['install',`Install ${productName}`]];
   const html=`<!doctype html><html><head><meta charset="utf-8"><style>
-  *{box-sizing:border-box}body{margin:0;padding:28px 30px;font-family:"Segoe UI",system-ui,sans-serif;color:#202124;background:#fff}h1{font-size:21px;margin:0 0 8px;font-weight:600}#status{font-size:14px;color:#5f6368;margin:0 0 22px}.screen{margin:0 0 18px}.screen[hidden]{display:none}.row{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:7px}.name{font-weight:600}.state{color:#6b7280}.track{height:7px;background:#e5e7eb;border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:#2e66a3}.indeterminate .bar{width:38%;animation:slide 1.15s ease-in-out infinite}@keyframes slide{0%{transform:translateX(-110%)}50%{transform:translateX(165%)}100%{transform:translateX(290%)}}.done .bar{width:100%;animation:none}.error{color:#b3261e}.foot{font-size:12px;color:#777;margin-top:4px}</style></head><body><h1>${switchMode?'Switching to ':''}${esc(productName)}</h1><p id="status">Preparing…</p>${steps.map(([id,name])=>`<div class="screen" id="${id}" hidden><div class="row"><span class="name">${name}</span><span class="state">Waiting</span></div><div class="track"><div class="bar"></div></div></div>`).join('')}<div class="foot" id="foot">Please keep this window open.</div></body></html>`;
+  *{box-sizing:border-box}body{margin:0;padding:28px 30px;font-family:"Segoe UI",system-ui,sans-serif;color:#202124;background:#fff}h1{font-size:21px;margin:0 0 8px;font-weight:600}#status{font-size:14px;color:#5f6368;margin:0 0 22px}.screen{margin:0 0 18px}.screen[hidden]{display:none}.row{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:7px}.name{font-weight:600}.state{color:#6b7280}.track{height:7px;background:#e5e7eb;border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:#2e66a3}.indeterminate .bar{width:38%;animation:slide 1.15s ease-in-out infinite}@keyframes slide{0%{transform:translateX(-110%)}50%{transform:translateX(165%)}100%{transform:translateX(290%)}}.done .bar{width:100%;animation:none}.error{color:#f28b82}.foot{font-size:12px;color:${theme.muted};margin-top:4px}</style></head><body><h1>${switchMode?'Switching to ':''}${esc(productName)}</h1><p id="status">Preparing…</p>${steps.map(([id,name])=>`<div class="screen" id="${id}" hidden><div class="row"><span class="name">${name}</span><span class="state">Waiting</span></div><div class="track"><div class="bar"></div></div></div>`).join('')}<div class="foot" id="foot">Please keep this window open.</div></body></html>`;
   win.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(html));
-  win.webContents.on('did-finish-load',()=>{win.webContents.executeJavaScript(`(()=>{const b=document.createElement('button');b.id='cancelUpdate';b.textContent='Cancel';b.style.cssText='display:block;margin:20px 0 0 auto;padding:7px 18px;border:1px solid #9aa0a6;border-radius:4px;background:#fff;color:#202124;font:inherit;cursor:pointer';b.onclick=()=>console.log('schoology-updater-cancel');document.body.appendChild(b)})()`).catch(()=>{});});
+  win.webContents.on('did-finish-load',()=>{win.webContents.executeJavaScript(`(()=>{const b=document.createElement('button');b.id='cancelUpdate';b.textContent='Cancel';b.style.cssText='display:block;margin:20px 0 0 auto;padding:7px 18px;border:1px solid #9aa0a6;border-radius:4px;background:${theme.background};color:${theme.foreground};font:inherit;cursor:pointer';b.onclick=()=>console.log('schoology-updater-cancel');document.body.appendChild(b)})()`).catch(()=>{});});
   win.webContents.on('console-message',(_,level,message)=>{if(message==='schoology-updater-cancel')cancelUpdate();});
   log('window-created',{productName,logFile:LOG_FILE});
 }

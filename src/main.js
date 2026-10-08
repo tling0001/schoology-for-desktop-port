@@ -25,6 +25,10 @@ let win;
 let updateProgressWindow;
 let serverTimeOffset=0;
 const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
+const themeSettingsFile=path.join(stableUserData,'theme-settings.json');
+function readThemeMode(){try{const mode=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))?.mode;return ['light','dark','system'].includes(mode)?mode:'system'}catch{return 'system'}}
+function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)?mode:'system';fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify({mode:safe},null,2),'utf8');return safe}
+function resolveThemeColors(mode=readThemeMode()){const dark=mode==='dark'||(mode==='system'&&require('electron').nativeTheme?.shouldUseDarkColors);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
   try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{return false}
@@ -601,9 +605,9 @@ async function downloadAndVerifyUpdate(info){if(!info?.url)throw new Error('The 
 function showMacUpdateProgressWindow(){
   if(process.platform!=='darwin')return null;
   if(updateProgressWindow&&!updateProgressWindow.isDestroyed()){updateProgressWindow.show();return updateProgressWindow;}
-  updateProgressWindow=new BrowserWindow({width:420,height:180,resizable:false,fullscreenable:false,minimizable:false,maximizable:false,alwaysOnTop:true,center:true,title:'Schoology Update',backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false}});
+  const colors=resolveThemeColors();updateProgressWindow=new BrowserWindow({width:420,height:180,resizable:false,fullscreenable:false,minimizable:false,maximizable:false,alwaysOnTop:true,center:true,title:'Schoology Update',backgroundColor:colors.background,webPreferences:{contextIsolation:true,nodeIntegration:false}});
   updateProgressWindow.removeMenu();
-  updateProgressWindow.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:28px 30px;color:#202124;background:#fff}h2{font-size:20px;font-weight:600;margin:0 0 18px}p{font-size:14px;color:#5f6368;margin:0 0 16px}#track{height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden}#bar{height:100%;width:0;background:#2e66a3;transition:width .15s}#percent{text-align:right;font-size:12px;color:#6b7280;margin-top:7px}</style></head><body><h2>Updating Schoology</h2><p id="status">Downloading update…</p><div id="track"><div id="bar"></div></div><div id="percent">0%</div></body></html>`));
+  updateProgressWindow.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:28px 30px;color:${colors.foreground};background:${colors.background}}h2{font-size:20px;font-weight:600;margin:0 0 18px}p{font-size:14px;color:${colors.muted};margin:0 0 16px}#track{height:6px;background:${colors.track};border-radius:4px;overflow:hidden}#bar{height:100%;width:0;background:${colors.accent};transition:width .15s}#percent{text-align:right;font-size:12px;color:${colors.muted};margin-top:7px}</style></head><body><h2>Updating Schoology</h2><p id="status">Downloading update…</p><div id="track"><div id="bar"></div></div><div id="percent">0%</div></body></html>`));
   updateProgressWindow.on('closed',()=>{updateProgressWindow=null});
   return updateProgressWindow;
 }
@@ -620,7 +624,7 @@ async function installUpdate(info){
     if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
     const stagedUpdater=path.join(app.getPath('temp'),`SchoologyUpdater-${process.pid}-${Date.now()}.exe`);
     fs.copyFileSync(helper,stagedUpdater);
-    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),parentPid:process.pid,stagedUpdaterPath:stagedUpdater};
+    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater};
     const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
     const {spawn}=require('child_process');
     const child=spawn(stagedUpdater,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
@@ -675,6 +679,8 @@ app.whenReady().then(()=>{
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
   ipcMain.handle('auth-state',()=>loadAuth());
+  ipcMain.handle('get-theme-mode',()=>readThemeMode());
+  ipcMain.handle('set-theme-mode',(_,mode)=>saveThemeMode(mode));
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));

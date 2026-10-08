@@ -618,7 +618,7 @@ async function installUpdate(info){
     const devUpdater=path.join(__dirname,'../updater/dist/SchoologyUpdater.exe');
     const helper=fs.existsSync(updaterPath)?updaterPath:(fs.existsSync(devUpdater)?devUpdater:null);
     if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
-    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),parentPid:process.pid};
+    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),parentPid:process.pid};
     const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
     const {spawn}=require('child_process');
     const child=spawn(helper,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});

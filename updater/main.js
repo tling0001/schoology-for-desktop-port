@@ -65,8 +65,8 @@ function find7z(){
   for(const dir of pathDirs)for(const name of names)candidates.push(path.join(dir,name));
   return candidates.find(p=>{try{return fs.existsSync(p)}catch{return false}})||null;
 }
-function run(exe,args,options={}){return new Promise((resolve,reject)=>{log('process-start',{exe,args});const cp=spawn(exe,args,{windowsHide:true,...options});let stderr='';let stdout='';cp.stdout?.on('data',d=>{stdout+=d;log('process-stdout',String(d).trim())});cp.stderr?.on('data',d=>{stderr+=d;log('process-stderr',String(d).trim())});cp.on('error',error=>{log('process-error',error.stack||String(error));reject(error)});cp.on('close',code=>{log('process-exit',{exe,code});const ok=options.acceptCodes?options.acceptCodes.includes(code):code===0;ok?resolve({code,stderr,stdout}):reject(new Error(`${path.basename(exe)} exited with code ${code}${stderr?`: ${stderr.trim().slice(0,400)}`:''}`))})});}
-function waitForPid(pid){if(!pid)return Promise.resolve();return new Promise(resolve=>{const tick=()=>{spawn('tasklist',['/FI',`PID eq ${pid}`],{windowsHide:true},(_,stdout)=>{if(!stdout||!new RegExp(`\\b${pid}\\b`).test(String(stdout)))return resolve();setTimeout(tick,250)});};tick()});}
+function run(exe,args,options={}){return new Promise((resolve,reject)=>{log('process-start',{exe,args});const cp=spawn(exe,args,{windowsHide:true,...options});let stderr='';let stdout='';const output=(stream,data)=>{const text=String(data);if(stream==='stdout')stdout+=text;else stderr+=text;log(`process-${stream}`,text.trim());options.onOutput?.(text,stream)};cp.stdout?.on('data',d=>output('stdout',d));cp.stderr?.on('data',d=>output('stderr',d));cp.on('error',error=>{log('process-error',error.stack||String(error));reject(error)});cp.on('close',code=>{log('process-exit',{exe,code});const ok=options.acceptCodes?options.acceptCodes.includes(code):code===0;ok?resolve({code,stderr,stdout}):reject(new Error(`${path.basename(exe)} exited with code ${code}${stderr?`: ${stderr.trim().slice(0,400)}`:''}`))})});}
+function waitForPid(pid,timeoutMs=15000){if(!pid){log('wait-for-schoology-skipped');return Promise.resolve();}return new Promise(resolve=>{const started=Date.now();log('wait-for-schoology-start',{pid,timeoutMs});const tick=()=>{spawn('tasklist',['/FI',`PID eq ${pid}`],{windowsHide:true},(_,stdout)=>{const present=!!stdout&&new RegExp(`\\b${pid}\\b`).test(String(stdout));if(!present){log('wait-for-schoology-complete',{pid,elapsedMs:Date.now()-started});return resolve();}if(Date.now()-started>=timeoutMs){log('wait-for-schoology-timeout',{pid,elapsedMs:Date.now()-started});return resolve();}setTimeout(tick,250)});};tick()});}
 async function main(){
   if(process.platform!=='win32')throw new Error('This updater is Windows-only.');
   if(!payload.url)throw new Error('The Schoology installer URL is missing.');
@@ -91,19 +91,19 @@ async function main(){
   if(payload.digest&&/^sha256:/i.test(String(payload.digest))){const actual=await sha256(installer);const expected=String(payload.digest).split(':').pop().toLowerCase();if(actual.toLowerCase()!==expected)throw new Error('The downloaded Schoology installer failed its SHA-256 integrity check.');}
   log('verification-complete');
   ui('schoologyDownload','done','Complete',100);
-  status(`Installing ${productName}…`);ui('install','indeterminate',`Closing Schoology and extracting ${productName}…`);
+  status(`Installing ${productName}…`);ui('install','determinate','Preparing installation…',5);
   await waitForPid(Number(payload.parentPid||0));
-  log('prepare-extraction',{outer,inner});fs.rmSync(outer,{recursive:true,force:true});fs.rmSync(inner,{recursive:true,force:true});fs.mkdirSync(outer,{recursive:true});fs.mkdirSync(inner,{recursive:true});log('extraction-directories-created',{outerExists:fs.existsSync(outer),innerExists:fs.existsSync(inner)});
+  ui('install','determinate','Preparing extraction…',10);log('prepare-extraction',{outer,inner});fs.rmSync(outer,{recursive:true,force:true});fs.rmSync(inner,{recursive:true,force:true});fs.mkdirSync(outer,{recursive:true});fs.mkdirSync(inner,{recursive:true});log('extraction-directories-created',{outerExists:fs.existsSync(outer),innerExists:fs.existsSync(inner)});
   log('extract-installer-start',{installer,outer});
   await run(seven,['x',installer,`-o${outer}`,'-y']);
-  log('extract-installer-complete',{outerEntries:fs.existsSync(outer)?fs.readdirSync(outer):[]});
+  ui('install','determinate','Installer extracted…',45);log('extract-installer-complete',{outerEntries:fs.existsSync(outer)?fs.readdirSync(outer):[]});
   const app7z=path.join(outer,'$PLUGINSDIR','app-64.7z');if(!fs.existsSync(app7z))throw new Error('The Schoology installer did not contain $PLUGINSDIR\\app-64.7z.');
   log('extract-application-start',{app7z,inner});
   await run(seven,['x',app7z,`-o${inner}`,'-y']);
-  log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
+  ui('install','determinate','Application files extracted…',70);log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
-  log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7]});
-  log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe)});
+  log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
+  ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
   ui('install','done','Complete',100);status('Update complete. Launching Schoology…');
   setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{app.quit()}},700);
 }

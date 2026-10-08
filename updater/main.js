@@ -31,6 +31,17 @@ function log(message, details){
   }catch{}
 }
 
+function cleanupArtifacts(paths){
+  for(const target of paths){
+    try{
+      fs.rmSync(target,{recursive:true,force:true});
+      log('cleanup-complete',{target,exists:fs.existsSync(target)});
+    }catch(error){
+      log('cleanup-error',{target,error:error?.stack||String(error)});
+    }
+  }
+}
+
 process.on('uncaughtException',error=>{log('uncaughtException',error?.stack||String(error));if(!cancelled)fail(error);});
 process.on('unhandledRejection',reason=>{log('unhandledRejection',reason?.stack||String(reason));if(!cancelled)fail(reason);});
 
@@ -121,7 +132,7 @@ async function main(){
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
-  ui('install','done','Complete',100);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
+  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
   setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{if(win&&!win.isDestroyed())win.close();app.quit()}},700);
 }
 app.whenReady().then(()=>{createWindow();setTimeout(()=>main().catch(e=>{if(!cancelled)fail(e);}),300);});

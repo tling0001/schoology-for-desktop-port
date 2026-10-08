@@ -42,6 +42,16 @@ function cleanupArtifacts(paths){
   }
 }
 
+function scheduleSelfCleanup(){
+  const target=String(payload.stagedUpdaterPath||'');
+  if(!target)return;
+  try{
+    const command=`timeout /t 2 /nobreak >nul & del /f /q "${target.replace(/"/g,'')}" >nul 2>&1`;
+    spawn('cmd.exe',['/d','/c',command],{detached:true,stdio:'ignore',windowsHide:true}).unref();
+    log('self-cleanup-scheduled',{target});
+  }catch(error){log('self-cleanup-error',error?.stack||String(error));}
+}
+
 process.on('uncaughtException',error=>{log('uncaughtException',error?.stack||String(error));if(!cancelled)fail(error);});
 process.on('unhandledRejection',reason=>{log('unhandledRejection',reason?.stack||String(reason));if(!cancelled)fail(reason);});
 
@@ -133,7 +143,7 @@ async function main(){
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
   ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
-  setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{if(win&&!win.isDestroyed())win.close();app.quit()}},700);
+  setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{scheduleSelfCleanup();if(win&&!win.isDestroyed())win.close();app.quit()}},700);
 }
 app.whenReady().then(()=>{createWindow();setTimeout(()=>main().catch(e=>{if(!cancelled)fail(e);}),300);});
 app.on('window-all-closed',()=>{});

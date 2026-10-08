@@ -2,7 +2,7 @@ const {app,BrowserWindow} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
-const {spawn} = require('child_process');
+const {spawn,execFile} = require('child_process');
 
 const args = process.argv.slice(1);
 const payloadArg = args.find(a => a.startsWith('--payload-base64='));
@@ -66,7 +66,7 @@ function find7z(){
   return candidates.find(p=>{try{return fs.existsSync(p)}catch{return false}})||null;
 }
 function run(exe,args,options={}){return new Promise((resolve,reject)=>{log('process-start',{exe,args});const cp=spawn(exe,args,{windowsHide:true,...options});let stderr='';let stdout='';const output=(stream,data)=>{const text=String(data);if(stream==='stdout')stdout+=text;else stderr+=text;log(`process-${stream}`,text.trim());options.onOutput?.(text,stream)};cp.stdout?.on('data',d=>output('stdout',d));cp.stderr?.on('data',d=>output('stderr',d));cp.on('error',error=>{log('process-error',error.stack||String(error));reject(error)});cp.on('close',code=>{log('process-exit',{exe,code});const ok=options.acceptCodes?options.acceptCodes.includes(code):code===0;ok?resolve({code,stderr,stdout}):reject(new Error(`${path.basename(exe)} exited with code ${code}${stderr?`: ${stderr.trim().slice(0,400)}`:''}`))})});}
-function waitForPid(pid,timeoutMs=15000){if(!pid){log('wait-for-schoology-skipped');return Promise.resolve();}return new Promise(resolve=>{const started=Date.now();let settled=false;let timer=null;log('wait-for-schoology-start',{pid,timeoutMs});const finish=(event)=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);log(event,{pid,elapsedMs:Date.now()-started});resolve();};const tick=()=>{if(settled)return;const child=spawn('tasklist',['/FI',`PID eq ${pid}`],{windowsHide:true});let output='';child.stdout?.on('data',data=>{output+=String(data)});child.on('error',error=>{log('wait-for-schoology-tasklist-error',error.stack||String(error));finish('wait-for-schoology-error')});child.on('close',()=>{if(settled)return;const present=new RegExp(`\\b${pid}\\b`).test(output);if(!present)return finish('wait-for-schoology-complete');if(Date.now()-started>=timeoutMs)return finish('wait-for-schoology-timeout');setTimeout(tick,250)});};timer=setTimeout(()=>finish('wait-for-schoology-timeout'),timeoutMs+1000);tick()});}
+function waitForPid(pid,timeoutMs=15000){if(!pid){log('wait-for-schoology-skipped');return Promise.resolve();}return new Promise(resolve=>{const started=Date.now();let settled=false;let timer=null;log('wait-for-schoology-start',{pid,timeoutMs});const finish=(event,details={})=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);log(event,{pid,elapsedMs:Date.now()-started,...details});resolve();};const tick=()=>{if(settled)return;log('wait-for-schoology-check',{pid});execFile('tasklist',['/FI',`PID eq ${pid}`],{windowsHide:true,timeout:2000},(error,stdout,stderr)=>{if(settled)return;if(error)log('wait-for-schoology-tasklist-result',{error:String(error),stderr:String(stderr||'')});const present=new RegExp(`\\b${pid}\\b`).test(String(stdout||''));if(!present)return finish('wait-for-schoology-complete');if(Date.now()-started>=timeoutMs)return finish('wait-for-schoology-timeout');setTimeout(tick,250)});};timer=setTimeout(()=>finish('wait-for-schoology-timeout'),timeoutMs+2500);tick()});}
 async function main(){
   if(process.platform!=='win32')throw new Error('This updater is Windows-only.');
   if(!payload.url)throw new Error('The Schoology installer URL is missing.');

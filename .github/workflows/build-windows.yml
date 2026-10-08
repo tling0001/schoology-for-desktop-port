@@ -42,11 +42,27 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build macOS DMG
         run: npm run dist:mac
+      - name: Create standalone macOS app update archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          MOUNT="$RUNNER_TEMP/schoology-update-mount"
+          mkdir -p "$MOUNT"
+          DMG=$(find dist -maxdepth 1 -name '*.dmg' -print -quit)
+          test -n "$DMG"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null
+          APP=$(find "$MOUNT" -maxdepth 3 -name '*.app' -type d -print -quit)
+          test -n "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Schoology-${VERSION}.app.zip"
+          hdiutil detach "$MOUNT" >/dev/null
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: Schoology-macOS
-          path: dist/*.dmg
+          path: |
+            dist/*.dmg
+            dist/*.app.zip
           if-no-files-found: error
 
   linux:

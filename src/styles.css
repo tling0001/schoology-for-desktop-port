@@ -1230,3 +1230,134 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .login .searchWrap input{color:#edf2f7}
 :root[data-theme="dark"] .assignmentCommentDialog,:root[data-theme="dark"] .assignmentSubmissionDialog,:root[data-theme="dark"] .composeMessageDialog,:root[data-theme="dark"] .androidSimpleDialog,:root[data-theme="dark"] .androidCreatePostDialog,:root[data-theme="dark"] .schoologyResourcePickerDialog{background:var(--theme-surface);color:var(--theme-text);border-color:var(--theme-border)}
 :root[data-theme="dark"] .androidSimpleDialogBody,:root[data-theme="dark"] .androidDialogTitle,:root[data-theme="dark"] .androidCommentDialogBody,:root[data-theme="dark"] .androidCommentDialogBar{color:var(--theme-text);border-color:var(--theme-border)}
+
+
+/* Complete dark-theme coverage for native course pages, materials, upcoming, and apps.
+   Keep Schoology's blue navigation chrome while making all content surfaces theme-aware. */
+:root[data-theme="dark"] .courseDetail,
+:root[data-theme="dark"] .courseLandscapePage,
+:root[data-theme="dark"] .sectionProfileContent,
+:root[data-theme="dark"] .sectionProfilePage,
+:root[data-theme="dark"] .materialList,
+:root[data-theme="dark"] .courseAppList,
+:root[data-theme="dark"] .gradesNativeList,
+:root[data-theme="dark"] .courseAppsSideContent .courseAppList,
+:root[data-theme="dark"] .courseUpcomingContent,
+:root[data-theme="dark"] .courseMainPane,
+:root[data-theme="dark"] .courseAppsSidePane,
+:root[data-theme="dark"] .courseUpcomingPane,
+:root[data-theme="dark"] .courseMainPane .courseIdentityCard,
+:root[data-theme="dark"] .courseMainPane .courseIdentityInfoBar,
+:root[data-theme="dark"] .courseMainPane .sectionProfileHeader,
+:root[data-theme="dark"] .courseMainPane .sectionProfileContent,
+:root[data-theme="dark"] .courseMainPane .sectionProfileTabs,
+:root[data-theme="dark"] .courseAppsSideContent,
+:root[data-theme="dark"] .courseAppsSideContent .courseAppRow,
+:root[data-theme="dark"] .upcomingList,
+:root[data-theme="dark"] .folderLoadingState,
+:root[data-theme="dark"] .materialBackRow,
+:root[data-theme="dark"] .courseTabLoading {
+  background:var(--theme-surface)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .materialRow,
+:root[data-theme="dark"] .courseAppRow,
+:root[data-theme="dark"] .upcomingAssignment,
+:root[data-theme="dark"] .gradeAssignmentRow,
+:root[data-theme="dark"] .materialBackRow,
+:root[data-theme="dark"] .courseRows button,
+:root[data-theme="dark"] .courseAppsSideContent .courseAppRow,
+:root[data-theme="dark"] .courseMainPane .sectionProfileTab,
+:root[data-theme="dark"] .courseTabs button,
+:root[data-theme="dark"] .courseLandscapePage button:not(.iconButton),
+:root[data-theme="dark"] .courseMainPane .courseIdentityCard {
+  background:var(--theme-surface)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .materialRow:hover,
+:root[data-theme="dark"] .courseAppRow:hover,
+:root[data-theme="dark"] .upcomingAssignment:hover,
+:root[data-theme="dark"] .courseRows button:hover,
+:root[data-theme="dark"] .courseTabs button:hover {
+  background:var(--theme-hover)!important;
+}
+:root[data-theme="dark"] .materialRow b,
+:root[data-theme="dark"] .materialRow>span:nth-child(2),
+:root[data-theme="dark"] .courseAppRow b,
+:root[data-theme="dark"] .courseAppRow span:nth-child(2),
+:root[data-theme="dark"] .upcomingAssignment .assignmentInfo b,
+:root[data-theme="dark"] .courseMainPane .courseIdentityInfoBar .sectionProfileTitle,
+:root[data-theme="dark"] .courseMainPane .courseIdentityInfoBar .sectionProfileSubtitle,
+:root[data-theme="dark"] .courseMainPane .courseIdentitySchool,
+:root[data-theme="dark"] .folderLoadingState b,
+:root[data-theme="dark"] .gradeAssignmentName,
+:root[data-theme="dark"] .gradeAssignmentTitle,
+:root[data-theme="dark"] .gradeValue,
+:root[data-theme="dark"] .courseSchoolName {
+  color:var(--theme-text)!important;
+}
+:root[data-theme="dark"] .materialRow small,
+:root[data-theme="dark"] .courseAppRow small,
+:root[data-theme="dark"] .gradeAssignmentName small,
+:root[data-theme="dark"] .upcomingAssignment .assignmentInfo small,
+:root[data-theme="dark"] .upcomingDateHeader,
+:root[data-theme="dark"] .upcomingEmpty,
+:root[data-theme="dark"] .folderLoadingState small,
+:root[data-theme="dark"] .materialRow>span:last-child,
+:root[data-theme="dark"] .upcomingAssignment .rowChevron {
+  color:var(--theme-muted)!important;
+}
+:root[data-theme="dark"] .upcomingDateHeader .upcomingDateRule,
+:root[data-theme="dark"] .courseUpdatesToolbar,
+:root[data-theme="dark"] .sectionProfileRule,
+:root[data-theme="dark"] .courseMainPane .courseIdentityInfoBar,
+:root[data-theme="dark"] .courseMainPane .courseIdentityCard,
+:root[data-theme="dark"] .sectionFullUpdate,
+:root[data-theme="dark"] .courseUpdateComposerInner {
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .courseAppsSideContent .courseAppIcon,
+:root[data-theme="dark"] .courseAppIcon,
+:root[data-theme="dark"] .courseAppFallback,
+:root[data-theme="dark"] .courseImageFallback,
+:root[data-theme="dark"] .courseThumb,
+:root[data-theme="dark"] .dashboardThumb {
+  background:var(--theme-surface-raised)!important;
+  color:var(--theme-text)!important;
+}
+:root[data-theme="dark"] .dashboardGrid,
+:root[data-theme="dark"] .dashboardCourseFallback,
+:root[data-theme="dark"] .courseDetail>.loading,
+:root[data-theme="dark"] .courseDetail>.empty {
+  background:var(--theme-bg)!important;
+  color:var(--theme-muted)!important;
+}
+:root[data-theme="dark"] .dashboardCard,
+:root[data-theme="dark"] .courseDashboardCard,
+:root[data-theme="dark"] .courseDashboard .card {
+  background:var(--theme-surface)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .dashboardCard b,
+:root[data-theme="dark"] .courseDashboardCard b,
+:root[data-theme="dark"] .courseDashboard .card b {
+  color:var(--theme-text)!important;
+}
+:root[data-theme="dark"] .dashboardCard small,
+:root[data-theme="dark"] .courseDashboardCard small,
+:root[data-theme="dark"] .courseDashboard .card small {
+  color:var(--theme-muted)!important;
+}
+:root[data-theme="dark"] .courseMainPane .sectionProfileTab.active,
+:root[data-theme="dark"] .courseTabs button.active {
+  color:var(--theme-blue)!important;
+  border-bottom-color:var(--theme-blue)!important;
+}
+:root[data-theme="dark"] .courseAppsSideContent .courseAppRow img,
+:root[data-theme="dark"] .materialRow img,
+:root[data-theme="dark"] .officialMaterialIcon img {
+  filter:none;
+}

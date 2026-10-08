@@ -1,14 +1,16 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.06.0-port.116",
+  "version": "2026.06.0-port.117",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis dir --publish never",
-    "dist:win": "electron-builder --win nsis dir --publish never",
+    "dist": "electron-builder --win nsis --publish never",
+    "dist:win": "electron-builder --win nsis --publish never",
     "dist:mac": "electron-builder --mac dmg --publish never",
-    "dist:linux": "electron-builder --linux deb rpm --publish never"
+    "dist:linux": "electron-builder --linux deb rpm --publish never",
+    "build:updater": "electron-builder --config updater/electron-builder.yml --publish never",
+    "pre-dist:win": "npm run build:updater"
   },
   "devDependencies": {
     "electron": "^39.1.0",
@@ -36,8 +38,7 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "dir"
+        "nsis"
       ],
       "icon": "assets/ic_launcher_256.ico",
       "requestedExecutionLevel": "asInvoker"
@@ -57,7 +58,13 @@
       "identity": "-",
       "hardenedRuntime": false,
       "icon": "assets/ic_launcher.icns"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "updater/dist/SchoologyUpdater.exe",
+        "to": "SchoologyUpdater.exe"
+      }
+    ]
   },
   "productName": "Schoology"
 }

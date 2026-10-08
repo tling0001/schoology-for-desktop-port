@@ -19,6 +19,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Build Windows updater helper
+        run: npm run build:updater
       - name: Build Windows installer
         run: npx electron-builder --win nsis --publish never
       - name: Upload Windows installer

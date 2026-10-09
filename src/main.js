@@ -1,4 +1,4 @@
-const {app,BrowserWindow,session,ipcMain,shell,dialog}=require('electron');
+const {app,BrowserWindow,session,ipcMain,shell,dialog,nativeTheme}=require('electron');
 const path=require('path');
 const crypto=require('crypto');
 const fs=require('fs');
@@ -35,8 +35,10 @@ function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)
 function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;settings.experimentalForceDarkConfigured=true;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
 function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mode);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
 function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(app.getPath('exe')));const programFiles=[process.env.ProgramFiles||'C:\\Program Files',process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)'];const normalized=value=>path.resolve(value).replace(/[\\/]+$/,'').toLowerCase();const allUsers=programFiles.some(root=>normalized(installDir)===normalized(path.join(root,'Schoology')));return {installDir,installMode:allUsers?'all-users':'per-user'};}
-// Enable Chromium's native webpage darkening before app.whenReady(), so it applies to
-// embedded webviews as well as the main renderer. Respect the saved appearance and toggle.
+// Keep Chromium's native color scheme in sync with Schoology's saved appearance.
+// The renderer data-theme attribute does not affect nativeTheme or isolated webviews.
+try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not set native theme source:',e.message)}
+// This Chromium feature must be enabled before app.whenReady() creates renderers.
 const forceDarkAtLaunch=isExperimentalForceDarkActive();
 if(forceDarkAtLaunch){
   try{app.commandLine.appendSwitch('enable-features','WebContentsForceDark')}
@@ -700,7 +702,7 @@ app.whenReady().then(()=>{
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('get-theme-mode',()=>readThemeMode());
-  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);const isActive=isExperimentalForceDarkActive(safe);if(readThemeSettings().experimentalForceDark&&wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}const isActive=isExperimentalForceDarkActive(safe);if(readThemeSettings().experimentalForceDark&&wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
   ipcMain.handle('get-experimental-force-dark',()=>readThemeSettings().experimentalForceDark);
   ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{const wasActive=isExperimentalForceDarkActive();saveExperimentalForceDark(!!enabled);const isActive=isExperimentalForceDarkActive();if(wasActive!==isActive){app.relaunch();app.exit(0)}return !!enabled});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());

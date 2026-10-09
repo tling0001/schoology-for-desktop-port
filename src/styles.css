@@ -1672,3 +1672,22 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] #createPostDialog input,:root[data-theme="dark"] #createPostDialog textarea,:root[data-theme="dark"] #createPostDialog select,:root[data-theme="dark"] #composeMessageDialog input,:root[data-theme="dark"] #composeMessageDialog textarea,:root[data-theme="dark"] .schoologyResourcePickerDialog input,:root[data-theme="dark"] .schoologyResourcePickerDialog select{background:var(--theme-input,#292d33)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#454a52)!important;color-scheme:dark}
 :root[data-theme="dark"] #createPostDialog label,:root[data-theme="dark"] #createPostDialog .androidFieldLabel,:root[data-theme="dark"] #createPostDialog .androidDateRow span,:root[data-theme="dark"] #composeMessageDialog .composeField label,:root[data-theme="dark"] #composeMessageDialog #composeStatus,:root[data-theme="dark"] #composeMessageDialog #messageAttachmentList,:root[data-theme="dark"] .schoologyResourcePickerDialog .resourcePickerCollection small,:root[data-theme="dark"] .schoologyResourcePickerDialog .resourcePickerEmpty{color:var(--theme-muted,#a9afb7)!important}
 :root[data-theme="dark"] #createPostDialog .androidCheckRow,:root[data-theme="dark"] #createPostDialog .androidSwitchRow,:root[data-theme="dark"] #createPostDialog .androidCreatePostStatus{color:var(--theme-text,#e6e8eb)!important}
+
+
+/* v137: message-thread markup uses its own fixed-light card and attachment classes. */
+:root[data-theme="dark"] .messageDetail{background:var(--theme-bg,#17191c)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messageThreadItem,
+:root[data-theme="dark"] .messageThreadHeader,
+:root[data-theme="dark"] .messageThreadHeader>div,
+:root[data-theme="dark"] .messageThreadBody,
+:root[data-theme="dark"] .messageAttachments,
+:root[data-theme="dark"] .messageThreadLoading{
+  background:var(--theme-surface,#202328)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#393d43)!important;
+}
+:root[data-theme="dark"] .messageThreadHeader b{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messageThreadHeader small{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .messageThreadAvatar,
+:root[data-theme="dark"] .messageThreadAvatarFallback{background:var(--theme-surface-raised,#292d33)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messageAttachment{background:var(--theme-surface-raised,#292d33)!important;color:var(--theme-blue,#8abfff)!important;border:1px solid var(--theme-border,#393d43)!important}

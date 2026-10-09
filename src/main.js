@@ -33,6 +33,7 @@ function isExperimentalForceDarkActive(mode=readThemeMode(),enabled=readThemeSet
 function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)?mode:'system';const settings=readThemeSettings();fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify({...settings,mode:safe},null,2),'utf8');return safe}
 function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
 function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mode);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
+function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(app.getPath('exe')));const programFiles=[process.env.ProgramFiles||'C:\\Program Files',process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)'];const normalized=value=>path.resolve(value).replace(/[\\/]+$/,'').toLowerCase();const allUsers=programFiles.some(root=>normalized(installDir)===normalized(path.join(root,'Schoology')));return {installDir,installMode:allUsers?'all-users':'per-user'};}
 // WebContentsForceDark is a Chromium launch feature. Enable it only for launches
 // where the saved preference and effective app appearance both request it.
 const forceDarkAtLaunch=isExperimentalForceDarkActive();
@@ -630,12 +631,18 @@ async function installUpdate(info){
     const devUpdater=path.join(__dirname,'../updater/dist/SchoologyUpdater.exe');
     const helper=fs.existsSync(updaterPath)?updaterPath:(fs.existsSync(devUpdater)?devUpdater:null);
     if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
+    const installContext=getWindowsInstallContext();
     const stagedUpdater=path.join(app.getPath('temp'),`SchoologyUpdater-${process.pid}-${Date.now()}.exe`);
     fs.copyFileSync(helper,stagedUpdater);
-    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),darkTheme:isDarkAppearance(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater};
+    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),darkTheme:isDarkAppearance(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater,...installContext};
     const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
     const {spawn}=require('child_process');
-    const child=spawn(stagedUpdater,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
+    let child;
+    if(installContext.installMode==='all-users'){
+      const quotePowerShell=value=>`'${String(value).replace(/'/g,"''")}'`;
+      const command=`Start-Process -FilePath ${quotePowerShell(stagedUpdater)} -ArgumentList ${quotePowerShell(`--payload-base64=${encoded}`)} -Verb RunAs`;
+      child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',command],{detached:true,stdio:'ignore',windowsHide:true});
+    }else child=spawn(stagedUpdater,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
     child.unref();
     app.quit();
     return true;

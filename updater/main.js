@@ -10,7 +10,8 @@ let payload = {};
 try { const encoded = payloadArg ? payloadArg.slice('--payload-base64='.length) : ''; payload = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8')); } catch (e) { payload = {}; }
 
 const TEMP_DIR = path.join(process.env.LOCALAPPDATA || app.getPath('temp'), 'Temp', 'schoology-updater');
-const SCHOOLGY_DIR = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Schoology');
+const fallbackInstallDir=payload.installMode==='all-users'?path.join(process.env.ProgramFiles || 'C:\\Program Files','Schoology'):path.join(process.env.LOCALAPPDATA || app.getPath('temp'),'Programs','Schoology');
+const SCHOOLGY_DIR = path.resolve(String(payload.installDir||fallbackInstallDir));
 const LOCAL_7ZIP = path.join(SCHOOLGY_DIR, '7-Zip');
 const SEVENZIP_URL = 'https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.msi';
 const schoologyExe = path.join(SCHOOLGY_DIR, 'Schoology.exe');

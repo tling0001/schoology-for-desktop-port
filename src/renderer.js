@@ -9,11 +9,12 @@ let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
 let loadTabGeneration=0;
-let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system'};
+let state={screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',experimentalForceDark:false};
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
 function applyTheme(mode,save=false){const selected=['light','dark','system'].includes(mode)?mode:'system';state.themeMode=selected;document.documentElement.dataset.theme=resolveTheme(selected);document.documentElement.dataset.themeMode=selected;if(save){try{Promise.resolve(A.setThemeMode?.(selected)).catch(()=>{})}catch{}}}
 window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.themeMode==='system')applyTheme('system')});
 A.getThemeMode?.().then(mode=>applyTheme(mode||'system')).catch(()=>applyTheme('system'));
+A.getExperimentalForceDark?.().then(enabled=>{state.experimentalForceDark=!!enabled;const toggle=document.getElementById('experimentalForceDarkToggle');if(toggle)toggle.checked=state.experimentalForceDark}).catch(()=>{});
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
@@ -1339,6 +1340,8 @@ async function loadSectionGrades(course){
  const assignments=items.assignment||items.assignments||[];
  const gs=userGrades.section||userGrades.sections||[];
  const current=gs.find(s=>String(s.section_id||s.id)===String(sid))||gs[0]||{};
+ try{await hydrateUserCourseGrades([current]);}catch{}
+ current._gradeScaleId=current._gradeScaleId??section?.options?.default_grading_scale_id??section?.section?.options?.default_grading_scale_id;
  const byId={};
  for(const per of (current.period||current.periods||[])){
   for(const ga of (per.assignment||per.assignments||[]))byId[String(ga.assignment_id||ga.id)]={...ga};
@@ -1354,21 +1357,57 @@ async function loadSectionGrades(course){
 }
 function getFinalGradeDisplay(sec){
  const firstDefined=(...values)=>values.find(v=>v!==undefined&&v!==null&&String(v).trim()!=='');
- const rawFinal=sec?.final_grade??sec?.finalGrade??sec?.final_grades??sec?.finalGrades??[];
+ const rawFinal=sec?._resolvedFinalGrade??sec?.final_grade??sec?.finalGrade??sec?.final_grades??sec?.finalGrades??[];
  const finals=(Array.isArray(rawFinal)?rawFinal:(rawFinal?[rawFinal]:[])).filter(f=>f&&typeof f==='object');
  const periodList=f=>{const v=f?.period??f?.periods??f?.final_period??f?.finalPeriod??f?.final_grade_period??f?.finalGradePeriod??[];return Array.isArray(v)?v:(v?[v]:[])};
  const entries=finals.flatMap(f=>{const ps=periodList(f);return ps.length?ps.map(p=>({final:f,period:p||{}})):[{final:f,period:{}}]});
- // Official Android FinalGradePeriod.isFinal() matches period_id="final".
- // Prefer a non-empty teacher string override from that period across every returned
- // enrollment/final-grade object, before considering numeric overrides or percentages.
  const finalEntries=entries.filter(e=>String(e.period?.period_id??e.period?.periodId??'').toLowerCase()==='final');
  const preferred=[...finalEntries,...entries.filter(e=>!finalEntries.includes(e))];
- for(const e of preferred){const v=firstDefined(e.period.override_str,e.period.overrideStr,e.period.override_string,e.period.overrideString,e.final.override_str,e.final.overrideStr,e.final.override_string,e.final.overrideString);if(v!==undefined)return {value:String(v),overridden:true,final:e.final,period:e.period};}
- for(const e of preferred){const v=firstDefined(e.period.override_numeric,e.period.overrideNumeric,e.final.override_numeric,e.final.overrideNumeric);if(v!==undefined)return {value:String(v),overridden:true,final:e.final,period:e.period};}
+ for(const e of preferred){const v=firstDefined(e.period.override_str,e.period.overrideStr,e.period.override_string,e.period.overrideString,e.final.override_str,e.final.overrideStr,e.final.override_string,e.final.overrideString);if(v!==undefined)return {value:String(v).trim(),letter:String(v).trim(),percentage:'',overridden:true,final:e.final,period:e.period};}
+ for(const e of preferred){const v=firstDefined(e.period.override_numeric,e.period.overrideNumeric,e.final.override_numeric,e.final.overrideNumeric);if(v!==undefined){const num=Number(v);const letter=letterGradeForCourse(sec,e,num);return {value:letter?`${formatGradeNumber(num)}% ${letter}`:`${formatGradeNumber(num)}%`,letter,percentage:formatGradeNumber(num)+'%',overridden:true,final:e.final,period:e.period};}}
  const e=preferred[0]||{final:finals[0]||{},period:{}};
  const grade=firstDefined(e.period.grade,e.final.grade,e.final.grade_override,e.final.gradeOverride,e.final.calculated_grade,e.final.calculatedGrade,sec?.grade);
- return {value:grade!==undefined?String(grade):'—',overridden:false,final:e.final,period:e.period};
+ if(grade===undefined)return {value:'—',letter:'',percentage:'',overridden:false,final:e.final,period:e.period};
+ const numeric=Number(String(grade).replace(/%$/,''));
+ if(Number.isFinite(numeric)){const letter=letterGradeForCourse(sec,e,numeric);const pct=formatGradeNumber(numeric)+'%';return {value:letter?`${pct} ${letter}`:pct,letter,percentage:pct,overridden:false,final:e.final,period:e.period};}
+ return {value:String(grade),letter:'',percentage:'',overridden:false,final:e.final,period:e.period};
 }
+function formatGradeNumber(value){const n=Number(value);return Number.isFinite(n)?String(Number(n.toFixed(2))):String(value)}
+function letterGradeForCourse(sec,entry,numeric){
+ const final=entry?.final||{},period=entry?.period||{};
+ const scaleId=String(final.scale_id??final.scaleId??period.scale_id??period.scaleId??sec?._gradeScaleId??'');
+ const raw=sec?._gradingScales?.grading_scale??sec?._gradingScales?.gradingScale??sec?._gradingScales?.scales??sec?._gradingScales?.scale??[];
+ const scales=Array.isArray(raw)?raw:(raw?[raw]:[]);
+ let scale=scales.find(s=>String(s.id??s.scale_id??s.scaleId??'')===scaleId);
+ if(!scale&&scales.length===1)scale=scales[0];
+ const lv=scale?.scale?.level??scale?.levels?.level??scale?.levels??scale?.level??[];
+ const levels=(Array.isArray(lv)?lv:(lv?[lv]:[])).map(l=>({grade:l.grade??l.title??l.name,cutoff:Number(l.cutoff??l.average??l.percent??l.percentage)})).filter(l=>l.grade!=null&&Number.isFinite(l.cutoff)).sort((a,b)=>b.cutoff-a.cutoff);
+ const matched=levels.find(l=>numeric>=l.cutoff);return matched?String(matched.grade):'';
+}
+async function hydrateUserCourseGrades(sections){
+ const uid=state.auth?.userId||state.auth?.user?.id;
+ await Promise.all((sections||[]).map(async sec=>{
+  const sid=sec.section_id??sec.sectionId??sec.id;if(!sid)return;
+  try{
+   const [grades,scales,enrollments,sectionDetail]=await Promise.all([
+    A.api({path:`sections/${sid}/grades`,params:{}}).catch(()=>null),
+    A.api({path:`sections/${sid}/grading_scales`,params:{}}).catch(()=>null),
+    A.api({path:`sections/${sid}/enrollments`,params:{start:0,limit:200,enrollment_status:1}}).catch(()=>null),
+    A.api({path:`sections/${sid}`,params:{}}).catch(()=>null)
+   ]);
+   const all=grades?.final_grade??grades?.finalGrade??grades?.final_grades??[];const list=Array.isArray(all)?all:(all?[all]:[]);
+   const enrollmentList=enrollments?.enrollment??enrollments?.enrollments??[];
+   const myEnrollment=enrollmentList.find(en=>String(en.uid??en.user_id??en.userId??'')===String(uid));
+   const enrollmentId=String(myEnrollment?.id??sec.enrollment_id??sec.enrollmentId??sec.enrollment?.id??'');
+   let matched=list.find(f=>enrollmentId&&String(f.enrollment_id??f.enrollmentId??'')===enrollmentId);
+   if(!matched&&list.length===1)matched=list[0];
+   // Do not pick an arbitrary student's record if this section has multiple enrollments.
+   if(matched)sec._resolvedFinalGrade=[matched];
+   sec._gradingScales=scales||{};sec._gradeScaleId=matched?.scale_id??matched?.scaleId??sec.scale_id??sec.scaleId??sectionDetail?.section?.options?.default_grading_scale_id??sectionDetail?.options?.default_grading_scale_id;
+  }catch{}
+ }));
+}
+
 function renderOverallGrade(sec){
  const display=getFinalGradeDisplay(sec);
  const final=display.final;
@@ -1866,9 +1905,9 @@ async function loadTab(){
   }else if(state.tab==='grades'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
     const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=x.section||x.sections||[];
-    c.innerHTML=`<section class="page"><h1>Grades</h1><div class="sectionListRows">${ss.map((s,i)=>{const gd=getFinalGradeDisplay(s);return `<button class="sectionListItem" data-user-grade-section="${i}"><span class="sectionLabels"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc(gd.value)}</small></span><span>›</span></button>`}).join('')||'<div class="empty"><h2>No grades</h2></div>'}</div></section>`;
-    window.__schoologyUserGradeSections=ss;
-    document.querySelectorAll('[data-user-grade-section]').forEach(b=>b.onclick=()=>{const ss=window.__schoologyUserGradeSections[+b.dataset.userGradeSection];showCourse({id:ss.section_id,section_title:ss.section_title||ss.course_title,course_title:ss.course_title},'grades')});
+    const renderGradeRows=()=>{const el=c.querySelector('.sectionListRows');if(!el)return;el.innerHTML=ss.map((s,i)=>{const gd=getFinalGradeDisplay(s);return `<button class="sectionListItem" data-user-grade-section="${i}"><span class="sectionLabels"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc(gd.value)}</small></span><span>›</span></button>`}).join('')||'<div class="empty"><h2>No grades</h2></div>';el.querySelectorAll('[data-user-grade-section]').forEach(b=>b.onclick=()=>{const sec=ss[+b.dataset.userGradeSection];showCourse({id:sec.section_id,section_title:sec.section_title||sec.course_title,course_title:sec.course_title},'grades')})};
+    c.innerHTML=`<section class="page"><h1>Grades</h1><div class="sectionListRows"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading grades…</span></div></div></section>`;
+    window.__schoologyUserGradeSections=ss;renderGradeRows();await hydrateUserCourseGrades(ss);renderGradeRows();
   }else if(state.tab==='messages'){
     await loadMessagesPage(c);
   }else if(state.tab==='requests'){
@@ -1923,8 +1962,9 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
     document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
   }else if(state.tab==='settings'){
-    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Appearance</h2><label class="settingRow"><span><b>Theme</b><small>Choose light, dark, or follow your system appearance</small></span><select id="themeModeSelect" class="settingSelect"><option value="system" ${state.themeMode==='system'?'selected':''}>System default</option><option value="light" ${state.themeMode==='light'?'selected':''}>Light</option><option value="dark" ${state.themeMode==='dark'?'selected':''}>Dark</option></select></label></div><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.130</div></section>`;
-    document.getElementById('themeModeSelect')?.addEventListener('change',e=>applyTheme(e.target.value,true));
+    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Appearance</h2><label class="settingRow"><span><b>Theme</b><small>Choose light, dark, or follow your system appearance</small></span><select id="themeModeSelect" class="settingSelect"><option value="system" ${state.themeMode==='system'?'selected':''}>System default</option><option value="light" ${state.themeMode==='light'?'selected':''}>Light</option><option value="dark" ${state.themeMode==='dark'?'selected':''}>Dark</option></select></label>${document.documentElement.dataset.theme==='dark'?`<label class="settingRow"><span><b>Experimental dark mode in Schoology quizzes and external links</b><small>Uses Chromium WebContentsForceDark. This experimental feature restarts the app when its effective dark-mode state changes.</small></span><input type="checkbox" id="experimentalForceDarkToggle" ${state.experimentalForceDark?'checked':''}></label>`:''}</div><div class="settingsGroup"><h2>Notification Settings</h2><label class="settingRow"><span><b>Notifications</b><small id="notifSummary">Enabled</small></span><input type="checkbox" id="notifToggle" checked></label><button class="settingRow settingButton"><span><b>Ringtone</b><small>Set Notification Ringtone</small></span><span>›</span></button><label class="settingRow"><span><b>Vibrate</b><small>Vibrate on incoming notifications</small></span><input type="checkbox" checked></label><label class="settingRow"><span><b>Phone LED</b><small>Flash LED on notifications</small></span><input type="checkbox" checked></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: 2026.06.0-port.131</div></section>`;
+    document.getElementById('themeModeSelect')?.addEventListener('change',async e=>{applyTheme(e.target.value,false);try{await A.setThemeMode?.(e.target.value)}catch{}loadTab()});
+    document.getElementById('experimentalForceDarkToggle')?.addEventListener('change',async e=>{state.experimentalForceDark=!!e.target.checked;try{await A.setExperimentalForceDark?.(state.experimentalForceDark)}catch(err){state.experimentalForceDark=!state.experimentalForceDark;e.target.checked=state.experimentalForceDark;showAppDialog('Unable to update experimental dark mode',err.message||String(err))}});
     document.getElementById('notifToggle')?.addEventListener('change',e=>{document.getElementById('notifSummary').textContent=e.target.checked?'Enabled':'Disabled'});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();state.embeddedReturn={tab:'settings',title:'Settings'};showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info',{allowBrowser:false,accountInfo:true})}catch(e){alert(e.message)}});
     document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});

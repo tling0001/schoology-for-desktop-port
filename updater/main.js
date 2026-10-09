@@ -10,8 +10,7 @@ let payload = {};
 try { const encoded = payloadArg ? payloadArg.slice('--payload-base64='.length) : ''; payload = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8')); } catch (e) { payload = {}; }
 
 const TEMP_DIR = path.join(process.env.LOCALAPPDATA || app.getPath('temp'), 'Temp', 'schoology-updater');
-const fallbackInstallDir=payload.installMode==='all-users'?path.join(process.env.ProgramFiles || 'C:\\Program Files','Schoology'):path.join(process.env.LOCALAPPDATA || app.getPath('temp'),'Programs','Schoology');
-const SCHOOLGY_DIR = path.resolve(String(payload.installDir||fallbackInstallDir));
+const SCHOOLGY_DIR = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Schoology');
 const LOCAL_7ZIP = path.join(SCHOOLGY_DIR, '7-Zip');
 const SEVENZIP_URL = 'https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.msi';
 const schoologyExe = path.join(SCHOOLGY_DIR, 'Schoology.exe');
@@ -23,7 +22,7 @@ let cancelled=false;
 let completed=false;
 const LOG_FILE = path.join(TEMP_DIR, 'updater.log');
 const productName = String(payload.productName || 'Schoology');
-const darkTheme = payload.themeMode === 'dark' || (payload.themeMode !== 'light' && require('electron').nativeTheme?.shouldUseDarkColors === true);
+const darkTheme = typeof payload.darkTheme === 'boolean' ? payload.darkTheme : (payload.themeMode === 'dark' || (payload.themeMode !== 'light' && require('electron').nativeTheme?.shouldUseDarkColors === true));
 const theme = darkTheme ? {background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'} : {background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'};
 
 function log(message, details){
@@ -66,7 +65,7 @@ function createWindow(){
   const switchMode=productName!=='Schoology';
   const steps=[['sevenDownload','Download 7-Zip'],['sevenInstall','Install 7-Zip'],['schoologyDownload',`Download ${productName}`],['install',`Install ${productName}`]];
   const html=`<!doctype html><html><head><meta charset="utf-8"><style>
-  *{box-sizing:border-box}body{margin:0;padding:28px 30px;font-family:"Segoe UI",system-ui,sans-serif;color:#202124;background:#fff}h1{font-size:21px;margin:0 0 8px;font-weight:600}#status{font-size:14px;color:#5f6368;margin:0 0 22px}.screen{margin:0 0 18px}.screen[hidden]{display:none}.row{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:7px}.name{font-weight:600}.state{color:#6b7280}.track{height:7px;background:#e5e7eb;border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:#2e66a3}.indeterminate .bar{width:38%;animation:slide 1.15s ease-in-out infinite}@keyframes slide{0%{transform:translateX(-110%)}50%{transform:translateX(165%)}100%{transform:translateX(290%)}}.done .bar{width:100%;animation:none}.error{color:#f28b82}.foot{font-size:12px;color:${theme.muted};margin-top:4px}</style></head><body><h1>${switchMode?'Switching to ':''}${esc(productName)}</h1><p id="status">Preparing…</p>${steps.map(([id,name])=>`<div class="screen" id="${id}" hidden><div class="row"><span class="name">${name}</span><span class="state">Waiting</span></div><div class="track"><div class="bar"></div></div></div>`).join('')}<div class="foot" id="foot">Please keep this window open.</div></body></html>`;
+  *{box-sizing:border-box}body{color-scheme:${darkTheme?'dark':'light'};margin:0;padding:28px 30px;font-family:"Segoe UI",system-ui,sans-serif;color:${theme.foreground};background:${theme.background}}h1{font-size:21px;margin:0 0 8px;font-weight:600;color:${theme.foreground}}#status{font-size:14px;color:${theme.muted};margin:0 0 22px}.screen{margin:0 0 18px}.screen[hidden]{display:none}.row{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin-bottom:7px}.name{font-weight:600;color:${theme.foreground}}.state{color:${theme.muted}}.track{height:7px;background:${theme.track};border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:${theme.accent}}.indeterminate .bar{width:38%;animation:slide 1.15s ease-in-out infinite}@keyframes slide{0%{transform:translateX(-110%)}50%{transform:translateX(165%)}100%{transform:translateX(290%)}}.done .bar{width:100%;animation:none}.error{color:#f28b82}.foot{font-size:12px;color:${theme.muted};margin-top:4px}</style></head><body><h1>${switchMode?'Switching to ':''}${esc(productName)}</h1><p id="status">Preparing…</p>${steps.map(([id,name])=>`<div class="screen" id="${id}" hidden><div class="row"><span class="name">${name}</span><span class="state">Waiting</span></div><div class="track"><div class="bar"></div></div></div>`).join('')}<div class="foot" id="foot">Please keep this window open.</div></body></html>`;
   win.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(html));
   win.webContents.on('did-finish-load',()=>{win.webContents.executeJavaScript(`(()=>{const b=document.createElement('button');b.id='cancelUpdate';b.textContent='Cancel';b.style.cssText='display:block;margin:20px 0 0 auto;padding:7px 18px;border:1px solid #9aa0a6;border-radius:4px;background:${theme.background};color:${theme.foreground};font:inherit;cursor:pointer';b.onclick=()=>console.log('schoology-updater-cancel');document.body.appendChild(b)})()`).catch(()=>{});});
   win.webContents.on('console-message',(_,level,message)=>{if(message==='schoology-updater-cancel')cancelUpdate();});
@@ -145,7 +144,7 @@ async function main(){
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
-  ui('install','done','Complete',100);const appAsar=path.join(inner,'resources','app.asar');log('cleanup-start',{appAsar});cleanupArtifacts([appAsar,outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
+  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
   setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{scheduleSelfCleanup();if(win&&!win.isDestroyed())win.close();app.quit()}},700);
 }
 app.whenReady().then(()=>{createWindow();setTimeout(()=>main().catch(e=>{if(!cancelled)fail(e);}),300);});

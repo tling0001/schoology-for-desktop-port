@@ -26,10 +26,17 @@ let updateProgressWindow;
 let serverTimeOffset=0;
 const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
 const themeSettingsFile=path.join(stableUserData,'theme-settings.json');
-function readThemeMode(){try{const mode=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))?.mode;return ['light','dark','system'].includes(mode)?mode:'system'}catch{return 'system'}}
-function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)?mode:'system';fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify({mode:safe},null,2),'utf8');return safe}
-function resolveThemeColors(mode=readThemeMode()){const dark=mode==='dark'||(mode==='system'&&require('electron').nativeTheme?.shouldUseDarkColors);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
-function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(app.getPath('exe')));const programFiles=[process.env.ProgramFiles||'C:\\Program Files',process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)'];const normalized=value=>path.resolve(value).replace(/[\\/]+$/,'').toLowerCase();const allUsers=programFiles.some(root=>normalized(installDir)===normalized(path.join(root,'Schoology')));return {installDir,installMode:allUsers?'all-users':'per-user'};}
+function readThemeSettings(){try{const v=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))||{};return {mode:['light','dark','system'].includes(v.mode)?v.mode:'system',experimentalForceDark:v.experimentalForceDark===true}}catch{return {mode:'system',experimentalForceDark:false}}}
+function readThemeMode(){return readThemeSettings().mode}
+function isDarkAppearance(mode=readThemeMode()){return mode==='dark'||(mode==='system'&&require('electron').nativeTheme?.shouldUseDarkColors===true)}
+function isExperimentalForceDarkActive(mode=readThemeMode(),enabled=readThemeSettings().experimentalForceDark){return !!enabled&&isDarkAppearance(mode)}
+function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)?mode:'system';const settings=readThemeSettings();fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify({...settings,mode:safe},null,2),'utf8');return safe}
+function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
+function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mode);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
+// WebContentsForceDark is a Chromium launch feature. Enable it only for launches
+// where the saved preference and effective app appearance both request it.
+const forceDarkAtLaunch=isExperimentalForceDarkActive();
+if(forceDarkAtLaunch){try{const existing=app.commandLine.getSwitchValue('enable-features');const features=new Set(String(existing||'').split(',').map(x=>x.trim()).filter(Boolean));features.add('WebContentsForceDark');app.commandLine.appendSwitch('enable-features',[...features].join(','))}catch(e){console.error('Could not enable experimental Chromium force-dark:',e.message)}}
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
   try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{return false}
@@ -623,18 +630,12 @@ async function installUpdate(info){
     const devUpdater=path.join(__dirname,'../updater/dist/SchoologyUpdater.exe');
     const helper=fs.existsSync(updaterPath)?updaterPath:(fs.existsSync(devUpdater)?devUpdater:null);
     if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
-    const installContext=getWindowsInstallContext();
     const stagedUpdater=path.join(app.getPath('temp'),`SchoologyUpdater-${process.pid}-${Date.now()}.exe`);
     fs.copyFileSync(helper,stagedUpdater);
-    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater,...installContext};
+    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),darkTheme:isDarkAppearance(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater};
     const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
     const {spawn}=require('child_process');
-    let child;
-    if(installContext.installMode==='all-users'){
-      const quotePowerShell=value=>`'${String(value).replace(/'/g,"''")}'`;
-      const command=`Start-Process -FilePath ${quotePowerShell(stagedUpdater)} -ArgumentList ${quotePowerShell(`--payload-base64=${encoded}`)} -Verb RunAs`;
-      child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',command],{detached:true,stdio:'ignore',windowsHide:true});
-    }else child=spawn(stagedUpdater,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
+    const child=spawn(stagedUpdater,[`--payload-base64=${encoded}`],{detached:true,stdio:'ignore',windowsHide:false});
     child.unref();
     app.quit();
     return true;
@@ -683,11 +684,14 @@ function create(){
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }
 app.whenReady().then(()=>{
+  require('electron').nativeTheme.on('updated',()=>{if(readThemeMode()==='system'&&readThemeSettings().experimentalForceDark&&isExperimentalForceDarkActive()!==forceDarkAtLaunch){app.relaunch();app.exit(0)}});
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('get-theme-mode',()=>readThemeMode());
-  ipcMain.handle('set-theme-mode',(_,mode)=>saveThemeMode(mode));
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);const isActive=isExperimentalForceDarkActive(safe);if(readThemeSettings().experimentalForceDark&&wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
+  ipcMain.handle('get-experimental-force-dark',()=>readThemeSettings().experimentalForceDark);
+  ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{const wasActive=isExperimentalForceDarkActive();saveExperimentalForceDark(!!enabled);const isActive=isExperimentalForceDarkActive();if(wasActive!==isActive){app.relaunch();app.exit(0)}return !!enabled});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));

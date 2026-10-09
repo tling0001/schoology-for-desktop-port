@@ -1361,3 +1361,68 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .officialMaterialIcon img {
   filter:none;
 }
+
+
+/* v131: cover the actual native course-dashboard markup (not only legacy card names). */
+:root[data-theme="dark"] .nativeCourseDashboard,
+:root[data-theme="dark"] .nativeDashboardCourses {background:var(--theme-bg)!important;color:var(--theme-text)!important}
+:root[data-theme="dark"] .nativeCourseDashboard .dashboardOfficialLoading {background:var(--theme-bg)!important}
+:root[data-theme="dark"] .nativeDashboardCourse,
+:root[data-theme="dark"] .nativeDashboardCourseInfo {background:var(--theme-surface)!important;color:var(--theme-text)!important;border-color:var(--theme-border)!important}
+:root[data-theme="dark"] .nativeDashboardCourseInfo>b {color:var(--theme-text)!important}
+:root[data-theme="dark"] .nativeDashboardCoursePeriod,
+:root[data-theme="dark"] .nativeDashboardCourseInfo>small {color:var(--theme-muted)!important}
+:root[data-theme="dark"] .nativeDashboardCourseImage {background:var(--theme-surface-raised)!important;color:var(--theme-text)!important}
+:root[data-theme="dark"] .nativeDashboardCourseImage .dashboardCourseFallback {background:var(--theme-surface-raised)!important;color:var(--theme-text)!important}
+:root[data-theme="dark"] .nativeDashboardCourse:hover {box-shadow:0 2px 9px rgba(0,0,0,.4)}
+
+/* Assignment pages contain legacy fixed-white descendants; theme every content surface. */
+:root[data-theme="dark"] .assignmentAndroidPage,
+:root[data-theme="dark"] .assignmentPage,
+:root[data-theme="dark"] .assignmentDetail,
+:root[data-theme="dark"] .assignmentTabContent,
+:root[data-theme="dark"] .assignmentInfoHeader,
+:root[data-theme="dark"] .assignmentDescription,
+:root[data-theme="dark"] .assignmentBody,
+:root[data-theme="dark"] .assignmentSubmissionBody,
+:root[data-theme="dark"] .assignmentTeacherComment,
+:root[data-theme="dark"] .assignmentAttachments,
+:root[data-theme="dark"] .assignmentAttachmentRow,
+:root[data-theme="dark"] .assignmentCommentList,
+:root[data-theme="dark"] .assignmentCommentRow,
+:root[data-theme="dark"] .assignmentCommentContent,
+:root[data-theme="dark"] .submissionList,
+:root[data-theme="dark"] .submissionItem,
+:root[data-theme="dark"] .gradeOverallCard,
+:root[data-theme="dark"] .gradePeriod,
+:root[data-theme="dark"] .gradeCategory,
+:root[data-theme="dark"] .gradeAssignmentRow {background:var(--theme-surface)!important;color:var(--theme-text)!important;border-color:var(--theme-border)!important}
+:root[data-theme="dark"] .assignmentAndroidPage h1,
+:root[data-theme="dark"] .assignmentAndroidPage h2,
+:root[data-theme="dark"] .assignmentAndroidPage h3,
+:root[data-theme="dark"] .assignmentInfoHeader,
+:root[data-theme="dark"] .assignmentDescription,
+:root[data-theme="dark"] .assignmentDescription *:not(a),
+:root[data-theme="dark"] .assignmentTeacherComment,
+:root[data-theme="dark"] .assignmentTeacherComment>b,
+:root[data-theme="dark"] .assignmentCommentContent,
+:root[data-theme="dark"] .gradeOverallCard .value {color:var(--theme-text)!important}
+:root[data-theme="dark"] .assignmentAndroidPage p,
+:root[data-theme="dark"] .assignmentAndroidPage small,
+:root[data-theme="dark"] .assignmentAndroidPage .muted,
+:root[data-theme="dark"] .assignmentTeacherComment>div {color:var(--theme-muted)!important}
+:root[data-theme="dark"] .assignmentAndroidPage input,
+:root[data-theme="dark"] .assignmentAndroidPage textarea,
+:root[data-theme="dark"] .assignmentAndroidPage select {background:var(--theme-input)!important;color:var(--theme-text)!important;border-color:var(--theme-border)!important}
+:root[data-theme="dark"] .assignmentAndroidPage .empty,
+:root[data-theme="dark"] .assignmentAndroidPage .androidEmptyState {background:var(--theme-bg)!important;color:var(--theme-muted)!important}
+
+/* In-app update/download dialogs follow the same surfaces as the selected theme. */
+:root[data-theme="dark"] .updateDownloadProgressWrap,
+:root[data-theme="dark"] .updateDownloadProgressTrack {background:var(--theme-surface-raised)!important}
+:root[data-theme="dark"] .updateDownloadProgressText,
+:root[data-theme="dark"] .updateDialogVersion,
+:root[data-theme="dark"] .updateDialogMessage {color:var(--theme-muted)!important}
+:root[data-theme="dark"] .updateDownloadProgressBar {background:var(--theme-blue)!important}
+
+:root[data-theme="dark"] .assignmentDescription *:not(img):not(video):not(iframe):not(svg) { background-color:transparent!important; border-color:var(--theme-border)!important; }

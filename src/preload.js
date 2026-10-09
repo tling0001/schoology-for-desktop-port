@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('schoology',{
   authState:()=>ipcRenderer.invoke('auth-state'),
   getThemeMode:()=>ipcRenderer.invoke('get-theme-mode'),
   setThemeMode:mode=>ipcRenderer.invoke('set-theme-mode',mode),
+  getExperimentalForceDark:()=>ipcRenderer.invoke('get-experimental-force-dark'),
+  setExperimentalForceDark:enabled=>ipcRenderer.invoke('set-experimental-force-dark',enabled),
   networkOnline:()=>ipcRenderer.invoke('network-online'),
   loginCredentials:x=>ipcRenderer.invoke('login-credentials',x),
   loginQR:x=>ipcRenderer.invoke('login-qr',x),

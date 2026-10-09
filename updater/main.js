@@ -47,11 +47,15 @@ function cleanupArtifacts(paths){
 
 function scheduleSelfCleanup(){
   const target=String(payload.stagedUpdaterPath||'');
-  if(!target)return;
+  const inner=path.join(TEMP_DIR,'inner-installer');
+  const outer=path.join(TEMP_DIR,'installer-outer');
   try{
-    const command=`timeout /t 2 /nobreak >nul & taskkill /F /IM SchoologyUpdater*.exe >nul 2>&1 & del /f /q "${target.replace(/"/g,'')}" >nul 2>&1`;
+    // The detached command survives the updater process. Kill updater copies first,
+    // then remove the full extracted tree, including resources\\app.asar, without a delay.
+    const quote=value=>String(value).replace(/"/g,'');
+    const command=`taskkill /F /IM SchoologyUpdater*.exe >nul 2>&1 & rmdir /s /q "${quote(inner)}" >nul 2>&1 & rmdir /s /q "${quote(outer)}" >nul 2>&1 & del /f /q "${quote(path.join(TEMP_DIR,'schoology-installer.exe'))}" "${quote(path.join(TEMP_DIR,'7zip.msi'))}" "${quote(target)}" "${quote(LOG_FILE)}" >nul 2>&1 & rmdir /s /q "${quote(TEMP_DIR)}" >nul 2>&1`;
     spawn('cmd.exe',['/d','/c',command],{detached:true,stdio:'ignore',windowsHide:true}).unref();
-    log('self-cleanup-scheduled',{target});
+    log('self-cleanup-scheduled',{target,inner,outer});
   }catch(error){log('self-cleanup-error',error?.stack||String(error));}
 }
 
@@ -146,7 +150,7 @@ async function main(){
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
   ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
-  setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{scheduleSelfCleanup();if(win&&!win.isDestroyed())win.close();app.quit()}},700);
+  try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{scheduleSelfCleanup();if(win&&!win.isDestroyed())win.close();app.quit();}
 }
 app.whenReady().then(()=>{createWindow();setTimeout(()=>main().catch(e=>{if(!cancelled)fail(e);}),300);});
 app.on('window-all-closed',()=>{});

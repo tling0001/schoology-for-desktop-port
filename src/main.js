@@ -35,10 +35,13 @@ function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)
 function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;settings.experimentalForceDarkConfigured=true;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
 function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mode);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
 function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(app.getPath('exe')));const programFiles=[process.env.ProgramFiles||'C:\\Program Files',process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)'];const normalized=value=>path.resolve(value).replace(/[\\/]+$/,'').toLowerCase();const allUsers=programFiles.some(root=>normalized(installDir)===normalized(path.join(root,'Schoology')));return {installDir,installMode:allUsers?'all-users':'per-user'};}
-// WebContentsForceDark is a Chromium launch feature. Enable it only for launches
-// where the saved preference and effective app appearance both request it.
+// Enable Chromium's native webpage darkening before app.whenReady(), so it applies to
+// embedded webviews as well as the main renderer. Respect the saved appearance and toggle.
 const forceDarkAtLaunch=isExperimentalForceDarkActive();
-if(forceDarkAtLaunch){try{const existing=app.commandLine.getSwitchValue('enable-features');const features=new Set(String(existing||'').split(',').map(x=>x.trim()).filter(Boolean));features.add('WebContentsForceDark');app.commandLine.appendSwitch('enable-features',[...features].join(','))}catch(e){console.error('Could not enable experimental Chromium force-dark:',e.message)}}
+if(forceDarkAtLaunch){
+  try{app.commandLine.appendSwitch('enable-features','WebContentsForceDark')}
+  catch(e){console.error('Could not enable Chromium force-dark:',e.message)}
+}
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
   try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{return false}

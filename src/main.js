@@ -55,8 +55,10 @@ const forceDarkAtLaunch=isExperimentalForceDarkActive();
 try{
   const enabledFeatures=['OverlayScrollbar:mode/overlay'];
   if(forceDarkAtLaunch)enabledFeatures.unshift('WebContentsForceDark');
-  // Keep this as one feature-list switch; duplicate enable-features switches may overwrite.
+  // Chromium's enable-features switch takes a comma-separated list. Supplying
+  // this switch twice makes the effective value ambiguous/last-one-wins.
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
+  if(forceDarkAtLaunch)app.commandLine.appendSwitch('force-dark-mode');
 }catch(e){console.error('Could not enable Chromium features:',e.message)}
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}

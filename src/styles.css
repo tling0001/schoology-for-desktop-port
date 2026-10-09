@@ -1691,3 +1691,33 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .messageThreadAvatar,
 :root[data-theme="dark"] .messageThreadAvatarFallback{background:var(--theme-surface-raised,#292d33)!important;color:var(--theme-text,#e6e8eb)!important}
 :root[data-theme="dark"] .messageAttachment{background:var(--theme-surface-raised,#292d33)!important;color:var(--theme-blue,#8abfff)!important;border:1px solid var(--theme-border,#393d43)!important}
+
+
+/* v139: app-wide scrollbar fallback. Chromium's OverlayScrollbar feature is
+   enabled at launch; keep the host renderer's own scrollbars slim as well. */
+:root{
+  scrollbar-width:thin;
+  scrollbar-color:var(--theme-border,#777) transparent;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  scrollbar-color:var(--theme-border,#555) transparent;
+}
+*::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+*::-webkit-scrollbar-track{
+  background:transparent;
+}
+*::-webkit-scrollbar-thumb{
+  background:var(--theme-border,#9aa0a6);
+  border:2px solid transparent;
+  border-radius:999px;
+  background-clip:padding-box;
+}
+*::-webkit-scrollbar-thumb:hover{
+  background:var(--theme-muted,#6f7782);
+  border:1px solid transparent;
+  background-clip:padding-box;
+}

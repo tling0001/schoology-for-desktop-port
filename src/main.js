@@ -177,7 +177,8 @@ function request(method,url,body={},opts={},redirectDepth=0){
         resolve({status:code,headers:r.headers,text:out})
       })
     });
-    req.setTimeout(20000,()=>req.destroy(new Error('Schoology request timed out')));
+    const timeoutMs=Number(opts.timeoutMs)||20000;
+    req.setTimeout(timeoutMs,()=>req.destroy(new Error(timeoutMs>=30000?'Schoology login request timed out.':'Schoology request timed out')));
     req.on('error',reject);if(data)req.write(data);req.end();
   })
 }
@@ -207,7 +208,7 @@ async function authorizeQR(qr){
   const body={scanned_qr_data:qr,oauth_token:t.oauth_token};
   // Android QRCodeAuthorizer signs this endpoint with the request-token secret
   // and includes scanned_qr_data in the HMAC normalized parameter set.
-  const r=await request('POST',`https://${WEB_HOST}/oauth/qr_code_authorize_auto`,body,{sign:true,clientIdentity:true,authToken:t.oauth_token,tokenSecret:t.oauth_token_secret,qr});
+  const r=await request('POST',`https://${WEB_HOST}/oauth/qr_code_authorize_auto`,body,{sign:true,clientIdentity:true,authToken:t.oauth_token,tokenSecret:t.oauth_token_secret,qr,timeoutMs:30000});
   if(r.status<200||r.status>=300)throw new Error('QR authorization failed: '+r.status+' '+r.text);
   return exchangeToken(t);
 }
@@ -215,17 +216,16 @@ async function exchangeToken(t){
   const r=await request('GET',`https://${API_HOST}/v1/oauth/access_token`,{}, {sign:true,clientIdentity:true,authToken:t.oauth_token,tokenSecret:t.oauth_token_secret});
   if(r.status<200||r.status>=300)throw new Error('Access token failed: '+r.status+' '+r.text);
   const x=parseBody(r.text);if(!x.oauth_token||!x.oauth_token_secret)throw new Error('Schoology returned an invalid access token.');
-  const auth={oauth_token:x.oauth_token,oauth_token_secret:x.oauth_token_secret,createdAt:Date.now()};
-  // Android's AbstractLoginFlow immediately resolves the current User and
-  // stores ACCOUNT_USERID before MenuActivity/HomePagerFragment is shown.
-  try{
-    const userResp=await request('GET',`https://${API_HOST}/v1/users/me`,{}, {sign:true,clientIdentity:true,authToken:x.oauth_token,tokenSecret:x.oauth_token_secret});
-    if(userResp.status>=200&&userResp.status<300){
-      const user=JSON.parse(userResp.text);
-      if(user && user.id!=null) auth.userId=Number(user.id);
-      auth.user=user;
-    }
-  }catch(_e){}
+  // Android's AbstractLoginFlow resolves the current user as a required
+  // part of authentication before it considers login successful. Never persist
+  // a token that cannot be tied to a valid Schoology user.
+  const userResp=await request('GET',`https://${API_HOST}/v1/users/me`,{}, {sign:true,clientIdentity:true,authToken:x.oauth_token,tokenSecret:x.oauth_token_secret});
+  if(userResp.status<200||userResp.status>=300)throw new Error('Schoology signed in but could not load your user profile (HTTP '+userResp.status+'). Please try again.');
+  let user;
+  try{user=JSON.parse(userResp.text)}catch{throw new Error('Schoology returned an invalid user profile. Please try signing in again.')}
+  const userId=Number(user?.id);
+  if(!Number.isSafeInteger(userId)||userId<=0)throw new Error('Schoology did not return a valid user profile. Please try signing in again.');
+  const auth={oauth_token:x.oauth_token,oauth_token_secret:x.oauth_token_secret,createdAt:Date.now(),userId,user};
   saveAuth(auth);return auth;
 }
 async function fetchSchoologyImage(imageUrl){
@@ -542,10 +542,12 @@ async function loginExternalSchool(info){
     try{
       const u=new URL(url);
       const host=u.hostname.toLowerCase();
-      // External SSO providers (Microsoft, Google, etc.) are intermediate
-      // pages. Android completes this flow only after the WebView reaches a
-      // Schoology-owned session page. For LAUSD the district LMS host is also
-      // an accepted completion host.
+      // Android ExternalAuthWebViewClient accepts any URL whose query contains
+      // sgyInitialPage, even when the host is not a Schoology domain. This is
+      // how some district SSO redirects signal that the session is ready.
+      const sgyInitialPage=String(u.search||'').includes('sgyInitialPage');
+      // External SSO providers (Microsoft, Google, etc.) are otherwise
+      // intermediate pages. LAUSD also uses its district LMS host.
       const schoologyHost=hostMatchesSuffix(host,'schoology.com');
       const lausdHost=host==='lms.lausd.net' || hostMatchesSuffix(host,'lms.lausd.net');
       const expectedSchoolHost=expectedHost &&
@@ -554,7 +556,7 @@ async function loginExternalSchool(info){
           expectedHost==='lms.lausd.net' ||
           hostMatchesSuffix(expectedHost,'lms.lausd.net')
         ));
-      return schoologyHost || lausdHost || !!expectedSchoolHost;
+      return sgyInitialPage || schoologyHost || lausdHost || !!expectedSchoolHost;
     }catch{return false}
   };
 

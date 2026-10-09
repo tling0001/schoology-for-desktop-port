@@ -22,6 +22,18 @@ try{app.setPath('userData',stableUserData)}catch{}
 const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
+let pendingSchoologyDeepLink=null;
+const hasSingleInstanceLock=app.requestSingleInstanceLock();
+if(!hasSingleInstanceLock)app.quit();
+function extractSchoologyDeepLink(argv){return (argv||[]).find(value=>typeof value==='string'&&/^schoology:\/\//i.test(value))||null}
+pendingSchoologyDeepLink=extractSchoologyDeepLink(process.argv);
+function deliverSchoologyDeepLink(url){
+  if(!url||!/^schoology:\/\//i.test(url))return;
+  if(!win||win.isDestroyed()||win.webContents.isLoading()){pendingSchoologyDeepLink=url;return}
+  try{win.webContents.send('schoology-deep-link',url)}catch{pendingSchoologyDeepLink=url}
+}
+app.on('second-instance',(_event,argv)=>{const url=extractSchoologyDeepLink(argv);if(url)deliverSchoologyDeepLink(url);if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus()}});
+app.on('open-url',(event,url)=>{event.preventDefault();deliverSchoologyDeepLink(url)});
 let updateProgressWindow;
 let serverTimeOffset=0;
 const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
@@ -40,10 +52,12 @@ function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(a
 try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not set native theme source:',e.message)}
 // This Chromium feature must be enabled before app.whenReady() creates renderers.
 const forceDarkAtLaunch=isExperimentalForceDarkActive();
-if(forceDarkAtLaunch){
-  try{app.commandLine.appendSwitch('enable-features','WebContentsForceDark')}
-  catch(e){console.error('Could not enable Chromium force-dark:',e.message)}
-}
+try{
+  const enabledFeatures=['OverlayScrollbar:mode/overlay'];
+  if(forceDarkAtLaunch)enabledFeatures.unshift('WebContentsForceDark');
+  // Keep this as one feature-list switch; duplicate enable-features switches may overwrite.
+  app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
+}catch(e){console.error('Could not enable Chromium features:',e.message)}
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
   try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{return false}
@@ -693,10 +707,14 @@ function create(){
   win.webContents.on('console-message',(_,level,message,line,source)=>console.log('Renderer:',message,'at',source+':'+line));
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
+  win.webContents.on('did-finish-load',()=>{if(pendingSchoologyDeepLink){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;deliverSchoologyDeepLink(url)}});
+  win.webContents.on('did-attach-webview',(_event,guest)=>{try{guest.setBackgroundColor?.(isDarkAppearance()?'#17191c':'#ffffff')}catch{}});
   win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }
 app.whenReady().then(()=>{
+  if(!hasSingleInstanceLock)return;
+  try{app.setAsDefaultProtocolClient('schoology')}catch(e){console.error('Could not register Schoology URL protocol:',e.message)}
   require('electron').nativeTheme.on('updated',()=>{if(readThemeMode()==='system'&&readThemeSettings().experimentalForceDark&&isExperimentalForceDarkActive()!==forceDarkAtLaunch){app.relaunch();app.exit(0)}});
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');

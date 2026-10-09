@@ -2022,6 +2022,13 @@ async function loadHomeTab(){
       </article>`;
     }).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>';
     await hydrateMediaImages(c);
+    c.querySelectorAll('.activityBody a[href]').forEach(a=>a.addEventListener('click',async ev=>{
+      const href=a.href||a.getAttribute('href')||'';
+      if(!href||href==='#')return;
+      ev.preventDefault();ev.stopPropagation();
+      try{if(await routeSchoologyLink(href))return;await showEmbeddedWeb(href,a.textContent?.trim()||'Link')}
+      catch(e){showAppDialog('Unable to open link',e.message||String(e))}
+    }));
     document.querySelectorAll('[data-activityAuthorLink],[data-activity-author-id]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.activityAuthorId||btn.dataset.authorId;if(id)openProfileById(id,btn.textContent||'Profile')});
     document.querySelectorAll('.activityAuthorLink[data-author-id]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.authorId;if(id)openProfileById(id,btn.textContent||'Profile')});
     document.querySelectorAll('[data-activity-like]').forEach(btn=>btn.onclick=async()=>{
@@ -2154,5 +2161,10 @@ async function startSchoologyStartup(retry=false){
   }
 }
 startSchoologyStartup();
+
+A.onDeepLink?.(async url=>{
+  try{if(await routeSchoologyLink(url))return;await showEmbeddedWeb(url,'Schoology Link')}
+  catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e))}
+});
 
 A.onUpdateAvailable?.(u=>{if(!u?.url)return;let dlg=showAppDialog('Downloading update','Downloading…',[]);const msg=dlg?.querySelector('.appDialogMessage');if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="autoUpdateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="autoUpdateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';const off=A.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('autoUpdateDownloadProgressBar'),txt=document.getElementById('autoUpdateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.percent!=null?`Downloading… ${d.percent}%`:'Downloading…';});A.installUpdate(u).catch(e=>{off?.();dlg?.classList.remove('open');showAppDialog('Unable to install update',e.message||String(e))});});

@@ -49,13 +49,25 @@ function scheduleSelfCleanup(){
   const target=String(payload.stagedUpdaterPath||'');
   const inner=path.join(TEMP_DIR,'inner-installer');
   const outer=path.join(TEMP_DIR,'installer-outer');
+  const updaterPid=process.pid;
   try{
-    // The detached command survives the updater process. Kill updater copies first,
-    // then remove the full extracted tree, including resources\\app.asar, without a delay.
-    const quote=value=>String(value).replace(/"/g,'');
-    const command=`taskkill /F /IM SchoologyUpdater*.exe >nul 2>&1 & rmdir /s /q "${quote(inner)}" >nul 2>&1 & rmdir /s /q "${quote(outer)}" >nul 2>&1 & del /f /q "${quote(path.join(TEMP_DIR,'schoology-installer.exe'))}" "${quote(path.join(TEMP_DIR,'7zip.msi'))}" "${quote(target)}" "${quote(LOG_FILE)}" >nul 2>&1 & rmdir /s /q "${quote(TEMP_DIR)}" >nul 2>&1`;
-    spawn('cmd.exe',['/d','/c',command],{detached:true,stdio:'ignore',windowsHide:true}).unref();
-    log('self-cleanup-scheduled',{target,inner,outer});
+    // Wait for the updater to exit before touching its extracted resources/app.asar.
+    // PowerShell runs each cleanup operation in order and launches Schoology last.
+    const ps=value=>String(value).replace(/'/g,"''");
+    const command=[
+      "$ErrorActionPreference='Continue'",
+      `$pidToWait=${updaterPid}`,
+      "while(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 250}",
+      `$inner='${ps(inner)}'; if(Test-Path -LiteralPath $inner){Remove-Item -LiteralPath $inner -Recurse -Force -ErrorAction SilentlyContinue}`,
+      `$outer='${ps(outer)}'; if(Test-Path -LiteralPath $outer){Remove-Item -LiteralPath $outer -Recurse -Force -ErrorAction SilentlyContinue}`,
+      `$files=@('${ps(path.join(TEMP_DIR,'schoology-installer.exe'))}','${ps(path.join(TEMP_DIR,'7zip.msi'))}','${ps(target)}'); foreach($file in $files){if($file -and (Test-Path -LiteralPath $file)){Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue}}`,
+      `$log='${ps(LOG_FILE)}'; if(Test-Path -LiteralPath $log){Remove-Item -LiteralPath $log -Force -ErrorAction SilentlyContinue}`,
+      `$temp='${ps(TEMP_DIR)}'; if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}`,
+      `Start-Process -FilePath '${ps(schoologyExe)}'`
+    ].join('; ');
+    const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',command],{detached:true,stdio:'ignore',windowsHide:true});
+    child.unref();
+    log('self-cleanup-scheduled',{target,inner,outer,updaterPid});
   }catch(error){log('self-cleanup-error',error?.stack||String(error));}
 }
 
@@ -149,8 +161,10 @@ async function main(){
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
-  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
-  try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{scheduleSelfCleanup();if(win&&!win.isDestroyed())win.close();app.quit();}
+  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
+  scheduleSelfCleanup();
+  if(win&&!win.isDestroyed())win.close();
+  app.quit();
 }
 app.whenReady().then(()=>{createWindow();setTimeout(()=>main().catch(e=>{if(!cancelled)fail(e);}),300);});
 app.on('window-all-closed',()=>{});

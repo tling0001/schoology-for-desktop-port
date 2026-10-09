@@ -13,6 +13,7 @@ try {
 }
 
 contextBridge.exposeInMainWorld('schoology',{
+  onDeepLink:fn=>{const h=(_,url)=>fn(url);ipcRenderer.on('schoology-deep-link',h);return()=>ipcRenderer.removeListener('schoology-deep-link',h)},
   authState:()=>ipcRenderer.invoke('auth-state'),
   getThemeMode:()=>ipcRenderer.invoke('get-theme-mode'),
   setThemeMode:mode=>ipcRenderer.invoke('set-theme-mode',mode),

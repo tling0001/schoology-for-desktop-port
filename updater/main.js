@@ -49,7 +49,7 @@ function scheduleSelfCleanup(){
   const target=String(payload.stagedUpdaterPath||'');
   if(!target)return;
   try{
-    const command=`timeout /t 2 /nobreak >nul & del /f /q "${target.replace(/"/g,'')}" >nul 2>&1`;
+    const command=`timeout /t 2 /nobreak >nul & taskkill /F /IM SchoologyUpdater*.exe >nul 2>&1 & del /f /q "${target.replace(/"/g,'')}" >nul 2>&1`;
     spawn('cmd.exe',['/d','/c',command],{detached:true,stdio:'ignore',windowsHide:true}).unref();
     log('self-cleanup-scheduled',{target});
   }catch(error){log('self-cleanup-error',error?.stack||String(error));}

@@ -26,12 +26,13 @@ let updateProgressWindow;
 let serverTimeOffset=0;
 const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
 const themeSettingsFile=path.join(stableUserData,'theme-settings.json');
-function readThemeSettings(){try{const v=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))||{};return {mode:['light','dark','system'].includes(v.mode)?v.mode:'system',experimentalForceDark:v.experimentalForceDark===true}}catch{return {mode:'system',experimentalForceDark:false}}}
+function defaultExperimentalForceDark(mode='system'){return isDarkAppearance(mode)}
+function readThemeSettings(){try{const v=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))||{};const mode=['light','dark','system'].includes(v.mode)?v.mode:'system';return {mode,experimentalForceDark:v.experimentalForceDarkConfigured===true&&typeof v.experimentalForceDark==='boolean'?v.experimentalForceDark:defaultExperimentalForceDark(mode)}}catch{return {mode:'system',experimentalForceDark:defaultExperimentalForceDark('system')}}}
 function readThemeMode(){return readThemeSettings().mode}
 function isDarkAppearance(mode=readThemeMode()){return mode==='dark'||(mode==='system'&&require('electron').nativeTheme?.shouldUseDarkColors===true)}
 function isExperimentalForceDarkActive(mode=readThemeMode(),enabled=readThemeSettings().experimentalForceDark){return !!enabled&&isDarkAppearance(mode)}
 function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)?mode:'system';const settings=readThemeSettings();fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify({...settings,mode:safe},null,2),'utf8');return safe}
-function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
+function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;settings.experimentalForceDarkConfigured=true;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
 function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mode);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
 function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(app.getPath('exe')));const programFiles=[process.env.ProgramFiles||'C:\\Program Files',process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)'];const normalized=value=>path.resolve(value).replace(/[\\/]+$/,'').toLowerCase();const allUsers=programFiles.some(root=>normalized(installDir)===normalized(path.join(root,'Schoology')));return {installDir,installMode:allUsers?'all-users':'per-user'};}
 // WebContentsForceDark is a Chromium launch feature. Enable it only for launches

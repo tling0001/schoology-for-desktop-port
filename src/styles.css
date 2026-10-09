@@ -1426,3 +1426,226 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .updateDownloadProgressBar {background:var(--theme-blue)!important}
 
 :root[data-theme="dark"] .assignmentDescription *:not(img):not(video):not(iframe):not(svg) { background-color:transparent!important; border-color:var(--theme-border)!important; }
+
+
+/* v134: consistent dark surfaces for global pages and transient loading states. */
+:root[data-theme="dark"] #content,
+:root[data-theme="dark"] .messagesAndroidPage,
+:root[data-theme="dark"] .messageList,
+:root[data-theme="dark"] .messageDetail,
+:root[data-theme="dark"] .notificationsAndroidPage,
+:root[data-theme="dark"] .notificationList,
+:root[data-theme="dark"] .resourcesAndroidPage,
+:root[data-theme="dark"] .resourceCategory,
+:root[data-theme="dark"] .resourceCategoryHeader,
+:root[data-theme="dark"] .resourceCategoryChildren,
+:root[data-theme="dark"] .resourceCollectionRow,
+:root[data-theme="dark"] .resourceFileRow,
+:root[data-theme="dark"] .resourceBackTitle,
+:root[data-theme="dark"] .calendarAndroidPage,
+:root[data-theme="dark"] .calendarPagerPage,
+:root[data-theme="dark"] .calendarPagerContent,
+:root[data-theme="dark"] .calendarLandscapeMonth,
+:root[data-theme="dark"] .calendarMonthWrap,
+:root[data-theme="dark"] .calendarStandaloneUpcoming,
+:root[data-theme="dark"] .calendarLandscapeUpcoming,
+:root[data-theme="dark"] .calendarSelectedDayList,
+:root[data-theme="dark"] .groupProfilePage,
+:root[data-theme="dark"] .groupMainPane,
+:root[data-theme="dark"] .groupTabLoading,
+:root[data-theme="dark"] .groupHeader,
+:root[data-theme="dark"] .groupHero,
+:root[data-theme="dark"] .groupMainPane #groupTabContent,
+:root[data-theme="dark"] .groupResourceRow,
+:root[data-theme="dark"] .groupDiscussionRow,
+:root[data-theme="dark"] .albumListRow,
+:root[data-theme="dark"] .groupFullUpdate,
+:root[data-theme="dark"] .groupUpcomingPane,
+:root[data-theme="dark"] #groupUpcomingContent,
+:root[data-theme="dark"] .commentsPage,
+:root[data-theme="dark"] .commentsList,
+:root[data-theme="dark"] .assignmentTabContent,
+:root[data-theme="dark"] .assignmentInfoPane,
+:root[data-theme="dark"] .assignmentSubmissionsPane,
+:root[data-theme="dark"] .assignmentSubmissionsContent,
+:root[data-theme="dark"] .assignmentLandscapeSplit,
+:root[data-theme="dark"] .assignmentLandscapePage,
+:root[data-theme="dark"] .assignmentSubmissionBody,
+:root[data-theme="dark"] .homeTabContent,
+:root[data-theme="dark"] #homeTabContent,
+:root[data-theme="dark"] .homeUpcomingScroll,
+:root[data-theme="dark"] .homeUpcomingPane,
+:root[data-theme="dark"] .courseUpcomingContent {
+  background:var(--theme-bg)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .messagesAndroidPage *,
+:root[data-theme="dark"] .notificationsAndroidPage *,
+:root[data-theme="dark"] .resourcesAndroidPage *,
+:root[data-theme="dark"] .calendarAndroidPage *,
+:root[data-theme="dark"] .groupProfilePage *,
+:root[data-theme="dark"] .commentsPage *,
+:root[data-theme="dark"] .assignmentSubmissionBody * {
+  border-color:var(--theme-border);
+}
+:root[data-theme="dark"] .messageRow,
+:root[data-theme="dark"] .androidNotificationItem,
+:root[data-theme="dark"] .resourceCollectionRow,
+:root[data-theme="dark"] .resourceFileRow,
+:root[data-theme="dark"] .resourceCategoryHeader,
+:root[data-theme="dark"] .resourceBackTitle,
+:root[data-theme="dark"] .calendarEventRow,
+:root[data-theme="dark"] .groupDiscussionRow,
+:root[data-theme="dark"] .albumListRow,
+:root[data-theme="dark"] .groupResourceRow,
+:root[data-theme="dark"] .androidCommentRow,
+:root[data-theme="dark"] .assignmentSubmissionChoices button {
+  background:var(--theme-surface)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .resourceCollectionRow b,
+:root[data-theme="dark"] .resourceFileRow b,
+:root[data-theme="dark"] .groupResourceRow>span:nth-child(2),
+:root[data-theme="dark"] .groupResourceRow>span:nth-child(2) b,
+:root[data-theme="dark"] .notificationText,
+:root[data-theme="dark"] .androidCommentRow,
+:root[data-theme="dark"] .calendarMonthHeader,
+:root[data-theme="dark"] .calendarMonthHeader b,
+:root[data-theme="dark"] .calendarEventRow,
+:root[data-theme="dark"] .groupHeader h1,
+:root[data-theme="dark"] .groupFullUpdate .activityUser,
+:root[data-theme="dark"] .groupFullUpdate .activityBody,
+:root[data-theme="dark"] .discussionInfoPage h1 {
+  color:var(--theme-text)!important;
+}
+:root[data-theme="dark"] .resourceCollectionRow small,
+:root[data-theme="dark"] .resourceFileRow small,
+:root[data-theme="dark"] .notificationText small,
+:root[data-theme="dark"] .peopleListItem small,
+:root[data-theme="dark"] .calendarWeekLabels,
+:root[data-theme="dark"] .calendarDay span,
+:root[data-theme="dark"] .calendarDay b,
+:root[data-theme="dark"] .calendarEventDate,
+:root[data-theme="dark"] .calendarEventRow small,
+:root[data-theme="dark"] .groupSchoolLink,
+:root[data-theme="dark"] .groupDiscussionRow small,
+:root[data-theme="dark"] .albumListRow small,
+:root[data-theme="dark"] .resourceEmpty {
+  color:var(--theme-muted)!important;
+}
+:root[data-theme="dark"] .calendarGrid{background:var(--theme-border)!important}
+:root[data-theme="dark"] .calendarDay{background:var(--theme-surface)!important;color:var(--theme-text)!important}
+:root[data-theme="dark"] .calendarDay.outside{background:#181a1d!important;color:var(--theme-muted)!important}
+:root[data-theme="dark"] .calendarMonthHeader button{color:var(--theme-muted)!important}
+:root[data-theme="dark"] .resourceCategoryChildren{background:var(--theme-surface)!important}
+:root[data-theme="dark"] .resourceCategory.open .resourceChevron{color:var(--theme-muted)!important}
+:root[data-theme="dark"] .loading,
+:root[data-theme="dark"] .loading img,
+:root[data-theme="dark"] .groupTabLoading,
+:root[data-theme="dark"] .commentsPage>.loading,
+:root[data-theme="dark"] #homeTabContent>.loading,
+:root[data-theme="dark"] #homeTabContent .loading,
+:root[data-theme="dark"] #homeUpcomingPane>.loading,
+:root[data-theme="dark"] .courseTabLoading {
+  background:var(--theme-bg)!important;
+  color:var(--theme-muted)!important;
+}
+:root[data-theme="dark"] .drawer.drawerSubMode,
+:root[data-theme="dark"] .drawerSub,
+:root[data-theme="dark"] .drawerSubMode,
+:root[data-theme="dark"] .drawerSubHeader,
+:root[data-theme="dark"] .courseSubList,
+:root[data-theme="dark"] .courseSubItem,
+:root[data-theme="dark"] .drawerSubMode .drawerSubHeader,
+:root[data-theme="dark"] .drawerSubMode .courseSubList {
+  background:#002137!important;
+  color:#fff!important;
+  opacity:1!important;
+  visibility:visible!important;
+  animation:none!important;
+}
+:root[data-theme="dark"] .drawer.drawerSubMode{background:#002137!important}
+:root[data-theme="dark"] .drawerSubMode::before,
+:root[data-theme="dark"] .drawerSubMode::after {content:none!important;display:none!important}
+/* Message tabs and their content must not retain light-only button surfaces. */
+:root[data-theme="dark"] .messagesAndroidPage .messageTabs,
+:root[data-theme="dark"] .messagesAndroidPage .messageTab,
+:root[data-theme="dark"] .messagesAndroidPage .messageTab:hover,
+:root[data-theme="dark"] .messagesAndroidPage .messageTab.active {
+  background:#002137!important;
+  color:#fff!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .messagesAndroidPage .messageRow,
+:root[data-theme="dark"] .messagesAndroidPage .messageList,
+:root[data-theme="dark"] .messagesAndroidPage .messageDetail,
+:root[data-theme="dark"] .messagesAndroidPage .messageBody,
+:root[data-theme="dark"] .messagesAndroidPage .messageDate,
+:root[data-theme="dark"] .messagesAndroidPage .messageSender {
+  background:var(--theme-bg)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+:root[data-theme="dark"] .calendarPagerTabs,
+:root[data-theme="dark"] .calendarPagerTab {
+  background:#002137!important;
+  color:#fff!important;
+}
+:root[data-theme="dark"] .groupUpcomingPane .homePaneHeader,
+:root[data-theme="dark"] .groupHeader {
+  background:var(--theme-surface)!important;
+  color:var(--theme-text)!important;
+  border-color:var(--theme-border)!important;
+}
+
+/* Courses keeps the official Schoology blue tab strip in both appearance modes. */
+.courseTabs,
+.courseTabs button,
+.sectionProfileTabs,
+.sectionProfileTab,
+.courseMainPane .courseTabs,
+.courseMainPane .courseTabs button,
+.courseMainPane .sectionProfileTabs,
+.courseMainPane .sectionProfileTab {
+  background:#002137!important;
+  color:#fff!important;
+  border-color:transparent!important;
+}
+.courseTabs button.active,
+.sectionProfileTab.active,
+.courseMainPane .courseTabs button.active,
+.courseMainPane .sectionProfileTab.active {
+  color:#fff!important;
+  border-bottom:3px solid #fff!important;
+}
+:root[data-theme="dark"] .courseTabs button,
+:root[data-theme="dark"] .courseMainPane .courseTabs button,
+:root[data-theme="dark"] .sectionProfileTabs,
+:root[data-theme="dark"] .sectionProfileTab,
+:root[data-theme="dark"] .courseMainPane .sectionProfileTabs,
+:root[data-theme="dark"] .courseMainPane .sectionProfileTab,
+:root[data-theme="dark"] .courseTabs button:hover,
+:root[data-theme="dark"] .courseMainPane .courseTabs button:hover {
+  background:#002137!important;
+  color:#fff!important;
+}
+:root[data-theme="dark"] .assignmentLandscapeSplit,
+:root[data-theme="dark"] .assignmentInfoPane,
+:root[data-theme="dark"] .assignmentSubmissionsPane,
+:root[data-theme="dark"] .assignmentSubmissionsContent,
+:root[data-theme="dark"] .assignmentSubmissionBody,
+:root[data-theme="dark"] .assignmentTabContent,
+:root[data-theme="dark"] .assignmentTabContent .commentsPage,
+:root[data-theme="dark"] .assignmentTabContent .commentsList,
+:root[data-theme="dark"] .assignmentLandscapeSplit .commentsPage,
+:root[data-theme="dark"] .assignmentLandscapeSplit .commentsList {
+  background:var(--theme-bg)!important;
+  color:var(--theme-text)!important;
+  min-height:100%;
+}
+:root[data-theme="dark"] .assignmentLandscapeSplit .assignmentSubmissionsContent,
+:root[data-theme="dark"] .assignmentLandscapeSplit .assignmentInfoPane #assignmentTabContent {
+  background:var(--theme-bg)!important;
+}

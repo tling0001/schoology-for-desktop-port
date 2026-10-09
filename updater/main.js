@@ -10,7 +10,7 @@ let payload = {};
 try { const encoded = payloadArg ? payloadArg.slice('--payload-base64='.length) : ''; payload = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8')); } catch (e) { payload = {}; }
 
 const TEMP_DIR = path.join(process.env.LOCALAPPDATA || app.getPath('temp'), 'Temp', 'schoology-updater');
-const SCHOOLGY_DIR = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Schoology');
+const SCHOOLGY_DIR = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Schoology');
 const LOCAL_7ZIP = path.join(SCHOOLGY_DIR, '7-Zip');
 const SEVENZIP_URL = 'https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.msi';
 const schoologyExe = path.join(SCHOOLGY_DIR, 'Schoology.exe');
@@ -144,7 +144,7 @@ async function main(){
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
-  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
+  ui('install','done','Complete',100);const appAsar=path.join(inner,'resources','app.asar');log('cleanup-start',{appAsar});cleanupArtifacts([appAsar,outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Launching Schoology…');
   setTimeout(()=>{try{require('child_process').spawn(schoologyExe,[],{detached:true,stdio:'ignore',windowsHide:false}).unref();}finally{scheduleSelfCleanup();if(win&&!win.isDestroyed())win.close();app.quit()}},700);
 }
 app.whenReady().then(()=>{createWindow();setTimeout(()=>main().catch(e=>{if(!cancelled)fail(e);}),300);});

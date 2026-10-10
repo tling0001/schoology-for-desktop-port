@@ -1,4 +1,4 @@
-const {app,BrowserWindow,session,ipcMain,shell,dialog,nativeTheme}=require('electron');
+const {app,BrowserWindow,session,ipcMain,shell,dialog,nativeTheme,Notification}=require('electron');
 const path=require('path');
 const crypto=require('crypto');
 const fs=require('fs');
@@ -22,13 +22,30 @@ try{app.setPath('userData',stableUserData)}catch{}
 const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
+const attachedGuestWebContents=new Set();
+function styleAttachedGuest(guest){
+  if(!guest||guest.isDestroyed?.())return;
+  const dark=isDarkAppearance();
+  try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
+  try{guest.insertCSS(`:root{color-scheme:${dark?'dark':'light'}!important;scrollbar-width:thin!important;scrollbar-color:${dark?'#3a3f46 transparent':'#9aa0a6 transparent'}!important}*::-webkit-scrollbar{width:8px!important;height:8px!important}*::-webkit-scrollbar-track{background:transparent!important}*::-webkit-scrollbar-thumb{background:${dark?'#3a3f46':'#9aa0a6'}!important;border:2px solid transparent!important;border-radius:999px!important;background-clip:padding-box!important}`).catch(()=>{})}catch{}
+}
 let pendingSchoologyDeepLink=null;
+let pendingExternalSchoolLogin=null;
 const hasSingleInstanceLock=app.requestSingleInstanceLock();
 if(!hasSingleInstanceLock)app.quit();
 function extractSchoologyDeepLink(argv){return (argv||[]).find(value=>typeof value==='string'&&/^schoology:\/\//i.test(value))||null}
 pendingSchoologyDeepLink=extractSchoologyDeepLink(process.argv);
 function deliverSchoologyDeepLink(url){
   if(!url||!/^schoology:\/\//i.test(url))return;
+  try{
+    const parsed=new URL(url);
+    if(parsed.hostname.toLowerCase()==='external_login_callback'&&pendingExternalSchoolLogin){
+      const expected=pendingExternalSchoolLogin.requestToken;
+      const received=parsed.searchParams.get('request_token')||parsed.searchParams.get('oauth_token')||'';
+      if(received&&received===expected){const pending=pendingExternalSchoolLogin;if(pending.processing)return;pending.processing=true;exchangeToken(pending.credential).then(auth=>pending.finish(null,auth)).catch(error=>pending.finish(error));return;}
+      console.warn('Ignored Schoology external-login callback with an unexpected request token.');return;
+    }
+  }catch{}
   if(!win||win.isDestroyed()||win.webContents.isLoading()){pendingSchoologyDeepLink=url;return}
   try{win.webContents.send('schoology-deep-link',url)}catch{pendingSchoologyDeepLink=url}
 }
@@ -38,6 +55,13 @@ let updateProgressWindow;
 let serverTimeOffset=0;
 const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
 const themeSettingsFile=path.join(stableUserData,'theme-settings.json');
+const appSettingsFile=path.join(stableUserData,'app-settings.json');
+const notificationSeenFile=path.join(stableUserData,'notification-seen.json');
+function readAppSettings(){try{const value=JSON.parse(fs.readFileSync(appSettingsFile,'utf8'))||{};return {openSchoologyLinks:value.openSchoologyLinks!==false,desktopNotifications:value.desktopNotifications!==false,notificationSound:value.notificationSound===true}}catch{return {openSchoologyLinks:true,desktopNotifications:true,notificationSound:false}}}
+function saveAppSettings(patch){const settings={...readAppSettings(),...(patch||{})};fs.mkdirSync(path.dirname(appSettingsFile),{recursive:true});fs.writeFileSync(appSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings}
+function saveOpenSchoologyLinks(enabled){return saveAppSettings({openSchoologyLinks:!!enabled}).openSchoologyLinks}
+function saveDesktopNotifications(enabled){return saveAppSettings({desktopNotifications:!!enabled}).desktopNotifications}
+function saveNotificationSound(enabled){return saveAppSettings({notificationSound:!!enabled}).notificationSound}
 function defaultExperimentalForceDark(mode='system'){return isDarkAppearance(mode)}
 function readThemeSettings(){try{const v=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))||{};const mode=['light','dark','system'].includes(v.mode)?v.mode:'system';return {mode,experimentalForceDark:v.experimentalForceDarkConfigured===true&&typeof v.experimentalForceDark==='boolean'?v.experimentalForceDark:defaultExperimentalForceDark(mode)}}catch{return {mode:'system',experimentalForceDark:defaultExperimentalForceDark('system')}}}
 function readThemeMode(){return readThemeSettings().mode}
@@ -52,11 +76,18 @@ function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(a
 try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not set native theme source:',e.message)}
 // This Chromium feature must be enabled before app.whenReady() creates renderers.
 const forceDarkAtLaunch=isExperimentalForceDarkActive();
+let lastForceDarkActive=forceDarkAtLaunch;
+nativeTheme.on('updated',()=>{
+  for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);
+  const next=isExperimentalForceDarkActive();
+  if(readThemeSettings().experimentalForceDark&&next!==lastForceDarkActive){lastForceDarkActive=next;try{app.relaunch();app.exit(0)}catch(e){console.error('Could not refresh embedded dark mode:',e.message)}}
+});
 try{
-  const enabledFeatures=['OverlayScrollbar:mode/overlay'];
+  const enabledFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
   if(forceDarkAtLaunch)enabledFeatures.unshift('WebContentsForceDark');
   // Chromium's enable-features switch takes a comma-separated list. Supplying
   // this switch twice makes the effective value ambiguous/last-one-wins.
+  app.commandLine.appendSwitch('overlay-scrollbars');
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
   if(forceDarkAtLaunch)app.commandLine.appendSwitch('force-dark-mode');
 }catch(e){console.error('Could not enable Chromium features:',e.message)}
@@ -472,48 +503,63 @@ async function api(pathname,method='GET',params={},options={}){
   if(r.status<200||r.status>=300)throw new Error('Schoology API '+r.status+': '+r.text);
   try{return JSON.parse(r.text)}catch{return r.text}
 }
+let schoologyNotificationTimer=null;
+function notificationKey(item){return String(item?.id??item?.notification_id??item?.notificationId??`${item?.type||''}:${item?.created||item?.timestamp||''}:${item?.body||item?.message||item?.title||''}`)}
+function notificationText(item){const body=String(item?.body||item?.message||item?.title||'You have a new Schoology notification');const args=item?.body_args||item?.bodyArgs||[];const rendered=Array.isArray(args)?args.reduce((out,arg)=>out.replace('%s',String(arg?.title||arg?.name||'')),body):body;return rendered.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,220)}
+function readNotificationSeen(){try{const value=JSON.parse(fs.readFileSync(notificationSeenFile,'utf8'))||{};return {userId:String(value.userId||''),ids:Array.isArray(value.ids)?value.ids.map(String):[]}}catch{return {userId:'',ids:[]}}}
+function writeNotificationSeen(userId,ids){try{fs.mkdirSync(path.dirname(notificationSeenFile),{recursive:true});fs.writeFileSync(notificationSeenFile,JSON.stringify({userId:String(userId||''),ids:ids.slice(0,200)},null,2),'utf8')}catch{}}
+async function pollSchoologyNotifications(){
+  const auth=loadAuth();if(!auth)return;
+  try{
+    // Android's NotificationApiHelper uses NotificationsApi at /v1/notifications.
+    // /v1/mobile/notifications is a separate in-app message feed.
+    const response=await api('notifications');
+    const raw=response?.notification??response?.notifications??response?.data?.notification??response?.data?.notifications??[];
+    const items=(Array.isArray(raw)?raw:(raw?.notification||raw?.notifications||raw?.items||[])).filter(Boolean);
+    const userId=String(auth.userId||auth.user?.id||'');
+    const keys=items.map(notificationKey);const previous=readNotificationSeen();
+    const sameUser=previous.userId===userId;const seen=new Set(sameUser?previous.ids:[]);
+    // On first run (or account switch), establish a baseline instead of notifying
+    // for the account's entire existing notification history.
+    if(sameUser&&readAppSettings().desktopNotifications&&Notification.isSupported()){
+      const fresh=items.filter(item=>!seen.has(notificationKey(item))).slice(0,3).reverse();
+      for(const item of fresh){
+        const title=String(item?.title||item?.type_label||'Schoology');
+        const notification=new Notification({title:'Schoology',body:notificationText(item)||title,silent:!readAppSettings().notificationSound});
+        notification.on('click',()=>{if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();});
+        notification.show();
+      }
+    }
+    writeNotificationSeen(userId,keys);
+  }catch(error){if(!/Not signed in|session expired/i.test(String(error?.message||error)))console.warn('Schoology notification check failed:',error?.message||error)}
+}
+function scheduleSchoologyNotifications(){if(schoologyNotificationTimer)clearInterval(schoologyNotificationTimer);schoologyNotificationTimer=setInterval(()=>{pollSchoologyNotifications().catch(()=>{})},5*60*1000);schoologyNotificationTimer.unref?.();setTimeout(()=>pollSchoologyNotifications().catch(()=>{}),15000).unref?.()}
 function buildAndroidOAuthLoginUrl(domain,requestToken){
   const host=String(domain||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
   if(!host) throw new Error('This school did not provide a valid domain.');
-  // This mirrors LoginOAuthManagementActivity.R0() from the Android source.
-  const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000472`;
+  // The official Android manifest accepts schoology://external_login_callback.
+  // Using that callback lets the system browser return to the installed desktop
+  // app without reading or copying browser cookies.
+  const callback=`schoology://external_login_callback?request_token=${encodeURIComponent(requestToken)}&app_origin=${encodeURIComponent(`https://${WEB_HOST}`)}&os=desktop&app_version=${encodeURIComponent(app.getVersion())}`;
   const oauthPath=`oauth/authorize?oauth_token=${encodeURIComponent(requestToken)}&oauth_callback=${encodeURIComponent(callback)}`;
   return `https://${host}/${oauthPath}&login_landing_dest=${encodeURIComponent(oauthPath)}`;
 }
 async function loginThroughSchoolBrowser(info){
   if(!info||!info.domain)throw new Error('This school did not provide a login domain.');
   await syncServerTime().catch(()=>{});
-  const requestCredential=await getRequestToken();
-  const loginUrl=buildAndroidOAuthLoginUrl(info.domain,requestCredential.oauth_token);
+  const credential=await getRequestToken();
+  const loginUrl=buildAndroidOAuthLoginUrl(info.domain,credential.oauth_token);
   return new Promise((resolve,reject)=>{
-    let child=null,settled=false;
+    let settled=false;let timeout=null;
     const finish=(err,value)=>{
-      if(settled)return;
-      settled=true;
-      if(child&&!child.isDestroyed())child.close();
+      if(settled)return;settled=true;if(timeout)clearTimeout(timeout);
+      if(pendingExternalSchoolLogin===pending)pendingExternalSchoolLogin=null;
       err?reject(err):resolve(value);
     };
-    const callbackMatches=(url)=>{
-      try{
-        const u=new URL(url);
-        if(!/\/mobile_login_success$/.test(u.pathname))return false;
-        return u.searchParams.get('request_token')===requestCredential.oauth_token;
-      }catch{return false}
-    };
-    const handleNavigation=(event,url)=>{
-      if(!callbackMatches(url))return;
-      event.preventDefault();
-      exchangeToken(requestCredential).then(auth=>finish(null,auth)).catch(finish);
-    };
-    child=new BrowserWindow({width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}});
-    // Android SchoologyWebView appends its identity to the normal Android WebView UA.
-    child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
-    child.webContents.on('will-navigate',handleNavigation);
-    child.webContents.on('will-redirect',handleNavigation);
-    child.webContents.on('did-fail-load',(_,code,desc)=>{if(code!==-3)console.error('School login browser failed:',code,desc)});
-    child.webContents.on('console-message',(_,level,message,line,source)=>console.log('School login browser:',message,'at',source+':'+line));
-    child.on('closed',()=>{if(!settled)reject(new Error('School login window was closed.'))});
-    child.loadURL(loginUrl).catch(e=>{if(e?.code==='ERR_ABORTED'||/ERR_ABORTED|(-3)/i.test(String(e?.message||''))){if(!settled&&!processing)return;return}finish(e)});
+    const pending={requestToken:credential.oauth_token,credential,finish};
+    pendingExternalSchoolLogin=pending;
+    timeout=setTimeout(()=>finish(new Error('Timed out waiting for the school sign-in to return to Schoology. Keep the browser open until sign-in completes, then try again.')),10*60*1000);
+    shell.openExternal(loginUrl).catch(error=>finish(new Error('Could not open the system browser for school sign-in: '+(error?.message||error))));
   });
 }
 
@@ -712,7 +758,13 @@ function create(){
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
   win.webContents.on('did-finish-load',()=>{if(pendingSchoologyDeepLink){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;deliverSchoologyDeepLink(url)}});
-  win.webContents.on('did-attach-webview',(_event,guest)=>{try{guest.setBackgroundColor?.(isDarkAppearance()?'#17191c':'#ffffff')}catch{}});
+  win.webContents.on('did-attach-webview',(_event,guest)=>{
+    attachedGuestWebContents.add(guest);
+    const applyGuestTheme=()=>styleAttachedGuest(guest);
+    applyGuestTheme();
+    guest.on('dom-ready',applyGuestTheme);
+    guest.once('destroyed',()=>attachedGuestWebContents.delete(guest));
+  });
   win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});
   win.loadFile(path.join(__dirname,'index.html')).catch(e=>console.error('Failed to load Schoology UI:',e));
 }
@@ -724,9 +776,16 @@ app.whenReady().then(()=>{
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('get-theme-mode',()=>readThemeMode());
-  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}const isActive=isExperimentalForceDarkActive(safe);if(readThemeSettings().experimentalForceDark&&wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
+  ipcMain.handle('app-version',()=>app.getVersion());
+  ipcMain.handle('get-open-schoology-links',()=>readAppSettings().openSchoologyLinks);
+  ipcMain.handle('set-open-schoology-links',(_,enabled)=>saveOpenSchoologyLinks(enabled));
+  ipcMain.handle('get-desktop-notifications',()=>readAppSettings().desktopNotifications);
+  ipcMain.handle('set-desktop-notifications',(_,enabled)=>saveDesktopNotifications(enabled));
+  ipcMain.handle('get-notification-sound',()=>readAppSettings().notificationSound);
+  ipcMain.handle('set-notification-sound',(_,enabled)=>saveNotificationSound(enabled));
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);const isActive=isExperimentalForceDarkActive(safe);lastForceDarkActive=isActive;if(readThemeSettings().experimentalForceDark&&wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
   ipcMain.handle('get-experimental-force-dark',()=>readThemeSettings().experimentalForceDark);
-  ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{const wasActive=isExperimentalForceDarkActive();saveExperimentalForceDark(!!enabled);const isActive=isExperimentalForceDarkActive();if(wasActive!==isActive){app.relaunch();app.exit(0)}return !!enabled});
+  ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{const wasActive=isExperimentalForceDarkActive();saveExperimentalForceDark(!!enabled);const isActive=isExperimentalForceDarkActive();lastForceDarkActive=isActive;if(wasActive!==isActive){app.relaunch();app.exit(0)}return !!enabled});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));
@@ -765,12 +824,24 @@ app.whenReady().then(()=>{
   ipcMain.handle('download-file',(event,x)=>downloadAuthenticatedFile(x,event.sender));
   ipcMain.handle('launch-course-app',async(_,x)=>{
     const a=loadAuth(); if(!a)throw new Error('Not signed in');
-    const appId=Number(x?.appId ?? x);
-    if(!Number.isFinite(appId)){const href=String(x?.launchUrl||x?.href||'');if(/^https?:\/\//i.test(href))return {url:href};throw new Error('Resource app launch target is missing.');}
-    const u=new URL(`https://${API_HOST}/v2/resources/applications/${appId}/launch`);
-    const r=await request('GET',u.toString(),{}, {sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
-    if(r.status<200||r.status>=300)throw new Error(`Resource app launch failed (HTTP ${r.status}): ${r.text}`);
-    let j={};try{j=JSON.parse(r.text)}catch{throw new Error('Schoology returned an invalid resource-app launch response.')}
+    const sectionId=Number(x?.sectionId??x?.section_id??0);
+    const appId=Number(x?.appId??x?.app_id??0);
+    const rawLaunchUrl=String(x?.launchUrl||x?.href||'').trim();
+    let launchUrl='',resourceApp=false;
+    if(rawLaunchUrl){
+      let candidate;try{candidate=new URL(rawLaunchUrl,`https://${API_HOST}`)}catch{throw new Error('Schoology returned an invalid course-app launch link.');}
+      // Android passes the section app's @links.launch URL to Retrofit directly.
+      if(candidate.protocol!=='https:'||candidate.hostname.toLowerCase()!==API_HOST||!/^\/v2\/sections\/\d+\/applications\/\d+\/launch\/?$/i.test(candidate.pathname))throw new Error('Schoology returned an unsupported course-app launch link.');
+      launchUrl=candidate.toString();
+    }else if(Number.isSafeInteger(sectionId)&&sectionId>0&&Number.isSafeInteger(appId)&&appId>0){
+      launchUrl=`https://${API_HOST}/v2/sections/${sectionId}/applications/${appId}/launch`;
+    }else if(Number.isSafeInteger(appId)&&appId>0){
+      // The Resources > Apps screen uses the distinct Resource Apps endpoint.
+      launchUrl=`https://${API_HOST}/v2/resources/applications/${appId}/launch`;resourceApp=true;
+    }else throw new Error('The course app did not provide a valid launch link.');
+    const r=await request('GET',launchUrl,{}, {sign:true,clientIdentity:true,authToken:a.oauth_token,tokenSecret:a.oauth_token_secret});
+    if(r.status<200||r.status>=300)throw new Error(`${resourceApp?'Resource app':'Course app'} launch failed (HTTP ${r.status}): ${r.text}`);
+    let j={};try{j=JSON.parse(r.text)}catch{throw new Error(`Schoology returned an invalid ${resourceApp?'resource-app':'course-app'} launch response.`)}
     return j;
   });
   ipcMain.handle('open-downloaded-file',(_,x)=>shell.openPath(String(x?.path||'')));
@@ -778,5 +849,6 @@ app.whenReady().then(()=>{
   ipcMain.handle('pick-file',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile']});return r.canceled?null:r.filePaths[0]});
   create();
   scheduleUpdateChecks();
+  scheduleSchoologyNotifications();
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});

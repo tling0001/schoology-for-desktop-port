@@ -71,7 +71,7 @@ function scheduleSelfCleanup(){
       `$files=@('${ps(path.join(TEMP_DIR,'schoology-installer.exe'))}','${ps(path.join(TEMP_DIR,'7z2604-x64.msi'))}','${ps(target)}'); foreach($file in $files){if($file -and (Test-Path -LiteralPath $file)){Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('file-cleaned '+$file)}}`,
       ...(resourcesInsideTemp?[ `$resources='${ps(resourcesPath)}'; if(Test-Path -LiteralPath $resources){Remove-Item -LiteralPath $resources -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'updater-resources-cleaned'}` ]:[]),
       `$temp='${ps(TEMP_DIR)}'; if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}`,
-      `$exe='${ps(schoologyExe)}'; $work='${ps(SCHOOLGY_DIR)}'; if(Test-Path -LiteralPath $exe){Start-Process -FilePath $exe -WorkingDirectory $work; Write-FinalizeLog 'schoology-launched'}else{Write-FinalizeLog ('schoology-exe-missing '+$exe)}`
+      `$exe='${ps(schoologyExe)}'; $work='${ps(SCHOOLGY_DIR)}'; if(Test-Path -LiteralPath $exe){try{Start-Process -FilePath $exe -WorkingDirectory $work -ErrorAction Stop; Start-Sleep -Milliseconds 1500; if(Get-Process -Name 'Schoology' -ErrorAction SilentlyContinue){Write-FinalizeLog 'schoology-launched'}else{Write-FinalizeLog 'schoology-start-requested-no-process'}}catch{Write-FinalizeLog ('schoology-launch-error '+$_)}}else{Write-FinalizeLog ('schoology-exe-missing '+$exe)}`
     ];
     const encoded=Buffer.from(lines.join('\r\n'),'utf16le').toString('base64');
     const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-EncodedCommand',encoded],{detached:true,stdio:'ignore',windowsHide:true});
@@ -132,7 +132,28 @@ function find7z(){
   return candidates.find(p=>{try{return fs.existsSync(p)}catch{return false}})||null;
 }
 function run(exe,args,options={}){return new Promise((resolve,reject)=>{log('process-start',{exe,args});const cp=spawn(exe,args,{windowsHide:true,...options});activeProcesses.add(cp);let stderr='';let stdout='';const output=(stream,data)=>{const text=String(data);if(stream==='stdout')stdout+=text;else stderr+=text;log(`process-${stream}`,text.trim());options.onOutput?.(text,stream)};cp.stdout?.on('data',d=>output('stdout',d));cp.stderr?.on('data',d=>output('stderr',d));cp.on('error',error=>{activeProcesses.delete(cp);log('process-error',error.stack||String(error));reject(error)});cp.on('close',code=>{activeProcesses.delete(cp);log('process-exit',{exe,code});const ok=options.acceptCodes?options.acceptCodes.includes(code):code===0;ok?resolve({code,stderr,stdout}):reject(new Error(`${path.basename(exe)} exited with code ${code}${stderr?`: ${stderr.trim().slice(0,400)}`:''}`))})});}
-function waitForPid(pid,timeoutMs=15000){if(!pid){log('wait-for-schoology-skipped');return Promise.resolve();}return new Promise(resolve=>{const started=Date.now();let settled=false;let timer=null;log('wait-for-schoology-start',{pid,timeoutMs});const finish=(event,details={})=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);log(event,{pid,elapsedMs:Date.now()-started,...details});resolve();};const tick=()=>{if(settled)return;log('wait-for-schoology-check',{pid});const child=execFile('tasklist',['/FI',`PID eq ${pid}`],{windowsHide:true,timeout:2000},(error,stdout,stderr)=>{activeProcesses.delete(child);if(settled)return;if(error)log('wait-for-schoology-tasklist-result',{error:String(error),stderr:String(stderr||'')});const present=new RegExp(`\\b${pid}\\b`).test(String(stdout||''));if(!present)return finish('wait-for-schoology-complete');if(Date.now()-started>=timeoutMs)return finish('wait-for-schoology-timeout');setTimeout(tick,250)});activeProcesses.add(child);};timer=setTimeout(()=>finish('wait-for-schoology-timeout'),timeoutMs+2500);tick()});}
+function waitForPid(pid,timeoutMs=15000){
+  if(!pid){log('wait-for-schoology-skipped');return Promise.resolve();}
+  return new Promise((resolve,reject)=>{
+    const started=Date.now();let settled=false;let timer=null;
+    const finish=(event,details={},error=null)=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);log(event,{pid,elapsedMs:Date.now()-started,...details});error?reject(error):resolve();};
+    const tick=()=>{
+      if(settled)return;
+      const child=execFile('tasklist.exe',['/FI',`PID eq ${pid}`],{windowsHide:true,timeout:2500},(error,stdout,stderr)=>{
+        activeProcesses.delete(child);if(settled)return;
+        if(error){log('wait-for-schoology-tasklist-result',{error:String(error),stderr:String(stderr||'')});if(Date.now()-started>=timeoutMs)return finish('wait-for-schoology-timeout',{},new Error('Could not verify that Schoology has exited. Please close Schoology and retry the update.'));setTimeout(tick,300);return;}
+        const output=String(stdout||'');
+        const present=new RegExp(`\\b${pid}\\b`).test(output)&&!(/No tasks are running/i.test(output));
+        if(!present)return finish('wait-for-schoology-complete');
+        if(Date.now()-started>=timeoutMs)return finish('wait-for-schoology-timeout',{stdout:output.slice(0,500)},new Error('Schoology is still running, so the update was stopped safely. Close Schoology and try again.'));
+        setTimeout(tick,300);
+      });
+      activeProcesses.add(child);
+    };
+    timer=setTimeout(()=>finish('wait-for-schoology-timeout',{},new Error('Timed out waiting for Schoology to exit. Close Schoology and retry the update.')),timeoutMs+3000);
+    tick();
+  });
+}
 async function main(){
   if(process.platform!=='win32')throw new Error('This updater is Windows-only.');
   if(!payload.url)throw new Error('The Schoology installer URL is missing.');
@@ -167,9 +188,22 @@ async function main(){
   log('extract-application-start',{app7z,inner});
   await run(seven,['x',app7z,`-o${inner}`,'-y']);
   ui('install','determinate','Application files extracted…',70);log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
-  const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
-  log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
-  ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen});
+  const sourceExe=path.join(inner,'Schoology.exe');if(!fs.existsSync(sourceExe))throw new Error('The extracted update does not contain Schoology.exe; the current installation was left unchanged.');
+  const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
+  log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;
+  // /IS and /IT force replacement of files with identical timestamps and sizes.
+  // Without them, robocopy can silently keep a stale resources\app.asar from an older release.
+  await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E','/IS','/IT'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
+  if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
+  if(!fs.existsSync(schoologyExe))throw new Error('The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.');
+  const sourceAsar=path.join(inner,'resources','app.asar'),targetAsar=path.join(SCHOOLGY_DIR,'resources','app.asar');
+  if(fs.existsSync(sourceAsar)){
+    if(!fs.existsSync(targetAsar))throw new Error('The update copy finished, but resources\app.asar is missing. Schoology was not relaunched.');
+    const [sourceSize,targetSize,sourceDigest,targetDigest]=await Promise.all([Promise.resolve(fs.statSync(sourceAsar).size),Promise.resolve(fs.statSync(targetAsar).size),sha256(sourceAsar),sha256(targetAsar)]);
+    log('app-asar-verification',{sourceSize,targetSize,sourceDigest,targetDigest,match:sourceSize===targetSize&&sourceDigest===targetDigest});
+    if(sourceSize!==targetSize||sourceDigest!==targetDigest)throw new Error('The updated app.asar did not match the downloaded release. Schoology was not relaunched.');
+  }
+  ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen,appAsarExists:fs.existsSync(targetAsar)});
   ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
   scheduleSelfCleanup();
   if(win&&!win.isDestroyed())win.close();

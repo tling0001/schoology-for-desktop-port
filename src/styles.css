@@ -997,8 +997,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 /* v90: Android-fidelity corrections */
 .toolbarLti{background:#074f7b!important}
 .toolbarActionSlot{display:flex!important;align-items:center!important;gap:0!important}
-.toolbarActionSlot .toolbarImageButton{width:48px!important;height:56px!important;display:flex!important;align-items:center!important;justify-content:center!important}
-.toolbarActionSlot .toolbarImageButton img{width:24px!important;height:24px!important}
+.toolbarActionSlot .toolbarImageButton{width:48px!important;height:56px!important;display:flex!important;align-items:center!important;justify-content:center!important}.toolbarActionSlot .toolbarImageButton img{width:24px!important;height:24px!important}
 .assignmentActionMenu button{padding:12px 16px!important;min-height:44px!important}
 .commentAttachmentActions{display:flex;gap:1px;border-top:1px solid #e1e5e8;padding:8px 12px 0!important}
 .commentAttachmentActions button{height:48px!important;min-height:48px!important;flex:1 1 0!important;justify-content:center!important;flex-direction:column!important;padding:4px 8px!important;background:#fff!important;color:#2e66a3!important}
@@ -1721,3 +1720,83 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
   border:1px solid transparent;
   background-clip:padding-box;
 }
+
+/* Classic QR authorization state and webview scrollbar affordance. */
+.qrAuthorizationLoading{display:flex;min-height:260px;flex-direction:column;align-items:center;justify-content:center;gap:12px}.qrAuthorizationLoading img{width:72px;height:72px;object-fit:contain}.qrAuthorizationLoading p{margin:0;color:var(--theme-muted,#868e96)}
+:root[data-theme="dark"] .qrAuthorizationLoading p{color:var(--theme-muted,#a9afb7)}
+:root[data-theme="dark"] .sectionProfileTabs{background:var(--theme-surface,#202327)!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .sectionProfileTab{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .sectionProfileTab.active{color:var(--theme-blue,#7ab7ff)!important;border-bottom-color:var(--theme-blue,#7ab7ff)!important}
+:root[data-theme="dark"] .assignmentSubmissionDialog input,:root[data-theme="dark"] .assignmentSubmissionDialog textarea,:root[data-theme="dark"] .assignmentSubmissionDialog select{background:var(--theme-input,#292d32)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#3a3f46)!important}
+
+/* Classic desktop refinements for school info and attachment dialogs. */
+.schoolProfileTabs{justify-content:center}
+.schoolProfileLoading .loading{min-height:140px;display:flex;align-items:center;justify-content:center;gap:10px}
+.schoolProfileLoading .androidInlineSpinner,.schoolProfileLoading img{width:24px!important;height:24px!important;max-width:24px!important;max-height:24px!important;object-fit:contain}
+:root[data-theme="dark"] .assignmentSubmissionDialog{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important;border:1px solid var(--theme-border,#3a3f46)}
+:root[data-theme="dark"] .assignmentSubmissionBody{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .assignmentSubmissionChoices button{background:var(--theme-surface-raised,#292d32)!important;color:var(--theme-blue,#7ab7ff)!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .assignmentSubmissionChoices button:hover{background:var(--theme-hover,#30363d)!important}
+:root[data-theme="dark"] .submissionAttachmentStatus,:root[data-theme="dark"] #commentAttachmentStatus,:root[data-theme="dark"] #nativeAttachStatus{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .messageAttachmentChoices button,:root[data-theme="dark"] .commentAttachmentActions button{background:var(--theme-surface-raised,#292d32)!important;color:var(--theme-blue,#7ab7ff)!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .messageAttachmentChoices button img[src*="ic_attach_file_black"],:root[data-theme="dark"] .commentAttachmentActions img[src*="ic_action_ic_menu_folder"]{filter:brightness(0) invert(1)}
+:root[data-theme="dark"] .assignmentCommentDialog .androidCommentDialogBody{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .assignmentCommentDialog textarea,:root[data-theme="dark"] .composeMessageDialog textarea{background:var(--theme-input,#292d32)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#3a3f46)!important}
+.activityHeader{flex-wrap:wrap}
+.activityContextArrow{color:#8a9299;margin:0 2px 0 4px;font-size:18px;line-height:1}
+.activityGroupLink{border:0;background:transparent;color:#2e66a3;font:inherit;font-size:13px;padding:2px 0;cursor:pointer;text-align:left}
+.activityGroupLink:hover{text-decoration:underline}
+:root[data-theme="dark"] .activityContextArrow{color:var(--theme-muted,#a9afb7)}
+:root[data-theme="dark"] .activityGroupLink{color:var(--theme-blue,#7ab7ff)}
+/* Tab contrast: retain Schoology's blue tab rail with a clearly visible active state. */
+.messagesAndroidPage .messageTabs{background:#002137!important;border-bottom:0!important}
+.messagesAndroidPage .messageTab{background:#002137!important;color:rgba(255,255,255,.78)!important;border-bottom:3px solid transparent!important}
+.messagesAndroidPage .messageTab.active{background:#002137!important;color:#fff!important;border-bottom-color:#fff!important}
+:root[data-theme="dark"] .courseMainPane .sectionProfileTabs{background:#002137!important;border-color:#002137!important}
+:root[data-theme="dark"] .courseMainPane .sectionProfileTab{background:transparent!important;color:rgba(255,255,255,.82)!important}
+:root[data-theme="dark"] .courseMainPane .sectionProfileTab.active{background:#005da8!important;color:#fff!important;border-bottom:3px solid #fff!important}
+:root[data-theme="dark"] .assignmentPaneHeader{background:#001827!important;color:#fff!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .assignmentLandscapeSplit{border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .login .suggestions,:root[data-theme="dark"] .login .suggestion{background:var(--theme-surface,#202328)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .login .suggestion:hover{background:var(--theme-hover,#30363d)!important}
+:root[data-theme="dark"] .login .suggestion small{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .schoolProfileNativePage,:root[data-theme="dark"] .schoolProfileTabContent,:root[data-theme="dark"] .schoolProfileInfoRows,:root[data-theme="dark"] .schoolProfileResourceRow,:root[data-theme="dark"] .schoolProfileDiscussionRow,:root[data-theme="dark"] .schoolProfileUpdate{background:var(--theme-surface,#202328)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .schoolProfileInfoRow span,:root[data-theme="dark"] .schoolProfileUpdate small,:root[data-theme="dark"] .schoolProfileDiscussionRow small{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .schoolProfileInfoRow b,:root[data-theme="dark"] .schoolProfileUpdateBody,:root[data-theme="dark"] .schoolProfileHeaderText h1{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .assignmentActionMenu,:root[data-theme="dark"] .assignmentActionMenu button{background:var(--theme-surface,#202328)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .assignmentActionMenu button:hover{background:var(--theme-hover,#30363d)!important}
+:root[data-theme="dark"] .createPostAttachmentChoices button{background:var(--theme-surface-raised,#292d32)!important;color:var(--theme-blue,#7ab7ff)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .createPostAttachmentChoices img[src*="ic_attach_file_black"]{filter:brightness(0) invert(1)}
+:root[data-theme="dark"] .messageAttachmentChoices button img,:root[data-theme="dark"] .commentAttachmentActions button img,:root[data-theme="dark"] .createPostAttachmentChoices button img{filter:brightness(0) invert(1)!important}
+
+/* Classic text-submission composer must follow the app theme instead of staying white. */
+:root[data-theme="dark"] .submissionComposerOverlay{background:rgba(0,0,0,.62)!important}
+:root[data-theme="dark"] .submissionComposer{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important;border:1px solid var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .submissionComposer header{border-bottom-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .submissionComposer header b{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .submissionComposer header button{color:var(--theme-blue,#7ab7ff)!important}
+:root[data-theme="dark"] .submissionComposer textarea{background:var(--theme-input,#292d32)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#454a52)!important;color-scheme:dark}
+:root[data-theme="dark"] .submissionComposer textarea::placeholder{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .submissionComposer label{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .submissionComposer input[type="checkbox"]{accent-color:var(--theme-blue,#7ab7ff)}
+:root[data-theme="dark"] .submissionComposer>.androidPrimary{background:var(--theme-blue,#7ab7ff)!important;color:#10243a!important}
+
+/* Dark appearance also applies to the Classic login and school-picker screens. */
+:root[data-theme="dark"] .login,
+:root[data-theme="dark"] .qr{background:#17191c!important;color:#e6e8eb!important}
+:root[data-theme="dark"] .searchWrap{background:#292d32!important;color:#a9afb7!important;border:1px solid #454a52}
+:root[data-theme="dark"] .searchWrap input{color:#e6e8eb!important;caret-color:#7ab7ff}
+:root[data-theme="dark"] .suggestions{background:#202328!important;color:#e6e8eb!important;border:1px solid #393d43}
+:root[data-theme="dark"] .suggestion{background:#202328!important;color:#e6e8eb!important;border-bottom-color:#393d43!important}
+:root[data-theme="dark"] .suggestion:hover{background:#30363d!important}
+:root[data-theme="dark"] .suggestion small{color:#a9afb7!important}
+:root[data-theme="dark"] .field{background:#292d32!important;color:#e6e8eb!important;border:1px solid #454a52!important;color-scheme:dark}
+:root[data-theme="dark"] .selected,
+:root[data-theme="dark"] .accountTitle,
+:root[data-theme="dark"] .label,
+:root[data-theme="dark"] .qrhint{color:#e6e8eb!important}
+:root[data-theme="dark"] .searchStatus{color:#a9afb7!important}
+:root[data-theme="dark"] .loginBottom{color:#a9afb7!important}
+:root[data-theme="dark"] .qrButton{background:#292d32!important;color:#e6e8eb!important;border-color:#5b6570!important}
+:root[data-theme="dark"] .qr video{background:#202328!important}
+:root[data-theme="dark"] .error{background:#3b2024!important;color:#ffb4ab!important;border:1px solid #74343b}

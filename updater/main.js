@@ -50,24 +50,33 @@ function scheduleSelfCleanup(){
   const inner=path.join(TEMP_DIR,'inner-installer');
   const outer=path.join(TEMP_DIR,'installer-outer');
   const updaterPid=process.pid;
+  const resourcesPath=path.resolve(process.resourcesPath||'');
+  const tempRoot=path.resolve(TEMP_DIR)+path.sep;
+  const resourcesInsideTemp=resourcesPath.toLowerCase().startsWith(tempRoot.toLowerCase());
+  const finalizeLog=path.join(app.getPath('temp'),'schoology-update-finalize.log');
   try{
-    // Wait for the updater to exit before touching its extracted resources/app.asar.
-    // PowerShell runs each cleanup operation in order and launches Schoology last.
+    // The helper's own resources may be locked while it runs. A detached
+    // PowerShell process waits for this PID, removes only updater-owned files,
+    // then starts the installed application with its install folder as cwd.
     const ps=value=>String(value).replace(/'/g,"''");
-    const command=[
+    const lines=[
       "$ErrorActionPreference='Continue'",
       `$pidToWait=${updaterPid}`,
+      `$log='${ps(finalizeLog)}'`,
+      "function Write-FinalizeLog($m){try{Add-Content -LiteralPath $log -Value ((Get-Date -Format o)+' '+$m)}catch{}}",
+      "Write-FinalizeLog 'finalizer-start'",
       "while(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 250}",
-      `$inner='${ps(inner)}'; if(Test-Path -LiteralPath $inner){Remove-Item -LiteralPath $inner -Recurse -Force -ErrorAction SilentlyContinue}`,
-      `$outer='${ps(outer)}'; if(Test-Path -LiteralPath $outer){Remove-Item -LiteralPath $outer -Recurse -Force -ErrorAction SilentlyContinue}`,
-      `$files=@('${ps(path.join(TEMP_DIR,'schoology-installer.exe'))}','${ps(path.join(TEMP_DIR,'7zip.msi'))}','${ps(target)}'); foreach($file in $files){if($file -and (Test-Path -LiteralPath $file)){Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue}}`,
-      `$log='${ps(LOG_FILE)}'; if(Test-Path -LiteralPath $log){Remove-Item -LiteralPath $log -Force -ErrorAction SilentlyContinue}`,
+      `$inner='${ps(inner)}'; if(Test-Path -LiteralPath $inner){Remove-Item -LiteralPath $inner -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'inner-cleaned'}`,
+      `$outer='${ps(outer)}'; if(Test-Path -LiteralPath $outer){Remove-Item -LiteralPath $outer -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'outer-cleaned'}`,
+      `$files=@('${ps(path.join(TEMP_DIR,'schoology-installer.exe'))}','${ps(path.join(TEMP_DIR,'7z2604-x64.msi'))}','${ps(target)}'); foreach($file in $files){if($file -and (Test-Path -LiteralPath $file)){Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('file-cleaned '+$file)}}`,
+      ...(resourcesInsideTemp?[ `$resources='${ps(resourcesPath)}'; if(Test-Path -LiteralPath $resources){Remove-Item -LiteralPath $resources -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'updater-resources-cleaned'}` ]:[]),
       `$temp='${ps(TEMP_DIR)}'; if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}`,
-      `Start-Process -FilePath '${ps(schoologyExe)}'`
-    ].join('; ');
-    const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',command],{detached:true,stdio:'ignore',windowsHide:true});
+      `$exe='${ps(schoologyExe)}'; $work='${ps(SCHOOLGY_DIR)}'; if(Test-Path -LiteralPath $exe){Start-Process -FilePath $exe -WorkingDirectory $work; Write-FinalizeLog 'schoology-launched'}else{Write-FinalizeLog ('schoology-exe-missing '+$exe)}`
+    ];
+    const encoded=Buffer.from(lines.join('\r\n'),'utf16le').toString('base64');
+    const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-EncodedCommand',encoded],{detached:true,stdio:'ignore',windowsHide:true});
     child.unref();
-    log('self-cleanup-scheduled',{target,inner,outer,updaterPid});
+    log('self-cleanup-scheduled',{target,inner,outer,updaterPid,resourcesPath,resourcesInsideTemp,finalizeLog});
   }catch(error){log('self-cleanup-error',error?.stack||String(error));}
 }
 

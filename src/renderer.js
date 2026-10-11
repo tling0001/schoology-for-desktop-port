@@ -10,6 +10,8 @@ let qrBusy=false;
 let qrLastAttempt=0;
 let loadTabGeneration=0;
 let pendingDeepLinkAfterLogin=null;
+let schoologyStartupComplete=false;
+let queuedIncomingDeepLink=null;
 let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',experimentalForceDark:false};
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
 function applyTheme(mode,save=false){const selected=['light','dark','system'].includes(mode)?mode:'system';state.themeMode=selected;document.documentElement.dataset.theme=resolveTheme(selected);document.documentElement.dataset.themeMode=selected;if(document.documentElement.dataset.theme==='dark')requestAnimationFrame(()=>fixDarkRichTextColors());if(save){try{Promise.resolve(A.setThemeMode?.(selected)).catch(()=>{})}catch{}}}
@@ -281,7 +283,7 @@ function bind(){
     catch(e){state.error=e.message||'School sign-in failed.';state.screen='search';render()}finally{state.loading=false}
   });
   const browserLogin=document.getElementById('browserLogin');
-  if(browserLogin)browserLogin.onclick=async()=>{state.loading=true;state.error='';render();try{state.auth=await A.loginSchoolBrowser({domain:state.school?.domain||''});await afterLogin()}catch(e){state.loading=false;state.error=e.message||'Browser sign-in failed.';render()}};
+  if(browserLogin)browserLogin.onclick=async()=>{state.loading=true;state.error='';render();try{state.auth=await A.loginSchoolBrowser({domain:state.school?.domain||state.school?.school_domain||state.school?.schoolDomain||state.school?.url||''});await afterLogin()}catch(e){state.loading=false;state.error=e.message||'Browser sign-in failed.';render()}};
   const nativeLogin=document.getElementById('nativeLogin');if(nativeLogin)nativeLogin.onclick=()=>{state.error='';state.screen='credentials';render();document.getElementById('user')?.focus()};
   const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
 
@@ -1098,6 +1100,20 @@ async function routeSchoologyLink(rawUrl){
  if(scheme&&host==='lti-assignment'){
    const message=u.searchParams.get('error-message');showAppDialog('Unable to open LTI assignment',message||'Schoology could not open this LTI assignment.');return true;
  }
+ const mSectionAssignment=path.match(/^\/(?:section|sections)\/(\d+)\/assignments?\/(\d+)(?:\/.*)?$/i);
+ if(mSectionAssignment){showAssignment(Number(mSectionAssignment[1]),Number(mSectionAssignment[2]));return true}
+ const mSectionAssessment=path.match(/^\/(?:section|sections)\/(\d+)\/assessments?\/(\d+)(?:\/.*)?$/i);
+ if(mSectionAssessment){await A.prepareWebSession();showEmbeddedWeb('https://app.schoology.com/assignment/'+Number(mSectionAssessment[2]),'Assessment',{allowBrowser:false,quiz:true,assessment:true});return true}
+ const mSectionDiscussion=path.match(/^\/(?:section|sections)\/(\d+)\/discussions?\/(\d+)(?:\/.*)?$/i);
+ if(mSectionDiscussion){await showDiscussionNative('sections',Number(mSectionDiscussion[1]),Number(mSectionDiscussion[2]),'Discussion');return true}
+ const mGroupDiscussion=path.match(/^\/groups?\/(\d+)\/discussions?\/(\d+)(?:\/.*)?$/i);
+ if(mGroupDiscussion){await showDiscussionNative('groups',Number(mGroupDiscussion[1]),Number(mGroupDiscussion[2]),'Discussion');return true}
+ const mSectionEvent=path.match(/^\/(?:section|sections)\/(\d+)\/events?\/(\d+)(?:\/.*)?$/i);
+ if(mSectionEvent){showEventNative('sections',Number(mSectionEvent[1]),Number(mSectionEvent[2]),'Event');return true}
+ const mGroupEvent=path.match(/^\/groups?\/(\d+)\/events?\/(\d+)(?:\/.*)?$/i);
+ if(mGroupEvent){showEventNative('groups',Number(mGroupEvent[1]),Number(mGroupEvent[2]),'Event');return true}
+ const mSectionPage=path.match(/^\/(?:section|sections)\/(\d+)\/pages?\/(\d+)(?:\/.*)?$/i);
+ if(mSectionPage){showPageNative('sections',Number(mSectionPage[1]),Number(mSectionPage[2]),'Page');return true}
  const mCourseApp=path.match(/^\/(?:section|sections)\/(\d+)\/(?:applications|application)\/(\d+)$/i);
  if(mCourseApp){const sectionId=Number(mCourseApp[1]),appId=Number(mCourseApp[2]);try{const result=await A.launchCourseApp({sectionId,appId});const launch=result?.url||result?.launchTokenUrl||result?.launch_token_url||result?.data?.url||result?.data?.launchTokenUrl;if(!launch)throw new Error('Schoology did not return a course-app launch URL.');await A.prepareWebSession();showEmbeddedWeb(launch,'Course App',{externalLinks:true});}catch(e){showAppDialog('Unable to open course app',e.message||String(e))}return true}
  const mSpecialTool=path.match(/^\/(?:course|courses|section|sections)\/(\d+)\/(external-tool|lti|scorm)\/(\d+)$/i);
@@ -1189,7 +1205,7 @@ async function loadCourseApps(course,targetEl){
       const launchResult=await A.launchCourseApp({launchUrl:href,appId:Number.isSafeInteger(appId)&&appId>0?appId:undefined,sectionId:Number(sid)});
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
-      openWithPressTransition(b,()=>showEmbeddedWeb(url,a.title||'Course App',{externalLinks:true}));
+      openWithPressTransition(b,async()=>{const result=await A.openExternal(url);if(result)showAppDialog('Unable to open course app',result)});
     }catch(e){el.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);
@@ -1573,10 +1589,10 @@ async function openGroupResourceItem(d,b,gid){
   const t=String(d.template_type||d.templateType||d.type||'').toLowerCase(), dt=String(d.document_type||d.documentType||d.template?.template_document_type||d.template?.templateDocumentType||d.template_fields?.document_type||d.template_fields?.documentType||'').toLowerCase();
   if(t==='folder'){await showGroupResourceFolder(gid,d.id||d.folder_id||d.folderId,d.title||d.template_title||'Folder',d.collection_id||d.collectionID||d.collectionId);return;}
   if(t==='assignment'){const u=groupResourceDestination(d)||`https://app.schoology.com/assignment/${d.id}`;await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Assignment');return;}
-  if(['link','web_content','external_tool','embed','video'].includes(t)||['link','external_tool','embed','video'].includes(dt)){const u=groupResourceDestination(d);if(u){await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Link');return;}}
+  if(['link','web_content','external_tool','embed','video'].includes(t)||['link','external_tool','embed','video'].includes(dt)){const u=groupResourceDestination(d);if(u){const result=await A.openExternal(u);if(result)throw new Error(result);return;}}
   const u=groupResourceDestination(d);if(!u)throw new Error('Schoology did not provide a resource URL.');
   const f=groupResourceFirst(d,'files');const filename=f?.filename||f?.fileName||d.filename||d.fileName||d.title||d.name||'Schoology file';const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||d.filemime||d.fileMIME||'application/octet-stream';
-  if(dt==='link'||t==='link'){await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Link');return;}
+  if(dt==='link'||t==='link'){const result=await A.openExternal(u);if(result)throw new Error(result);return;}
   const r=await downloadWithFeedback(b,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err);
 }
 async function openSchoolProfile(schoolId,title='School'){
@@ -1743,7 +1759,7 @@ async function openCollectionResource(item,button){
  if(t==='document'){
    if(dt==='link'){
      const link=firstAttachment(item,'links');let u=link?.link_url||link?.linkURL||link?.url||link?.href||item.url||item.web_url||item.webUrl;
-     if(u){u=normalizeSchoologyWebUrl(u);await A.prepareWebSession();showEmbeddedWeb(u,title);return}
+     if(u){u=normalizeSchoologyWebUrl(u);const result=await A.openExternal(u);if(result)throw new Error(result);return}
    }
    if(dt==='embed'){
      const embed=firstAttachment(item,'embeds');const code=embed?.embed_code||embed?.embedCode;
@@ -1751,7 +1767,7 @@ async function openCollectionResource(item,button){
    }
    if(dt==='external_tool'){
      const u=item.launch_url||item.launchUrl||item.web_url||item.webUrl||item.url||item.href;
-     if(u){await A.prepareWebSession();showEmbeddedWeb(u,title);return}
+     if(u){const result=await A.openExternal(u);if(result)throw new Error(result);return}
    }
    if(dt==='file'){
      const f=firstAttachment(item,'files');const u=f?.resolveDownloadUrl||f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.converted_download_path||f?.convertedDownloadPath;
@@ -1759,7 +1775,7 @@ async function openCollectionResource(item,button){
    }
  }
  const u=item.web_url||item.webUrl||item.url||item.href||item.location||item.download_path||item.downloadPath||item.file_url||item.fileUrl;
- if(u){await A.prepareWebSession();showEmbeddedWeb(u,title);return}
+ if(u){const result=await A.openExternal(u);if(result)throw new Error(result);return}
  throw new Error('Schoology did not provide a destination for this resource.');
 }
 function setResourceLoading(button,text='Loading…'){
@@ -1779,7 +1795,7 @@ async function loadResourcesHome(c){
  c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceCategoryList">${categories.map(([key,label,list])=>`<section class="resourceCategory"><button class="resourceCategoryHeader" data-resource-category="${key}"><img src="../assets/icons/${collectionIcon(key)}" alt=""><b>${esc(label)}</b><span class="resourceChevron">›</span></button><div class="resourceCategoryChildren" id="resource-${key}">${list.length?list.map((o,i)=>`<button class="resourceCollectionRow" data-resource-collection="${key}" data-resource-index="${i}">${key==='apps'?(o.app_logo||o.appLogo?`<img class="resourceAppLogo" data-media-image-url="${esc(normalizeImageUrl(o.app_logo||o.appLogo))}" alt="" style="display:none"><img class="resourceAppFallback" src="../assets/icons/ic_menu_post.png" alt="">`:`<img src="../assets/icons/ic_menu_post.png" alt="">`):`<img src="../assets/icons/${o.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'}" alt="">`}<span><b>${esc(o.collection_title||o.title||o.name||'Resource')}</b></span><span>›</span></button>`).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`).join('')}</div></section>`;
  window.__resourceCategories=Object.fromEntries(categories.map(([k,l,a])=>[k,a])); await hydrateMediaImages(c);
  document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
- document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');showEmbeddedWeb(url,col.collection_title||col.title||'Resource App')}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
+ document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');await A.openExternal(url).then(result=>{if(result)showAppDialog('Unable to open resource app',result)})}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
 }
 async function openResourceCollection(col){
  const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';syncToolbar();
@@ -1795,6 +1811,25 @@ async function handleRequestAction(r,accept){if(!r)return;try{const uid=state.au
 
 async function openNotification(n){
   if(!n)return;
+  const findLink=value=>{
+    if(!value)return '';
+    if(Array.isArray(value)){for(const item of value){const found=findLink(item);if(found)return found}return ''}
+    if(typeof value!=='object')return '';
+    for(const key of ['url','href','web_url','webUrl','link_url','linkURL','target_url','targetUrl']){
+      const v=value[key];if(typeof v==='string'&&/^https?:\/\//i.test(v))return v;
+    }
+    for(const child of Object.values(value)){if(child&&typeof child==='object'){const found=findLink(child);if(found)return found}}
+    return '';
+  };
+  const notificationUrl=findLink(n)||findLink(n.body_args||n.bodyArgs||n.body_arg||[]);
+  if(notificationUrl){
+    try{
+      const parsed=new URL(notificationUrl),host=parsed.hostname.toLowerCase();
+      const internal=host==='lms.lausd.net'||host==='schoology.com'||host.endsWith('.schoology.com');
+      if(internal&&await routeSchoologyLink(parsed.href))return;
+      if(!internal){const result=await A.openExternal(parsed.href);if(result)showAppDialog('Unable to open notification',result);return}
+    }catch(e){console.warn('Could not resolve notification URL; falling back to notification type:',e.message)}
+  }
   const realmRaw=String(n.realm||'user').toLowerCase();
   const realm=realmRaw==='section'?'sections':realmRaw==='group'?'groups':realmRaw==='school'?'schools':realmRaw==='user'?'users':realmRaw;
   const realmId=n.realm_id||n.realmId||n.user_id||n.uid||state.auth?.userId;
@@ -2005,7 +2040,7 @@ async function loadTab(){
     const bodyFor=n=>{const body=String(n?.body||n?.message||n?.title||'Notification');const args=n?.body_args||n?.bodyArgs||[];const rendered=Array.isArray(args)?args.reduce((out,a)=>out.replace('%s',String(a?.title||a?.name||'')),body):body;return rendered.replace(/<a\b([^>]*?)href=[\"']([^\"']+)[\"']([^>]*)>(.*?)<\/a>/gi,(_,pre,href,post,label)=>`<a class="notificationBodyLink" data-notification-href="${esc(href)}">${esc(label.replace(/<[^>]+>/g,''))}</a>`)};
     window.__schoologyNotifications=arr;
 c.innerHTML=`<section class="notificationsAndroidPage"><div class="notificationList">${arr.map((n,i)=>`<button class="androidNotificationItem notificationClickable" data-notification-index="${i}"><img src="../assets/icons/${iconFor(n)}" alt=""><div class="notificationText"><div class="notificationBodyRich">${bodyFor(n)}</div><small>${esc(formatSchoologyDate(n.created||n.timestamp||''))}</small></div><span class="disclosure">›</span></button>`).join('')||'<div class="empty">You have no notifications</div>'}</div></section>`;
-document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>openNotification(window.__schoologyNotifications[+b.dataset.notificationIndex]));document.querySelectorAll('[data-notification-href]').forEach(a=>a.onclick=async ev=>{ev.preventDefault();ev.stopPropagation();const href=a.dataset.notificationHref||'';if(!href)return;try{if(await routeSchoologyLink(href))return;await showEmbeddedWeb(href,a.textContent?.trim()||'Link')}catch(e){alert('Unable to open notification link: '+e.message)}});
+document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>openNotification(window.__schoologyNotifications[+b.dataset.notificationIndex]));document.querySelectorAll('[data-notification-href]').forEach(a=>a.onclick=async ev=>{ev.preventDefault();ev.stopPropagation();const href=a.dataset.notificationHref||'';if(!href)return;try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(result)showAppDialog('Unable to open notification link',result)}catch(e){alert('Unable to open notification link: '+e.message)}});
   }else if(state.tab==='resources'){
     await loadResourcesHome(c);
   }else if(state.tab==='people'){
@@ -2032,7 +2067,7 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
     document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
   }else if(state.tab==='settings'){
-    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Appearance</h2><label class="settingRow"><span><b>Theme</b><small>Choose light, dark, or follow your system appearance</small></span><select id="themeModeSelect" class="settingSelect"><option value="system" ${state.themeMode==='system'?'selected':''}>System default</option><option value="light" ${state.themeMode==='light'?'selected':''}>Light</option><option value="dark" ${state.themeMode==='dark'?'selected':''}>Dark</option></select></label><label class="settingRow"><span><b>Open Schoology links in this app</b><small>Route Schoology links inside this app. Chrome needs the companion link handler below.</small></span><input type="checkbox" id="openSchoologyLinksToggle" ${state.openSchoologyLinks?'checked':''}></label><button id="setupChromeLinkHandler" class="settingRow settingButton"><span><b>Set up Chrome link handling</b><small>Open the companion extension folder for Chrome</small></span><span>›</span></button></div><div class="settingsGroup"><h2>Desktop Notifications</h2><label class="settingRow"><span><b>Schoology notifications</b><small>Show a desktop notification when new Schoology activity arrives</small></span><input type="checkbox" id="desktopNotificationsToggle" ${state.desktopNotifications?'checked':''}></label><label class="settingRow"><span><b>Notification sound</b><small>Play the system notification sound for new activity</small></span><input type="checkbox" id="notificationSoundToggle" ${state.notificationSound?'checked':''} ${state.desktopNotifications?'':'disabled'}></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: ${esc(state.appVersion||'2026.06.0-port.147')}</div></section>`;
+    c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Appearance</h2><label class="settingRow"><span><b>Theme</b><small>Choose light, dark, or follow your system appearance</small></span><select id="themeModeSelect" class="settingSelect"><option value="system" ${state.themeMode==='system'?'selected':''}>System default</option><option value="light" ${state.themeMode==='light'?'selected':''}>Light</option><option value="dark" ${state.themeMode==='dark'?'selected':''}>Dark</option></select></label><label class="settingRow"><span><b>Open Schoology links in this app</b><small>Route Schoology links inside this app. Chrome needs the companion link handler below.</small></span><input type="checkbox" id="openSchoologyLinksToggle" ${state.openSchoologyLinks?'checked':''}></label><button id="setupChromeLinkHandler" class="settingRow settingButton"><span><b>Set up Chrome link handling</b><small>Open the companion extension folder for Chrome</small></span><span>›</span></button></div><div class="settingsGroup"><h2>Desktop Notifications</h2><label class="settingRow"><span><b>Schoology notifications</b><small>Show a desktop notification when new Schoology activity arrives</small></span><input type="checkbox" id="desktopNotificationsToggle" ${state.desktopNotifications?'checked':''}></label><label class="settingRow"><span><b>Notification sound</b><small>Play the system notification sound for new activity</small></span><input type="checkbox" id="notificationSoundToggle" ${state.notificationSound?'checked':''} ${state.desktopNotifications?'':'disabled'}></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>Check for a newer Schoology desktop port</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><input type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}></label></div><div class="settingsVersion">Version: ${esc(state.appVersion||'2026.06.0-port.148')}</div></section>`;
     document.getElementById('themeModeSelect')?.addEventListener('change',async e=>{applyTheme(e.target.value,false);try{await A.setThemeMode?.(e.target.value)}catch{}loadTab()});
     document.getElementById('openSchoologyLinksToggle')?.addEventListener('change',async e=>{const next=!!e.target.checked;try{state.openSchoologyLinks=await A.setOpenSchoologyLinks?.(next)!==false}catch(err){e.target.checked=state.openSchoologyLinks;showAppDialog('Unable to update link handling',err.message||String(err))}});
     document.getElementById('setupChromeLinkHandler')?.addEventListener('click',async()=>{try{const error=await A.openChromeExtensionFolder?.();if(error)throw new Error(error);showAppDialog('Chrome link handler','In Chrome, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the chrome-link-handler folder that was opened.')}catch(err){showAppDialog('Unable to open Chrome link handler folder',err.message||String(err))}});
@@ -2230,25 +2265,31 @@ async function startSchoologyStartup(retry=false){
       state.auth=saved;
       await afterLogin();
       window.schoologyAppReady?.();
-      return;
+    }else{
+      render();
+      window.schoologyAppReady?.();
     }
-    render();
-    window.schoologyAppReady?.();
   }catch(e){
     console.warn('Schoology startup failed:',e);
     if(retry||e?.message){showStartupOfflineError();return;}
     render();window.schoologyAppReady?.();
+  }finally{
+    schoologyStartupComplete=true;
+    if(queuedIncomingDeepLink){const url=queuedIncomingDeepLink;queuedIncomingDeepLink=null;handleIncomingSchoologyDeepLink(url)}
   }
 }
-startSchoologyStartup();
-
-A.onDeepLink?.(async url=>{
+async function handleIncomingSchoologyDeepLink(url){
   console.info('Received Schoology deep link:',url);
   try{
     if(state.screen!=='app'||!state.auth){pendingDeepLinkAfterLogin=url;return}
     if(await routeSchoologyLink(url))return;
     await showEmbeddedWeb(url,'Schoology Link',{openInitialExternalInBrowser:false});
   }catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e))}
+}
+startSchoologyStartup();
+A.onDeepLink?.(url=>{
+  if(!schoologyStartupComplete){queuedIncomingDeepLink=url;return}
+  handleIncomingSchoologyDeepLink(url);
 });
 
 A.onUpdateAvailable?.(u=>{if(!u?.url)return;let dlg=showAppDialog('Downloading update','Downloading…',[]);const msg=dlg?.querySelector('.appDialogMessage');if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="autoUpdateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="autoUpdateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';const off=A.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('autoUpdateDownloadProgressBar'),txt=document.getElementById('autoUpdateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.percent!=null?`Downloading… ${d.percent}%`:'Downloading…';});A.installUpdate(u).catch(e=>{off?.();dlg?.classList.remove('open');showAppDialog('Unable to install update',e.message||String(e))});});

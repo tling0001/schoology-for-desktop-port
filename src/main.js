@@ -23,20 +23,14 @@ const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 const attachedGuestWebContents=new Set();
-const guestDarkStyleKeys=new WeakMap();
-const sharedWebviewDarkCss=`html{color-scheme:dark!important}body{background-color:#17191c!important;color:#e6e8eb!important}`;
-const sharedWebviewDarkScript=`(()=>{if(window.__schoologySharedDarkObserver)return;window.__schoologySharedDarkObserver=true;const neutralDark=c=>{const m=String(c||'').match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);if(!m)return false;const r=+m[1],g=+m[2],b=+m[3];return Math.max(r,g,b)-Math.min(r,g,b)<34&&(r+g+b)/3<118};const nearWhite=c=>{const m=String(c||'').match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);return !!m&&(+m[4]||1)>.8&&+m[1]>238&&+m[2]>238&&+m[3]>238};const paint=()=>{for(const el of document.querySelectorAll('body *')){if(/^(IMG|SVG|PATH|VIDEO|CANVAS|IFRAME|INPUT|TEXTAREA|SELECT|OPTION)$/.test(el.tagName))continue;const cs=getComputedStyle(el);if(nearWhite(cs.backgroundColor)){if(!el.hasAttribute('data-sgy-dark-bg'))el.setAttribute('data-sgy-dark-bg',el.style.getPropertyValue('background-color'));if(!el.hasAttribute('data-sgy-dark-bg-image'))el.setAttribute('data-sgy-dark-bg-image',el.style.getPropertyValue('background-image'));el.style.setProperty('background-color','#202328','important');el.style.setProperty('background-image','none','important')}if(neutralDark(cs.color)){if(!el.hasAttribute('data-sgy-dark-color'))el.setAttribute('data-sgy-dark-color',el.style.getPropertyValue('color'));el.style.setProperty('color','#e6e8eb','important')}}};document.documentElement.dataset.schoologyDark='1';paint();window.__schoologySharedDarkObserver=new MutationObserver(()=>paint());window.__schoologySharedDarkObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','color']});})();`;
-const sharedWebviewLightScript=`(()=>{try{window.__schoologySharedDarkObserver?.disconnect()}catch{};window.__schoologySharedDarkObserver=null;for(const el of document.querySelectorAll('[data-sgy-dark-bg],[data-sgy-dark-bg-image],[data-sgy-dark-color]')){if(el.hasAttribute('data-sgy-dark-bg')){const v=el.getAttribute('data-sgy-dark-bg');el.style.removeProperty('background-color');if(v)el.style.setProperty('background-color',v);el.removeAttribute('data-sgy-dark-bg')}if(el.hasAttribute('data-sgy-dark-bg-image')){const v=el.getAttribute('data-sgy-dark-bg-image');el.style.removeProperty('background-image');if(v)el.style.setProperty('background-image',v);el.removeAttribute('data-sgy-dark-bg-image')}if(el.hasAttribute('data-sgy-dark-color')){const v=el.getAttribute('data-sgy-dark-color');el.style.removeProperty('color');if(v)el.style.setProperty('color',v);el.removeAttribute('data-sgy-dark-color')}}document.documentElement.style.removeProperty('color-scheme');delete document.documentElement.dataset.schoologyDark;document.body?.style.removeProperty('background-color');document.body?.style.removeProperty('color')})();`;
 function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  const oldKey=guestDarkStyleKeys.get(guest);
-  if(oldKey){try{Promise.resolve(guest.removeInsertedCSS(oldKey)).catch(()=>{})}catch{}guestDarkStyleKeys.delete(guest)}
-  if(!dark){try{Promise.resolve(guest.executeJavaScript(sharedWebviewLightScript,true)).catch(()=>{})}catch{}return}
-  // Transform only shared <webview> guests; never force-dark the native app renderer.
-  try{Promise.resolve(guest.insertCSS(sharedWebviewDarkCss)).then(key=>{if(key&&!guest.isDestroyed?.())guestDarkStyleKeys.set(guest,key)}).catch(e=>console.warn('Could not apply shared-webview dark CSS:',e.message))}catch(e){console.warn('Could not apply shared-webview dark CSS:',e.message)}
-  try{Promise.resolve(guest.executeJavaScript(sharedWebviewDarkScript,true)).catch(e=>console.warn('Could not fix shared-webview dark text:',e.message))}catch(e){console.warn('Could not fix shared-webview dark text:',e.message)}
+  // Chromium's native Force Dark algorithm preserves hues while adapting
+  // light surfaces and dark text, unlike blanket CSS recoloring.
+  try{if(dark)guest.enableWebContentsForceDark?.();else guest.disableWebContentsForceDark?.()}
+  catch(e){console.warn('Could not apply native Force Dark to shared webview:',e.message)}
 }
 let pendingSchoologyDeepLink=null;
 let rendererDeepLinkReady=false;
@@ -102,7 +96,7 @@ try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not se
 nativeTheme.on('updated',()=>{for(const guest of attachedGuestWebContents)styleAttachedGuest(guest)});
 try{
   // Keep overlay scrollbars process-wide, but limit dark transformation to shared webviews.
-  const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
+  const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter','WebContentsForceDark'];
   const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
@@ -561,16 +555,16 @@ async function pollSchoologyNotifications(){
   }catch(error){if(!/Not signed in|session expired/i.test(String(error?.message||error)))console.warn('Schoology notification check failed:',error?.message||error)}
 }
 function scheduleSchoologyNotifications(){if(schoologyNotificationTimer)clearInterval(schoologyNotificationTimer);schoologyNotificationTimer=setInterval(()=>{pollSchoologyNotifications().catch(()=>{})},5*60*1000);schoologyNotificationTimer.unref?.();setTimeout(()=>pollSchoologyNotifications().catch(()=>{}),15000).unref?.()}
+function androidUriEncode(value){
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g,ch=>'%'+ch.charCodeAt(0).toString(16).toUpperCase());
+}
 function buildAndroidOAuthLoginUrl(domain,requestToken){
-  const host=String(domain||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+  const host=String(domain||'').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'');
   if(!host) throw new Error('This school did not provide a valid domain.');
-  // Android's LoginOAuthManagementActivity sends the school-hosted
-  // /mobile_login_success callback, then the site hands control back through
-  // schoology://external_login_callback?request_token=... . Passing the custom
-  // scheme directly as oauth_callback skips that official browser handoff.
+  // Exact LoginOAuthManagementActivity.R0() URL shape from the official source.
   const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000477`;
-  const oauthPath=`oauth/authorize?oauth_token=${encodeURIComponent(requestToken)}&oauth_callback=${encodeURIComponent(callback)}`;
-  return `https://${host}/${oauthPath}&login_landing_dest=${encodeURIComponent(oauthPath)}`;
+  const oauthPath=`oauth/authorize?oauth_token=${requestToken}&oauth_callback=${androidUriEncode(callback)}`;
+  return `https://${host}/${oauthPath}&login_landing_dest=${androidUriEncode(oauthPath)}`;
 }
 async function loginThroughSchoolBrowser(info){
   if(!info||!info.domain)throw new Error('This school did not provide a login domain.');

@@ -1777,3 +1777,55 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .schoolProfileNativePage .loading img,.schoolProfileNativePage .loading .androidInlineSpinner{width:24px!important;height:24px!important;max-width:24px!important;max-height:24px!important;object-fit:contain;flex:0 0 24px}
 :root[data-theme="dark"] .androidActivityCard .activityBody,:root[data-theme="dark"] .groupFullUpdate .activityBody,:root[data-theme="dark"] .activityCard .activityBody,:root[data-theme="dark"] .schoolProfileUpdateBody,:root[data-theme="dark"] .commentBodyHtml,:root[data-theme="dark"] .assignmentDescription{color:var(--theme-text,#e6e8eb)}
 :root[data-theme="dark"] .activityBody a,:root[data-theme="dark"] .schoolProfileUpdateBody a,:root[data-theme="dark"] .commentBodyHtml a,:root[data-theme="dark"] .assignmentDescription a{color:var(--theme-blue,#8abfff)!important}
+
+/* v148: Dark surfaces for file/link rows attached to posts and assignments. */
+:root[data-theme="dark"] .activityAttachment.fileAttachment,
+:root[data-theme="dark"] .messageAttachment,
+:root[data-theme="dark"] .assignmentAttachment,
+:root[data-theme="dark"] .assignmentFileAttachment,
+:root[data-theme="dark"] .assignmentResourceAttachment,
+:root[data-theme="dark"] .attachmentRow,
+:root[data-theme="dark"] .fileAttachmentRow,
+:root[data-theme="dark"] .schoologyAttachment,
+:root[data-theme="dark"] .activityAttachments a,
+:root[data-theme="dark"] .assignmentAttachments a {
+  background:#24282e!important;color:#e5e9ee!important;border-color:#414852!important;box-shadow:none!important;
+}
+:root[data-theme="dark"] .attachmentFileIcon,
+:root[data-theme="dark"] .attachmentIcon,
+:root[data-theme="dark"] .assignmentAttachmentIcon {
+  background:#303740!important;border-color:#414852!important;
+}
+:root[data-theme="dark"] .attachmentFileText,
+:root[data-theme="dark"] .attachmentFileText b,
+:root[data-theme="dark"] .attachmentFileText small,
+:root[data-theme="dark"] .attachmentFileText span,
+:root[data-theme="dark"] .activityAttachment,
+:root[data-theme="dark"] .messageAttachment,
+:root[data-theme="dark"] .assignmentAttachment,
+:root[data-theme="dark"] .assignmentFileAttachment {
+  color:#e5e9ee!important;
+}
+:root[data-theme="dark"] .assignmentAndroidPage,
+:root[data-theme="dark"] .assignmentLandscapeSplit,
+:root[data-theme="dark"] .assignmentInfoPane,
+:root[data-theme="dark"] .assignmentSubmissionsPane,
+:root[data-theme="dark"] .assignmentTabContent,
+:root[data-theme="dark"] .assignmentSubmissionsContent,
+:root[data-theme="dark"] .assignmentInfoPane #assignmentTabContent {
+  background:#17191c!important;color:#e5e9ee!important;
+}
+:root[data-theme="dark"] .assignmentTabs {
+  background:#17191c!important;border-color:#343941!important;
+}
+:root[data-theme="dark"] .assignmentTab {color:#b9c2cc!important}
+:root[data-theme="dark"] .assignmentTab.active {color:#8abfff!important;border-bottom-color:#8abfff!important}
+:root[data-theme="dark"] .assignmentPaneHeader {
+  background:#202328!important;color:#e5e9ee!important;border-bottom:1px solid #343941!important;
+}
+:root[data-theme="dark"] .assignmentSubmissionsContent .empty,
+:root[data-theme="dark"] .assignmentSubmissionsContent .loading,
+:root[data-theme="dark"] .assignmentSubmissionRow,
+:root[data-theme="dark"] .assignmentSubmissionItem {
+  background:#202328!important;color:#e5e9ee!important;border-color:#343941!important;
+}

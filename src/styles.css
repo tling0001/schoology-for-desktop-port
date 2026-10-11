@@ -1830,3 +1830,48 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .assignmentSubmissionItem {
   background:#202328!important;color:#e5e9ee!important;border-color:#343941!important;
 }
+
+/* v150: Native dark theme for the complete assignment submission split and its child cards. */
+:root[data-theme="dark"] .assignmentLandscapePage .assignmentSubmissionsPane,
+:root[data-theme="dark"] .assignmentLandscapePage .assignmentSubmissionsContent,
+:root[data-theme="dark"] .assignmentLandscapePage .assignmentSubmissionsContent > *,
+:root[data-theme="dark"] .assignmentLandscapePage .gradeDropboxAndroid,
+:root[data-theme="dark"] .assignmentLandscapePage .studentSubmissionAndroid,
+:root[data-theme="dark"] .assignmentLandscapePage .gradeStudentList,
+:root[data-theme="dark"] .assignmentLandscapePage .submissionRevisionList {
+  background:#17191c!important;color:#e6e8eb!important;border-color:#343941!important;
+}
+:root[data-theme="dark"] .assignmentLandscapePage .gradeDropboxHeader,
+:root[data-theme="dark"] .assignmentLandscapePage .gradeStudentRow,
+:root[data-theme="dark"] .assignmentLandscapePage .submissionRevisionAndroid,
+:root[data-theme="dark"] .assignmentLandscapePage .studentOverallComment,
+:root[data-theme="dark"] .assignmentLandscapePage .teacherOverallComment,
+:root[data-theme="dark"] .assignmentLandscapePage .teacherGradeHeader,
+:root[data-theme="dark"] .assignmentLandscapePage .teacherUser,
+:root[data-theme="dark"] .assignmentLandscapePage .teacherSubmissionHeader,
+:root[data-theme="dark"] .assignmentLandscapePage .gradeSubmissionDetails,
+:root[data-theme="dark"] .assignmentLandscapePage .submissionSectionTitle {
+  background:#202328!important;color:#e6e8eb!important;border-color:#343941!important;
+}
+:root[data-theme="dark"] .assignmentLandscapePage .gradeDropboxHeader *,
+:root[data-theme="dark"] .assignmentLandscapePage .gradeStudentRow *,
+:root[data-theme="dark"] .assignmentLandscapePage .submissionRevisionAndroid *,
+:root[data-theme="dark"] .assignmentLandscapePage .studentOverallComment *,
+:root[data-theme="dark"] .assignmentLandscapePage .teacherOverallComment *,
+:root[data-theme="dark"] .assignmentLandscapePage .submissionSectionTitle,
+:root[data-theme="dark"] .assignmentLandscapePage .androidEmptyState {
+  color:#e6e8eb!important;
+}
+:root[data-theme="dark"] .assignmentLandscapePage .gradeStudentAvatar {
+  background:#303740!important;color:#e6e8eb!important;
+}
+:root[data-theme="dark"] .assignmentLandscapePage input,
+:root[data-theme="dark"] .assignmentLandscapePage textarea,
+:root[data-theme="dark"] .assignmentLandscapePage select {
+  background:#202328!important;color:#e6e8eb!important;border-color:#414852!important;
+}
+:root[data-theme="dark"] .assignmentLandscapePage .revisionStatus {color:#9bd3a6!important}
+:root[data-theme="dark"] .assignmentLandscapePage .revisionStatus.late {color:#ffc078!important}
+.officialBackIcon{display:block;width:24px;height:24px;flex:0 0 24px}
+.iconButton .officialBackIcon{width:24px;height:24px}
+.drawerBack .officialBackIcon,.folderInlineBack .officialBackIcon{width:20px;height:20px;vertical-align:middle}

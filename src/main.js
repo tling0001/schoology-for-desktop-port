@@ -556,12 +556,22 @@ async function pollSchoologyNotifications(){
 }
 function scheduleSchoologyNotifications(){if(schoologyNotificationTimer)clearInterval(schoologyNotificationTimer);schoologyNotificationTimer=setInterval(()=>{pollSchoologyNotifications().catch(()=>{})},5*60*1000);schoologyNotificationTimer.unref?.();setTimeout(()=>pollSchoologyNotifications().catch(()=>{}),15000).unref?.()}
 function androidUriEncode(value){
-  return encodeURIComponent(String(value)).replace(/[!'()*]/g,ch=>'%'+ch.charCodeAt(0).toString(16).toUpperCase());
+  // Android android.net.Uri.encode() leaves these characters unescaped;
+  // encodeURIComponent has the same allow-list for this callback URL.
+  return encodeURIComponent(String(value));
+}
+function normalizeSchoolLoginHost(domain){
+  const raw=String(domain||'').trim();if(!raw)return '';
+  try{
+    const parsed=new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)?raw:`https://${raw}`);
+    if(!['http:','https:'].includes(parsed.protocol))return '';
+    return parsed.host.toLowerCase();
+  }catch{return ''}
 }
 function buildAndroidOAuthLoginUrl(domain,requestToken){
-  const host=String(domain||'').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'');
-  if(!host) throw new Error('This school did not provide a valid domain.');
-  // Exact LoginOAuthManagementActivity.R0() URL shape from the official source.
+  const host=normalizeSchoolLoginHost(domain);
+  if(!host) throw new Error('This school did not provide a valid login domain.');
+  // Exact LoginOAuthManagementActivity.R0() URL layout from the official Android source.
   const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000477`;
   const oauthPath=`oauth/authorize?oauth_token=${requestToken}&oauth_callback=${androidUriEncode(callback)}`;
   return `https://${host}/${oauthPath}&login_landing_dest=${androidUriEncode(oauthPath)}`;

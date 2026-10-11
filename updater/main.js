@@ -50,6 +50,8 @@ function scheduleSelfCleanup(){
   const inner=path.join(TEMP_DIR,'inner-installer');
   const outer=path.join(TEMP_DIR,'installer-outer');
   const updaterPid=process.pid;
+  const previousAsarBackup=String(payload.previousAsarBackup||'');
+  const previousAsarFinal=String(payload.previousAsarFinal||'');
   const resourcesPath=path.resolve(process.resourcesPath||'');
   const tempRoot=path.resolve(TEMP_DIR)+path.sep;
   const resourcesInsideTemp=resourcesPath.toLowerCase().startsWith(tempRoot.toLowerCase());
@@ -67,6 +69,7 @@ function scheduleSelfCleanup(){
       "Write-FinalizeLog 'finalizer-start'",
       "while(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 250}",
       `$inner='${ps(inner)}'; if(Test-Path -LiteralPath $inner){Remove-Item -LiteralPath $inner -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'inner-cleaned'}`,
+      ...(previousAsarBackup&&previousAsarFinal?[ `$oldAsar='${ps(previousAsarBackup)}'; $previousAsar='${ps(previousAsarFinal)}'; if(Test-Path -LiteralPath $oldAsar){try{Move-Item -LiteralPath $oldAsar -Destination $previousAsar -Force -ErrorAction Stop; Write-FinalizeLog ('old-app-asar-renamed-after-updater-exit '+$previousAsar)}catch{Write-FinalizeLog ('old-app-asar-rename-failed '+$_)}}else{Write-FinalizeLog ('old-app-asar-backup-missing '+$oldAsar)}` ]:[]),
       `$outer='${ps(outer)}'; if(Test-Path -LiteralPath $outer){Remove-Item -LiteralPath $outer -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'outer-cleaned'}`,
       `$files=@('${ps(path.join(TEMP_DIR,'schoology-installer.exe'))}','${ps(path.join(TEMP_DIR,'7z2604-x64.msi'))}','${ps(target)}'); foreach($file in $files){if($file -and (Test-Path -LiteralPath $file)){Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('file-cleaned '+$file)}}`,
       ...(resourcesInsideTemp?[ `$resources='${ps(resourcesPath)}'; if(Test-Path -LiteralPath $resources){Remove-Item -LiteralPath $resources -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'updater-resources-cleaned'}` ]:[]),
@@ -75,8 +78,10 @@ function scheduleSelfCleanup(){
     ];
     const encoded=Buffer.from(lines.join('\r\n'),'utf16le').toString('base64');
     const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-EncodedCommand',encoded],{detached:true,stdio:'ignore',windowsHide:true});
+    child.once('spawn',()=>log('self-cleanup-process-spawned',{pid:child.pid,finalizeLog}));
+    child.once('error',error=>log('self-cleanup-process-spawn-error',{error:error?.stack||String(error),finalizeLog}));
     child.unref();
-    log('self-cleanup-scheduled',{target,inner,outer,updaterPid,resourcesPath,resourcesInsideTemp,finalizeLog});
+    log('self-cleanup-scheduled',{target,inner,outer,updaterPid,resourcesPath,resourcesInsideTemp,finalizeLog,previousAsarBackup,previousAsarFinal});
   }catch(error){log('self-cleanup-error',error?.stack||String(error));}
 }
 
@@ -193,12 +198,13 @@ async function main(){
   log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;
   const sourceAsar=path.join(inner,'resources','app.asar'),targetAsar=path.join(SCHOOLGY_DIR,'resources','app.asar');
   if(!fs.existsSync(sourceAsar))throw new Error('The downloaded update has no resources\\app.asar. The installed application was left unchanged.');
-  const previousAsar=targetAsar+'.previous-'+Date.now();let previousAsarStaged=false;
+  const previousAsarBackup=path.join(TEMP_DIR,`app.asar.previous-${Date.now()}`);
+  const previousAsarFinal=targetAsar+'.previous-'+Date.now();let previousAsarStaged=false;
   try{
-    // Once the main app process has exited, move the old archive out of the way
-    // before copying. This avoids Robocopy deciding the existing app.asar is
-    // current (or failing to replace it) and preserves rollback if the copy fails.
-    if(fs.existsSync(targetAsar)){fs.renameSync(targetAsar,previousAsar);previousAsarStaged=true;log('old-app-asar-staged',{targetAsar,previousAsar});}
+    // Keep the live install tree untouched until copying starts. Preserve the old
+    // archive as a separate backup, let Robocopy overwrite the target, and only
+    // move the backup into the install tree after this updater process exits.
+    if(fs.existsSync(targetAsar)){fs.copyFileSync(targetAsar,previousAsarBackup);previousAsarStaged=true;log('old-app-asar-backed-up-without-renaming',{targetAsar,previousAsarBackup,previousAsarFinal});}
     await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E','/IS','/IT'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:(text)=>{if(!copyOutputSeen){copyOutputSeen=true;ui('install','determinate','Copying application files…',80);}else ui('install','determinate','Copying application files…',90)}});
     if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
     if(!fs.existsSync(schoologyExe))throw new Error('The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.');
@@ -209,14 +215,14 @@ async function main(){
       log('app-asar-verification',{sourceSize,targetSize,sourceDigest,targetDigest,match:matches});
       if(!matches)throw new Error('The updated app.asar did not match the downloaded release. Schoology was not relaunched.');
     }else if(previousAsarStaged){throw new Error('The downloaded update has no resources\\app.asar. The previous app archive was preserved.');}
-    if(previousAsarStaged){fs.rmSync(previousAsar,{force:true});previousAsarStaged=false;log('old-app-asar-deleted',{previousAsar});}
+    if(previousAsarStaged){payload.previousAsarBackup=previousAsarBackup;payload.previousAsarFinal=previousAsarFinal;log('old-app-asar-post-install-rename-scheduled',{previousAsarBackup,previousAsarFinal});}
   }catch(error){
     // Keep the installed app recoverable if any copy/verification step fails.
-    if(previousAsarStaged){try{if(fs.existsSync(targetAsar))fs.rmSync(targetAsar,{force:true});fs.renameSync(previousAsar,targetAsar);log('old-app-asar-restored',{targetAsar});}catch(restoreError){log('old-app-asar-restore-failed',{error:String(restoreError),previousAsar,targetAsar});}}
+    if(previousAsarStaged){try{fs.copyFileSync(previousAsarBackup,targetAsar);log('old-app-asar-restored-from-backup',{targetAsar,previousAsarBackup});}catch(restoreError){log('old-app-asar-restore-failed',{error:String(restoreError),previousAsarBackup,targetAsar});}}
     throw error;
   }
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen,appAsarExists:fs.existsSync(targetAsar)});
-  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
+  ui('install','done','Complete',100);cleanupArtifacts([outer,inner,installer,sevenMsi]);if(!previousAsarStaged)cleanupArtifacts([previousAsarBackup]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
   scheduleSelfCleanup();
   if(win&&!win.isDestroyed())win.close();
   app.quit();

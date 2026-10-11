@@ -27,28 +27,41 @@ function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  // Keep guest pages free of injected color-scheme/scrollbar CSS. A forced
-  // color-scheme can make Chromium treat a page as already dark and bypass
-  // WebContentsForceDark; custom scrollbar CSS also defeats overlay rendering.
+  // Apply Force Dark to each guest explicitly because command-line feature flags
+  // alone have not consistently affected embedded Schoology webviews.
+  try{if(dark)guest.enableWebContentsForceDark?.();else guest.disableWebContentsForceDark?.()}catch(e){console.warn('Could not apply embedded webview Force Dark:',e.message)}
 }
 let pendingSchoologyDeepLink=null;
+let rendererDeepLinkReady=false;
 let pendingExternalSchoolLogin=null;
 const hasSingleInstanceLock=app.requestSingleInstanceLock();
 if(!hasSingleInstanceLock)app.quit();
 function extractSchoologyDeepLink(argv){return (argv||[]).find(value=>typeof value==='string'&&/^schoology:\/\//i.test(value))||null}
 pendingSchoologyDeepLink=extractSchoologyDeepLink(process.argv);
+function acceptExternalLoginCallback(url, source='protocol'){
+  if(!pendingExternalSchoolLogin)return false;
+  let parsed;try{parsed=new URL(url)}catch{return false}
+  const custom=parsed.protocol==='schoology:'&&parsed.hostname.toLowerCase()==='external_login_callback';
+  const callbackHost=parsed.hostname.toLowerCase();
+  const successPage=parsed.protocol==='https:'&&parsed.pathname.replace(/\/+$/,'').toLowerCase()==='/mobile_login_success'&&(callbackHost==='app.schoology.com'||callbackHost==='schoology.com'||callbackHost.endsWith('.schoology.com')||callbackHost==='lms.lausd.net'||callbackHost.endsWith('.lms.lausd.net'));
+  if(!custom&&!successPage)return false;
+  const pending=pendingExternalSchoolLogin;
+  const received=parsed.searchParams.get('request_token')||parsed.searchParams.get('oauth_token')||'';
+  // Some embedded Chromium flows stop on the Schoology success page rather
+  // than dispatching its custom-scheme redirect. Arrival there is the
+  // authorization signal; if a token is supplied, it must match our request.
+  if(received&&received!==pending.requestToken){console.warn('Ignored Schoology external-login callback with an unexpected request token.');return true}
+  if(pending.processing)return true;
+  pending.processing=true;
+  if(pending.window&&!pending.window.isDestroyed())pending.window.close();
+  exchangeToken(pending.credential).then(auth=>pending.finish(null,auth)).catch(error=>pending.finish(error));
+  console.info('Schoology external login callback accepted from',source);
+  return true;
+}
 function deliverSchoologyDeepLink(url){
   if(!url||!/^schoology:\/\//i.test(url))return;
-  try{
-    const parsed=new URL(url);
-    if(parsed.hostname.toLowerCase()==='external_login_callback'&&pendingExternalSchoolLogin){
-      const expected=pendingExternalSchoolLogin.requestToken;
-      const received=parsed.searchParams.get('request_token')||parsed.searchParams.get('oauth_token')||'';
-      if(received&&received===expected){const pending=pendingExternalSchoolLogin;if(pending.processing)return;pending.processing=true;exchangeToken(pending.credential).then(auth=>pending.finish(null,auth)).catch(error=>pending.finish(error));return;}
-      console.warn('Ignored Schoology external-login callback with an unexpected request token.');return;
-    }
-  }catch{}
-  if(!win||win.isDestroyed()||win.webContents.isLoading()){pendingSchoologyDeepLink=url;return}
+  if(acceptExternalLoginCallback(url,'application protocol'))return;
+  if(!win||win.isDestroyed()||win.webContents.isLoading()||!rendererDeepLinkReady){pendingSchoologyDeepLink=url;return}
   try{win.webContents.send('schoology-deep-link',url)}catch{pendingSchoologyDeepLink=url}
 }
 app.on('second-instance',(_event,argv)=>{const url=extractSchoologyDeepLink(argv);if(url)deliverSchoologyDeepLink(url);if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus()}});
@@ -91,7 +104,7 @@ try{
   // Use Chromium feature names rather than the chrome://flags labels.
   // Threaded compositing is required for the overlay scrollbar fade/animation path.
   const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
-  if(forceDarkAtLaunch)requiredFeatures.push('WebContentsForceDark');
+  if(forceDarkAtLaunch)requiredFeatures.push('WebContentsForceDark','AutoDarkMode');
   const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
@@ -130,7 +143,9 @@ function saveAuth(v){
   fs.writeFileSync(tmp,JSON.stringify(v,null,2),'utf8');
   fs.renameSync(tmp,storeFile);
 }
-function enc(v){return encodeURIComponent(String(v)).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g,'+')}
+// Match Java URLEncoder used by the official Android OAuthRequestSigner.
+// Spaces become '+', '*' stays literal, and '~' is escaped.
+function enc(v){return encodeURIComponent(String(v)).replace(/[!'()~]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g,'+')}
 function parseBody(s){return Object.fromEntries(String(s||'').split('&').filter(Boolean).map(x=>{const i=x.indexOf('=');const k=i<0?x:x.slice(0,i);const v=i<0?'':x.slice(i+1);return [decodeURIComponent(k.replace(/\+/g,' ')),decodeURIComponent(v.replace(/\+/g,' '))]}))}
 function oauthTimestamp(){return Math.floor(Date.now()/1000)+serverTimeOffset}
 function sortedOAuthBaseParams(method,url,oauth,extra=[]){
@@ -155,11 +170,13 @@ function makeOAuthHeader(method,url,authToken,authSecret,qrData=''){
   // request-token request its value is explicitly the empty string.
   oauth.oauth_token=authToken==null?'':String(authToken);
   const extra=[];
-  if(qrData) extra.push(['scanned_qr_data',qrData]);
+  // Android URL-encodes the QR payload once before adding it to normalized HMAC parameters.
+  if(qrData) extra.push(['scanned_qr_data',enc(qrData)]);
   const normalized=sortedOAuthBaseParams(method,url,oauth,extra);
   const u=new URL(url);
   const base=method.toUpperCase()+'&'+enc(u.protocol+'//'+u.host+u.pathname)+'&'+enc(normalized);
-  const key=enc(CONSUMER_SECRET)+'&'+enc(authSecret||'');
+  // Android HMacKeyAndMessageGenerator.getKey() uses the raw secret pair.
+  const key=String(CONSUMER_SECRET)+'&'+String(authSecret||'');
   oauth.oauth_signature=crypto.createHmac('sha1',key).update(base).digest('base64');
   return 'OAuth '+['oauth_consumer_key','oauth_token','oauth_nonce','oauth_timestamp','oauth_signature_method','oauth_version'].map(k=>k+'="'+String(oauth[k])+'"').join(', ')+', oauth_signature="'+enc(oauth.oauth_signature)+'"';
 }
@@ -565,19 +582,44 @@ async function loginThroughSchoolBrowser(info){
   const credential=await getRequestToken();
   const loginUrl=buildAndroidOAuthLoginUrl(info.domain,credential.oauth_token);
   return new Promise((resolve,reject)=>{
-    let settled=false;let timeout=null;
+    let settled=false,timeout=null,child=null;
     const finish=(err,value)=>{
       if(settled)return;settled=true;if(timeout)clearTimeout(timeout);
       if(pendingExternalSchoolLogin===pending)pendingExternalSchoolLogin=null;
+      if(child&&!child.isDestroyed())child.close();
       err?reject(err):resolve(value);
     };
-    const pending={requestToken:credential.oauth_token,credential,finish};
+    const pending={requestToken:credential.oauth_token,credential,finish,window:null,processing:false};
     pendingExternalSchoolLogin=pending;
-    timeout=setTimeout(()=>finish(new Error('Timed out waiting for the school sign-in to return to Schoology. Keep the browser open until sign-in completes, then try again.')),10*60*1000);
-    shell.openExternal(loginUrl).catch(error=>finish(new Error('Could not open the system browser for school sign-in: '+(error?.message||error))));
+    const handleNavigation=(event,url)=>{
+      if(acceptExternalLoginCallback(url,'embedded school login')){event.preventDefault();return}
+      let u;try{u=new URL(url)}catch{return}
+      if(u.protocol==='schoology:'){event.preventDefault();console.warn('Ignored unrecognized Schoology protocol during school login:',url)}
+    };
+    timeout=setTimeout(()=>finish(new Error('Timed out waiting for the school sign-in to complete. Keep the school login window open until sign-in finishes, then try again.')),10*60*1000);
+    child=new BrowserWindow({width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}});
+    pending.window=child;
+    child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
+    child.webContents.on('will-navigate',handleNavigation);
+    child.webContents.on('will-redirect',handleNavigation);
+    child.webContents.on('did-navigate',(_event,url)=>{acceptExternalLoginCallback(url,'embedded school login navigation')});
+    child.webContents.on('did-navigate-in-page',(_event,url)=>{acceptExternalLoginCallback(url,'embedded school login in-page navigation')});
+    child.webContents.setWindowOpenHandler(({url})=>{
+      // Keep SSO popups inside Electron and apply the same callback handling.
+      const popup=new BrowserWindow({width:1000,height:700,parent:child,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}});
+      popup.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
+      popup.webContents.on('will-navigate',handleNavigation);popup.webContents.on('will-redirect',handleNavigation);
+      popup.webContents.on('did-navigate',(_event,nextUrl)=>{acceptExternalLoginCallback(nextUrl,'school login popup')});
+      popup.webContents.on('did-navigate-in-page',(_event,nextUrl)=>{acceptExternalLoginCallback(nextUrl,'school login popup')});
+      popup.loadURL(url).catch(error=>{if(!String(error?.message||error).includes('ERR_ABORTED'))console.warn('Could not open school login popup:',error.message||error)});
+      return {action:'deny'};
+    });
+    child.webContents.on('did-fail-load',(_event,code,description)=>{if(code!==-3)console.error('School OAuth browser failed to load:',code,description)});
+    child.webContents.on('console-message',(_event,details)=>console.log('School OAuth browser:',details?.message||'', 'at',`${details?.sourceId||''}:${details?.lineNumber??''}`));
+    child.on('closed',()=>{if(!settled&&!pending.processing)finish(new Error('School login window was closed before sign-in completed.'))});
+    child.loadURL(loginUrl).catch(error=>{if(!String(error?.message||error).includes('ERR_ABORTED'))finish(new Error('Could not open the school login page: '+(error?.message||error)))});
   });
 }
-
 async function loginExternalSchool(info){
   if(!info||!info.url)throw new Error('This school did not provide a login URL.');
   const rawUrl=String(info.url);
@@ -767,12 +809,13 @@ function create(){
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:appIcon,...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
+  try{if(isDarkAppearance())win.webContents.enableWebContentsForceDark?.();else win.webContents.disableWebContentsForceDark?.()}catch(e){console.warn('Could not apply renderer Force Dark:',e.message)}
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
   win.webContents.on('render-process-gone',(_,details)=>console.error('Schoology renderer process gone:',details));
   win.webContents.on('console-message',(_event,details)=>{const message=details?.message||'';const line=details?.lineNumber??'';const source=details?.sourceId||'';console.log('Renderer:',message,'at',source+':'+line)});
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
-  win.webContents.on('did-finish-load',()=>{if(pendingSchoologyDeepLink){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;deliverSchoologyDeepLink(url)}});
+  win.webContents.on('did-finish-load',()=>{if(pendingSchoologyDeepLink&&rendererDeepLinkReady){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;deliverSchoologyDeepLink(url)}});
   win.webContents.on('did-attach-webview',(_event,guest)=>{
     attachedGuestWebContents.add(guest);
     const applyGuestTheme=()=>styleAttachedGuest(guest);
@@ -788,6 +831,7 @@ app.whenReady().then(()=>{
   try{app.setAsDefaultProtocolClient('schoology')}catch(e){console.error('Could not register Schoology URL protocol:',e.message)}
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
+  ipcMain.handle('renderer-deep-link-ready',()=>{rendererDeepLinkReady=true;if(pendingSchoologyDeepLink&&win&&!win.isDestroyed()&&!win.webContents.isLoading()){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;setImmediate(()=>deliverSchoologyDeepLink(url))}return true});
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('get-theme-mode',()=>readThemeMode());
   ipcMain.handle('app-version',()=>app.getVersion());
@@ -797,7 +841,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('set-desktop-notifications',(_,enabled)=>saveDesktopNotifications(enabled));
   ipcMain.handle('get-notification-sound',()=>readAppSettings().notificationSound);
   ipcMain.handle('set-notification-sound',(_,enabled)=>saveNotificationSound(enabled));
-  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);const isActive=isExperimentalForceDarkActive(safe);lastForceDarkActive=isActive;if(wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}try{if(isDarkAppearance(safe))win?.webContents?.enableWebContentsForceDark?.();else win?.webContents?.disableWebContentsForceDark?.()}catch(e){console.warn('Could not update renderer Force Dark:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);const isActive=isExperimentalForceDarkActive(safe);lastForceDarkActive=isActive;if(wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
   ipcMain.handle('get-experimental-force-dark',()=>isDarkAppearance());
   ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{saveExperimentalForceDark(!!enabled);return isDarkAppearance()});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());

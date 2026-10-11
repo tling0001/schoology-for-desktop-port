@@ -9,6 +9,9 @@ const supported = url => {
     const host = u.hostname.toLowerCase();
     if (!(host === 'lms.lausd.net' || host === 'app.schoology.com' || host === 'schoology.com' || host.endsWith('.schoology.com'))) return false;
     const path = u.pathname.toLowerCase();
+    // Keep grades and apps destinations in Chrome instead of redirecting them.
+    if ((host === 'lms.lausd.net' || host === 'app.schoology.com') &&
+        (/^\/grades\/grades\/?$/i.test(path) || /^\/apps(?:\/|$)/i.test(path))) return false;
     // Never hijack OAuth, login, SSO, or callback traffic. In particular, the
     // Android-compatible OAuth flow must reach /mobile_login_success and let the
     // page redirect to schoology://external_login_callback?request_token=...

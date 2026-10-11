@@ -5,7 +5,7 @@ try{document.documentElement.dataset.electronPlatform=process.platform}catch{}
 // cannot reliably require arbitrary npm packages, so keep this preload built-in-only.
 
 contextBridge.exposeInMainWorld('schoology',{
-  onDeepLink:fn=>{const h=(_,url)=>fn(url);ipcRenderer.on('schoology-deep-link',h);ipcRenderer.invoke('renderer-deep-link-ready').catch(()=>{});return()=>ipcRenderer.removeListener('schoology-deep-link',h)},
+  onDeepLink:fn=>{const h=(_,url)=>fn(url);ipcRenderer.on('schoology-deep-link',h);return()=>ipcRenderer.removeListener('schoology-deep-link',h)},
   authState:()=>ipcRenderer.invoke('auth-state'),
   getThemeMode:()=>ipcRenderer.invoke('get-theme-mode'),
   getAppVersion:()=>ipcRenderer.invoke('app-version'),

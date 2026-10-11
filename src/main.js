@@ -23,13 +23,20 @@ const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 const attachedGuestWebContents=new Set();
+const guestDarkStyleKeys=new WeakMap();
+const sharedWebviewDarkCss=`html{color-scheme:dark!important}body{background-color:#17191c!important;color:#e6e8eb!important}`;
+const sharedWebviewDarkScript=`(()=>{if(window.__schoologySharedDarkObserver)return;window.__schoologySharedDarkObserver=true;const neutralDark=c=>{const m=String(c||'').match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);if(!m)return false;const r=+m[1],g=+m[2],b=+m[3];return Math.max(r,g,b)-Math.min(r,g,b)<34&&(r+g+b)/3<118};const nearWhite=c=>{const m=String(c||'').match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);return !!m&&(+m[4]||1)>.8&&+m[1]>238&&+m[2]>238&&+m[3]>238};const paint=()=>{for(const el of document.querySelectorAll('body *')){if(/^(IMG|SVG|PATH|VIDEO|CANVAS|IFRAME|INPUT|TEXTAREA|SELECT|OPTION)$/.test(el.tagName))continue;const cs=getComputedStyle(el);if(nearWhite(cs.backgroundColor)){if(!el.hasAttribute('data-sgy-dark-bg'))el.setAttribute('data-sgy-dark-bg',el.style.getPropertyValue('background-color'));el.style.setProperty('background-color','#202328','important');el.style.setProperty('background-image','none','important')}if(neutralDark(cs.color)){if(!el.hasAttribute('data-sgy-dark-color'))el.setAttribute('data-sgy-dark-color',el.style.getPropertyValue('color'));el.style.setProperty('color','#e6e8eb','important')}}};document.documentElement.dataset.schoologyDark='1';paint();window.__schoologySharedDarkObserver=new MutationObserver(()=>paint());window.__schoologySharedDarkObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','color']});})();`;
+const sharedWebviewLightScript=`(()=>{try{window.__schoologySharedDarkObserver?.disconnect()}catch{};window.__schoologySharedDarkObserver=null;for(const el of document.querySelectorAll('[data-sgy-dark-bg],[data-sgy-dark-color]')){if(el.hasAttribute('data-sgy-dark-bg')){const v=el.getAttribute('data-sgy-dark-bg');el.style.removeProperty('background-color');if(v)el.style.setProperty('background-color',v);el.removeAttribute('data-sgy-dark-bg')}if(el.hasAttribute('data-sgy-dark-color')){const v=el.getAttribute('data-sgy-dark-color');el.style.removeProperty('color');if(v)el.style.setProperty('color',v);el.removeAttribute('data-sgy-dark-color')}}document.documentElement.style.removeProperty('color-scheme');delete document.documentElement.dataset.schoologyDark;document.body?.style.removeProperty('background-color');document.body?.style.removeProperty('color')})();`;
 function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  // Apply Force Dark to each guest explicitly because command-line feature flags
-  // alone have not consistently affected embedded Schoology webviews.
-  try{if(dark)guest.enableWebContentsForceDark?.();else guest.disableWebContentsForceDark?.()}catch(e){console.warn('Could not apply embedded webview Force Dark:',e.message)}
+  const oldKey=guestDarkStyleKeys.get(guest);
+  if(oldKey){try{Promise.resolve(guest.removeInsertedCSS(oldKey)).catch(()=>{})}catch{}guestDarkStyleKeys.delete(guest)}
+  if(!dark){try{Promise.resolve(guest.executeJavaScript(sharedWebviewLightScript,true)).catch(()=>{})}catch{}return}
+  // Transform only shared <webview> guests; never force-dark the native app renderer.
+  try{Promise.resolve(guest.insertCSS(sharedWebviewDarkCss)).then(key=>{if(key&&!guest.isDestroyed?.())guestDarkStyleKeys.set(guest,key)}).catch(e=>console.warn('Could not apply shared-webview dark CSS:',e.message))}catch(e){console.warn('Could not apply shared-webview dark CSS:',e.message)}
+  try{Promise.resolve(guest.executeJavaScript(sharedWebviewDarkScript,true)).catch(e=>console.warn('Could not fix shared-webview dark text:',e.message))}catch(e){console.warn('Could not fix shared-webview dark text:',e.message)}
 }
 let pendingSchoologyDeepLink=null;
 let rendererDeepLinkReady=false;
@@ -41,28 +48,28 @@ pendingSchoologyDeepLink=extractSchoologyDeepLink(process.argv);
 function acceptExternalLoginCallback(url, source='protocol'){
   if(!pendingExternalSchoolLogin)return false;
   let parsed;try{parsed=new URL(url)}catch{return false}
-  const custom=parsed.protocol==='schoology:'&&parsed.hostname.toLowerCase()==='external_login_callback';
-  const callbackHost=parsed.hostname.toLowerCase();
-  const successPage=parsed.protocol==='https:'&&parsed.pathname.replace(/\/+$/,'').toLowerCase()==='/mobile_login_success'&&(callbackHost==='app.schoology.com'||callbackHost==='schoology.com'||callbackHost.endsWith('.schoology.com')||callbackHost==='lms.lausd.net'||callbackHost.endsWith('.lms.lausd.net'));
-  if(!custom&&!successPage)return false;
+  if(parsed.protocol!=='schoology:'||parsed.hostname.toLowerCase()!=='external_login_callback')return false;
   const pending=pendingExternalSchoolLogin;
-  const received=parsed.searchParams.get('request_token')||parsed.searchParams.get('oauth_token')||'';
-  // Some embedded Chromium flows stop on the Schoology success page rather
-  // than dispatching its custom-scheme redirect. Arrival there is the
-  // authorization signal; if a token is supplied, it must match our request.
-  if(received&&received!==pending.requestToken){console.warn('Ignored Schoology external-login callback with an unexpected request token.');return true}
+  const received=parsed.searchParams.get('request_token')||'';
+  // Match Android LoginOAuthManagementActivity.b1(): only the exact request token is accepted.
+  if(!received||received!==pending.requestToken){console.warn('Ignored Schoology external-login callback with a missing or unexpected request token.');return true}
   if(pending.processing)return true;
   pending.processing=true;
-  if(pending.window&&!pending.window.isDestroyed())pending.window.close();
   exchangeToken(pending.credential).then(auth=>pending.finish(null,auth)).catch(error=>pending.finish(error));
   console.info('Schoology external login callback accepted from',source);
   return true;
 }
+function flushPendingSchoologyDeepLink(){
+  if(!pendingSchoologyDeepLink||!rendererDeepLinkReady||!win||win.isDestroyed())return;
+  if(win.webContents.isLoading()){win.webContents.once('did-stop-loading',()=>setImmediate(flushPendingSchoologyDeepLink));return}
+  const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;
+  try{win.webContents.send('schoology-deep-link',url)}catch(error){pendingSchoologyDeepLink=url;console.warn('Could not deliver Schoology deep link; queued for retry:',error.message)}
+}
 function deliverSchoologyDeepLink(url){
   if(!url||!/^schoology:\/\//i.test(url))return;
   if(acceptExternalLoginCallback(url,'application protocol'))return;
-  if(!win||win.isDestroyed()||win.webContents.isLoading()||!rendererDeepLinkReady){pendingSchoologyDeepLink=url;return}
-  try{win.webContents.send('schoology-deep-link',url)}catch{pendingSchoologyDeepLink=url}
+  pendingSchoologyDeepLink=url;
+  flushPendingSchoologyDeepLink();
 }
 app.on('second-instance',(_event,argv)=>{const url=extractSchoologyDeepLink(argv);if(url)deliverSchoologyDeepLink(url);if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus()}});
 app.on('open-url',(event,url)=>{event.preventDefault();deliverSchoologyDeepLink(url)});
@@ -92,26 +99,15 @@ function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(a
 // Keep Chromium's native color scheme in sync with Schoology's saved appearance.
 // The renderer data-theme attribute does not affect nativeTheme or isolated webviews.
 try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not set native theme source:',e.message)}
-// This Chromium feature must be enabled before app.whenReady() creates renderers.
-const forceDarkAtLaunch=isExperimentalForceDarkActive();
-let lastForceDarkActive=forceDarkAtLaunch;
-nativeTheme.on('updated',()=>{
-  for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);
-  const next=isExperimentalForceDarkActive();
-  if(next!==lastForceDarkActive){lastForceDarkActive=next;try{app.relaunch();app.exit(0)}catch(e){console.error('Could not refresh embedded dark mode:',e.message)}}
-});
+nativeTheme.on('updated',()=>{for(const guest of attachedGuestWebContents)styleAttachedGuest(guest)});
 try{
-  // Use Chromium feature names rather than the chrome://flags labels.
-  // Threaded compositing is required for the overlay scrollbar fade/animation path.
+  // Keep overlay scrollbars process-wide, but limit dark transformation to shared webviews.
   const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
-  if(forceDarkAtLaunch)requiredFeatures.push('WebContentsForceDark','AutoDarkMode');
   const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
-  // FluentScrollbar can supersede the classic overlay implementation on Windows.
   const disabledFeatures=[...new Set([...existingDisabled.filter(v=>!requiredFeatures.includes(v)),'FluentScrollbar'])];
-  app.commandLine.removeSwitch('enable-features');
-  app.commandLine.removeSwitch('disable-features');
+  app.commandLine.removeSwitch('enable-features');app.commandLine.removeSwitch('disable-features');
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
   app.commandLine.appendSwitch('disable-features',disabledFeatures.join(','));
   app.commandLine.appendSwitch('enable-threaded-compositing');
@@ -582,42 +578,18 @@ async function loginThroughSchoolBrowser(info){
   const credential=await getRequestToken();
   const loginUrl=buildAndroidOAuthLoginUrl(info.domain,credential.oauth_token);
   return new Promise((resolve,reject)=>{
-    let settled=false,timeout=null,child=null;
+    let settled=false,timeout=null;
     const finish=(err,value)=>{
       if(settled)return;settled=true;if(timeout)clearTimeout(timeout);
       if(pendingExternalSchoolLogin===pending)pendingExternalSchoolLogin=null;
-      if(child&&!child.isDestroyed())child.close();
       err?reject(err):resolve(value);
     };
+    // Android stores the request Credential, opens the system browser, and
+    // accepts only the matching custom-scheme callback before token exchange.
     const pending={requestToken:credential.oauth_token,credential,finish,window:null,processing:false};
     pendingExternalSchoolLogin=pending;
-    const handleNavigation=(event,url)=>{
-      if(acceptExternalLoginCallback(url,'embedded school login')){event.preventDefault();return}
-      let u;try{u=new URL(url)}catch{return}
-      if(u.protocol==='schoology:'){event.preventDefault();console.warn('Ignored unrecognized Schoology protocol during school login:',url)}
-    };
-    timeout=setTimeout(()=>finish(new Error('Timed out waiting for the school sign-in to complete. Keep the school login window open until sign-in finishes, then try again.')),10*60*1000);
-    child=new BrowserWindow({width:1100,height:800,modal:true,parent:win,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}});
-    pending.window=child;
-    child.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
-    child.webContents.on('will-navigate',handleNavigation);
-    child.webContents.on('will-redirect',handleNavigation);
-    child.webContents.on('did-navigate',(_event,url)=>{acceptExternalLoginCallback(url,'embedded school login navigation')});
-    child.webContents.on('did-navigate-in-page',(_event,url)=>{acceptExternalLoginCallback(url,'embedded school login in-page navigation')});
-    child.webContents.setWindowOpenHandler(({url})=>{
-      // Keep SSO popups inside Electron and apply the same callback handling.
-      const popup=new BrowserWindow({width:1000,height:700,parent:child,show:true,autoHideMenuBar:true,backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,javascript:true,webSecurity:true,session:session.defaultSession}});
-      popup.webContents.setUserAgent(ANDROID_WEBVIEW_UA);
-      popup.webContents.on('will-navigate',handleNavigation);popup.webContents.on('will-redirect',handleNavigation);
-      popup.webContents.on('did-navigate',(_event,nextUrl)=>{acceptExternalLoginCallback(nextUrl,'school login popup')});
-      popup.webContents.on('did-navigate-in-page',(_event,nextUrl)=>{acceptExternalLoginCallback(nextUrl,'school login popup')});
-      popup.loadURL(url).catch(error=>{if(!String(error?.message||error).includes('ERR_ABORTED'))console.warn('Could not open school login popup:',error.message||error)});
-      return {action:'deny'};
-    });
-    child.webContents.on('did-fail-load',(_event,code,description)=>{if(code!==-3)console.error('School OAuth browser failed to load:',code,description)});
-    child.webContents.on('console-message',(_event,details)=>console.log('School OAuth browser:',details?.message||'', 'at',`${details?.sourceId||''}:${details?.lineNumber??''}`));
-    child.on('closed',()=>{if(!settled&&!pending.processing)finish(new Error('School login window was closed before sign-in completed.'))});
-    child.loadURL(loginUrl).catch(error=>{if(!String(error?.message||error).includes('ERR_ABORTED'))finish(new Error('Could not open the school login page: '+(error?.message||error)))});
+    timeout=setTimeout(()=>finish(new Error('Timed out waiting for school sign-in. Finish sign-in in your default browser and allow it to return to Schoology.')),10*60*1000);
+    shell.openExternal(loginUrl).catch(error=>finish(new Error('Could not open the default browser for school sign-in: '+(error?.message||error))));
   });
 }
 async function loginExternalSchool(info){
@@ -809,13 +781,13 @@ function create(){
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:appIcon,...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
-  try{if(isDarkAppearance())win.webContents.enableWebContentsForceDark?.();else win.webContents.disableWebContentsForceDark?.()}catch(e){console.warn('Could not apply renderer Force Dark:',e.message)}
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
   win.webContents.on('render-process-gone',(_,details)=>console.error('Schoology renderer process gone:',details));
   win.webContents.on('console-message',(_event,details)=>{const message=details?.message||'';const line=details?.lineNumber??'';const source=details?.sourceId||'';console.log('Renderer:',message,'at',source+':'+line)});
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
-  win.webContents.on('did-finish-load',()=>{if(pendingSchoologyDeepLink&&rendererDeepLinkReady){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;deliverSchoologyDeepLink(url)}});
+  win.webContents.on('did-finish-load',()=>flushPendingSchoologyDeepLink());
+  win.webContents.on('did-stop-loading',()=>flushPendingSchoologyDeepLink());
   win.webContents.on('did-attach-webview',(_event,guest)=>{
     attachedGuestWebContents.add(guest);
     const applyGuestTheme=()=>styleAttachedGuest(guest);
@@ -831,7 +803,7 @@ app.whenReady().then(()=>{
   try{app.setAsDefaultProtocolClient('schoology')}catch(e){console.error('Could not register Schoology URL protocol:',e.message)}
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
-  ipcMain.handle('renderer-deep-link-ready',()=>{rendererDeepLinkReady=true;if(pendingSchoologyDeepLink&&win&&!win.isDestroyed()&&!win.webContents.isLoading()){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;setImmediate(()=>deliverSchoologyDeepLink(url))}return true});
+  ipcMain.handle('renderer-deep-link-ready',()=>{rendererDeepLinkReady=true;setImmediate(flushPendingSchoologyDeepLink);return true});
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('get-theme-mode',()=>readThemeMode());
   ipcMain.handle('app-version',()=>app.getVersion());
@@ -841,7 +813,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('set-desktop-notifications',(_,enabled)=>saveDesktopNotifications(enabled));
   ipcMain.handle('get-notification-sound',()=>readAppSettings().notificationSound);
   ipcMain.handle('set-notification-sound',(_,enabled)=>saveNotificationSound(enabled));
-  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}try{if(isDarkAppearance(safe))win?.webContents?.enableWebContentsForceDark?.();else win?.webContents?.disableWebContentsForceDark?.()}catch(e){console.warn('Could not update renderer Force Dark:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);const isActive=isExperimentalForceDarkActive(safe);lastForceDarkActive=isActive;if(wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);return safe});
   ipcMain.handle('get-experimental-force-dark',()=>isDarkAppearance());
   ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{saveExperimentalForceDark(!!enabled);return isDarkAppearance()});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());

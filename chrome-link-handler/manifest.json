@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Schoology Desktop Link Handler",
+  "version": "1.0.0",
+  "description": "Open LAUSD Schoology and app.schoology.com links in Schoology Desktop Port.",
+  "permissions": [
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "https://lms.lausd.net/*",
+    "https://app.schoology.com/*",
+    "https://*.schoology.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  }
+}

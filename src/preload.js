@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('schoology',{
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),
   openExternal:u=>ipcRenderer.invoke('open-external',u),
+  openChromeExtensionFolder:()=>ipcRenderer.invoke('open-chrome-extension-folder'),
   platform:process.platform,
   pickFile:()=>ipcRenderer.invoke('pick-file'),
   // QR camera scanning normally uses Chromium's native BarcodeDetector in renderer.js.

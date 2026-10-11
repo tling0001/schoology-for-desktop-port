@@ -27,7 +27,9 @@ function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  try{guest.insertCSS(`:root{color-scheme:${dark?'dark':'light'}!important;scrollbar-width:thin!important;scrollbar-color:${dark?'#3a3f46 transparent':'#9aa0a6 transparent'}!important}*::-webkit-scrollbar{width:8px!important;height:8px!important}*::-webkit-scrollbar-track{background:transparent!important}*::-webkit-scrollbar-thumb{background:${dark?'#3a3f46':'#9aa0a6'}!important;border:2px solid transparent!important;border-radius:999px!important;background-clip:padding-box!important}`).catch(()=>{})}catch{}
+  // Do not author CSS scrollbars here: that overrides Chromium's native
+  // OverlayScrollbar feature and makes the guest render a permanent gutter.
+  try{guest.insertCSS(`:root{color-scheme:${dark?'dark':'light'}!important}`).catch(()=>{})}catch{}
 }
 let pendingSchoologyDeepLink=null;
 let pendingExternalSchoolLogin=null;
@@ -66,7 +68,10 @@ function defaultExperimentalForceDark(mode='system'){return isDarkAppearance(mod
 function readThemeSettings(){try{const v=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))||{};const mode=['light','dark','system'].includes(v.mode)?v.mode:'system';return {mode,experimentalForceDark:v.experimentalForceDarkConfigured===true&&typeof v.experimentalForceDark==='boolean'?v.experimentalForceDark:defaultExperimentalForceDark(mode)}}catch{return {mode:'system',experimentalForceDark:defaultExperimentalForceDark('system')}}}
 function readThemeMode(){return readThemeSettings().mode}
 function isDarkAppearance(mode=readThemeMode()){return mode==='dark'||(mode==='system'&&require('electron').nativeTheme?.shouldUseDarkColors===true)}
-function isExperimentalForceDarkActive(mode=readThemeMode(),enabled=readThemeSettings().experimentalForceDark){return !!enabled&&isDarkAppearance(mode)}
+// Force Dark is the Chromium equivalent of chrome://flags/#enable-force-dark.
+// Keep it tied directly to the selected app theme so webviews and the parent
+// renderer receive the same browser feature without a separate opt-in toggle.
+function isExperimentalForceDarkActive(mode=readThemeMode()){return isDarkAppearance(mode)}
 function saveThemeMode(mode){const safe=['light','dark','system'].includes(mode)?mode:'system';const settings=readThemeSettings();fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify({...settings,mode:safe},null,2),'utf8');return safe}
 function saveExperimentalForceDark(enabled){const settings=readThemeSettings();settings.experimentalForceDark=!!enabled;settings.experimentalForceDarkConfigured=true;fs.mkdirSync(path.dirname(themeSettingsFile),{recursive:true});fs.writeFileSync(themeSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings.experimentalForceDark}
 function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mode);return dark?{background:'#17191c',foreground:'#e6e8eb',muted:'#a9afb7',track:'#34383e',accent:'#7ab7ff'}:{background:'#ffffff',foreground:'#202124',muted:'#5f6368',track:'#e5e7eb',accent:'#2e66a3'}}
@@ -80,15 +85,24 @@ let lastForceDarkActive=forceDarkAtLaunch;
 nativeTheme.on('updated',()=>{
   for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);
   const next=isExperimentalForceDarkActive();
-  if(readThemeSettings().experimentalForceDark&&next!==lastForceDarkActive){lastForceDarkActive=next;try{app.relaunch();app.exit(0)}catch(e){console.error('Could not refresh embedded dark mode:',e.message)}}
+  if(next!==lastForceDarkActive){lastForceDarkActive=next;try{app.relaunch();app.exit(0)}catch(e){console.error('Could not refresh embedded dark mode:',e.message)}}
 });
 try{
-  const enabledFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
-  if(forceDarkAtLaunch)enabledFeatures.unshift('WebContentsForceDark');
-  // Chromium's enable-features switch takes a comma-separated list. Supplying
-  // this switch twice makes the effective value ambiguous/last-one-wins.
-  app.commandLine.appendSwitch('overlay-scrollbars');
+  const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
+  if(forceDarkAtLaunch)requiredFeatures.unshift('WebContentsForceDark');
+  // Merge with Electron/Chromium's existing feature switches rather than
+  // appending a second --enable-features value that could win/lose by order.
+  const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
+  const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
+  const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
+  const disabledFeatures=existingDisabled.filter(v=>!requiredFeatures.includes(v));
+  app.commandLine.removeSwitch('enable-features');
+  app.commandLine.removeSwitch('disable-features');
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
+  if(disabledFeatures.length)app.commandLine.appendSwitch('disable-features',disabledFeatures.join(','));
+  // Retain the legacy switch as a compatibility hint; OverlayScrollbar is
+  // the Chromium feature that actually controls native overlay rendering.
+  app.commandLine.appendSwitch('overlay-scrollbars');
   if(forceDarkAtLaunch)app.commandLine.appendSwitch('force-dark-mode');
 }catch(e){console.error('Could not enable Chromium features:',e.message)}
 function windowChromeOverlayEnabled(){
@@ -537,10 +551,11 @@ function scheduleSchoologyNotifications(){if(schoologyNotificationTimer)clearInt
 function buildAndroidOAuthLoginUrl(domain,requestToken){
   const host=String(domain||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
   if(!host) throw new Error('This school did not provide a valid domain.');
-  // The official Android manifest accepts schoology://external_login_callback.
-  // Using that callback lets the system browser return to the installed desktop
-  // app without reading or copying browser cookies.
-  const callback=`schoology://external_login_callback?request_token=${encodeURIComponent(requestToken)}&app_origin=${encodeURIComponent(`https://${WEB_HOST}`)}&os=desktop&app_version=${encodeURIComponent(app.getVersion())}`;
+  // Android's LoginOAuthManagementActivity sends the school-hosted
+  // /mobile_login_success callback, then the site hands control back through
+  // schoology://external_login_callback?request_token=... . Passing the custom
+  // scheme directly as oauth_callback skips that official browser handoff.
+  const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000477`;
   const oauthPath=`oauth/authorize?oauth_token=${encodeURIComponent(requestToken)}&oauth_callback=${encodeURIComponent(callback)}`;
   return `https://${host}/${oauthPath}&login_landing_dest=${encodeURIComponent(oauthPath)}`;
 }
@@ -771,7 +786,6 @@ function create(){
 app.whenReady().then(()=>{
   if(!hasSingleInstanceLock)return;
   try{app.setAsDefaultProtocolClient('schoology')}catch(e){console.error('Could not register Schoology URL protocol:',e.message)}
-  require('electron').nativeTheme.on('updated',()=>{if(readThemeMode()==='system'&&readThemeSettings().experimentalForceDark&&isExperimentalForceDarkActive()!==forceDarkAtLaunch){app.relaunch();app.exit(0)}});
   session.defaultSession.setPermissionRequestHandler((_wc,permission,callback)=>callback(permission==='media'||permission==='camera'||permission==='microphone'));
   session.defaultSession.setPermissionCheckHandler((_wc,permission)=>permission==='media'||permission==='camera'||permission==='microphone');
   ipcMain.handle('auth-state',()=>loadAuth());
@@ -783,9 +797,9 @@ app.whenReady().then(()=>{
   ipcMain.handle('set-desktop-notifications',(_,enabled)=>saveDesktopNotifications(enabled));
   ipcMain.handle('get-notification-sound',()=>readAppSettings().notificationSound);
   ipcMain.handle('set-notification-sound',(_,enabled)=>saveNotificationSound(enabled));
-  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);const isActive=isExperimentalForceDarkActive(safe);lastForceDarkActive=isActive;if(readThemeSettings().experimentalForceDark&&wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
-  ipcMain.handle('get-experimental-force-dark',()=>readThemeSettings().experimentalForceDark);
-  ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{const wasActive=isExperimentalForceDarkActive();saveExperimentalForceDark(!!enabled);const isActive=isExperimentalForceDarkActive();lastForceDarkActive=isActive;if(wasActive!==isActive){app.relaunch();app.exit(0)}return !!enabled});
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const wasActive=isExperimentalForceDarkActive();const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);const isActive=isExperimentalForceDarkActive(safe);lastForceDarkActive=isActive;if(wasActive!==isActive){app.relaunch();app.exit(0)}return safe});
+  ipcMain.handle('get-experimental-force-dark',()=>isDarkAppearance());
+  ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{saveExperimentalForceDark(!!enabled);return isDarkAppearance()});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());
   ipcMain.handle('login-credentials',(_,x)=>authorizeCredentials(x.user,x.password,x.schoolId));
   ipcMain.handle('login-qr',(_,qr)=>authorizeQR(qr));
@@ -846,6 +860,7 @@ app.whenReady().then(()=>{
   });
   ipcMain.handle('open-downloaded-file',(_,x)=>shell.openPath(String(x?.path||'')));
   ipcMain.handle('open-external',(_,u)=>shell.openExternal(u));
+  ipcMain.handle('open-chrome-extension-folder',async()=>{const bundled=path.join(process.resourcesPath,'chrome-link-handler');const development=path.join(__dirname,'../chrome-link-handler');const folder=fs.existsSync(path.join(bundled,'manifest.json'))?bundled:development;if(!fs.existsSync(path.join(folder,'manifest.json')))throw new Error('The companion Chrome extension folder is missing from this installation.');return shell.openPath(folder)});
   ipcMain.handle('pick-file',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile']});return r.canceled?null:r.filePaths[0]});
   create();
   scheduleUpdateChecks();

@@ -1,6 +1,6 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.06.0-port.143",
+  "version": "2026.06.0-port.144",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
@@ -46,6 +46,10 @@
         {
           "from": "updater/dist/SchoologyUpdater.exe",
           "to": "SchoologyUpdater.exe"
+        },
+        {
+          "from": "chrome-link-handler",
+          "to": "chrome-link-handler"
         }
       ]
     },
@@ -63,7 +67,13 @@
       ],
       "identity": "-",
       "hardenedRuntime": false,
-      "icon": "assets/ic_launcher.icns"
+      "icon": "assets/ic_launcher.icns",
+      "extraResources": [
+        {
+          "from": "chrome-link-handler",
+          "to": "chrome-link-handler"
+        }
+      ]
     },
     "protocols": [
       {
@@ -72,7 +82,15 @@
           "schoology"
         ]
       }
-    ]
+    ],
+    "linux": {
+      "extraResources": [
+        {
+          "from": "chrome-link-handler",
+          "to": "chrome-link-handler"
+        }
+      ]
+    }
   },
   "productName": "Schoology"
 }

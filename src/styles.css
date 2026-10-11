@@ -1779,6 +1779,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .activityBody a,:root[data-theme="dark"] .schoolProfileUpdateBody a,:root[data-theme="dark"] .commentBodyHtml a,:root[data-theme="dark"] .assignmentDescription a{color:var(--theme-blue,#8abfff)!important}
 
 /* v148: Dark surfaces for file/link rows attached to posts and assignments. */
+:root[data-theme="dark"] .activityAttachment,
 :root[data-theme="dark"] .activityAttachment.fileAttachment,
 :root[data-theme="dark"] .messageAttachment,
 :root[data-theme="dark"] .assignmentAttachment,

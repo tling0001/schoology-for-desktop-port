@@ -1,16 +1,8 @@
 const {contextBridge,ipcRenderer}=require('electron');
 try{document.documentElement.dataset.electronPlatform=process.platform}catch{}
 
-// Keep the Electron authentication bridge alive even if the optional QR decoder
-// cannot be loaded. A failed decoder must never abort the entire preload.
-let jsQR=null;
-let qrLoadError=null;
-try {
-  jsQR=require('jsqr');
-} catch (e) {
-  qrLoadError=String(e && e.message || e);
-  console.error('Schoology QR decoder could not load:', qrLoadError);
-}
+// The QR decoder is loaded as a browser script in app.html. Sandboxed preloads
+// cannot reliably require arbitrary npm packages, so keep this preload built-in-only.
 
 contextBridge.exposeInMainWorld('schoology',{
   onDeepLink:fn=>{const h=(_,url)=>fn(url);ipcRenderer.on('schoology-deep-link',h);return()=>ipcRenderer.removeListener('schoology-deep-link',h)},
@@ -58,13 +50,5 @@ contextBridge.exposeInMainWorld('schoology',{
   openExternal:u=>ipcRenderer.invoke('open-external',u),
   openChromeExtensionFolder:()=>ipcRenderer.invoke('open-chrome-extension-folder'),
   platform:process.platform,
-  pickFile:()=>ipcRenderer.invoke('pick-file'),
-  // QR camera scanning normally uses Chromium's native BarcodeDetector in renderer.js.
-  // Keep jsQR only as a compatibility fallback; its failure must never prevent startup.
-  decodeQR:(data,width,height)=>{
-    if(!jsQR) throw new Error('QR fallback decoder is unavailable: '+(qrLoadError||'unknown error'));
-    return jsQR(data,width,height,{inversionAttempts:'attemptBoth',greyScaleWeights:{red:0.299,green:0.587,blue:0.114},canOverwriteImage:true});
-  },
-  qrDecoderAvailable:()=>!!jsQR,
-  qrDecoderError:()=>qrLoadError
+  pickFile:()=>ipcRenderer.invoke('pick-file')
 });

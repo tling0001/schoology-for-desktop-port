@@ -2153,7 +2153,7 @@ function getNativeQrDetector(){
 }
 async function decodeFrame(ctx,w,h){
   // Prefer Chromium's native QR/barcode decoder. This avoids depending on the
-  // optional jsQR native-module bridge for the normal camera-login path.
+  // QR camera decoding uses Chromium BarcodeDetector with a bundled jsQR fallback.
   const detector=getNativeQrDetector();
   const side=Math.min(w,h);
   const sx=Math.max(0,Math.floor((w-side)/2)),sy=Math.max(0,Math.floor((h-side)/2));
@@ -2165,10 +2165,14 @@ async function decodeFrame(ctx,w,h){
     try{const found=await detector.detect(work);if(found?.length&&found[0]?.rawValue)return found[0].rawValue}catch(e){}
     try{const found=await detector.detect(ctx.canvas);if(found?.length&&found[0]?.rawValue)return found[0].rawValue}catch(e){}
   }
-  // Compatibility fallback for Electron builds without BarcodeDetector.
-  const attempts=[wc.getImageData(0,0,size,size),ctx.getImageData(0,0,w,h)];
-  for(const img of attempts){
-    try{const code=A.decodeQR(img.data,img.width,img.height);if(code?.data)return code.data}catch(e){}
+  // jsQR is bundled as a normal browser script in app.html. Do not call it
+  // through the sandboxed preload, which cannot require arbitrary npm modules.
+  const decoder=window.jsQR;
+  if(typeof decoder==='function'){
+    const attempts=[wc.getImageData(0,0,size,size),ctx.getImageData(0,0,w,h)];
+    for(const img of attempts){
+      try{const code=decoder(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});if(code?.data)return code.data}catch(e){}
+    }
   }
   return null;
 }

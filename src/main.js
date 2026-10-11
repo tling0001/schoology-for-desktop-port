@@ -27,9 +27,9 @@ function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  // Do not author CSS scrollbars here: that overrides Chromium's native
-  // OverlayScrollbar feature and makes the guest render a permanent gutter.
-  try{guest.insertCSS(`:root{color-scheme:${dark?'dark':'light'}!important}`).catch(()=>{})}catch{}
+  // Keep guest pages free of injected color-scheme/scrollbar CSS. A forced
+  // color-scheme can make Chromium treat a page as already dark and bypass
+  // WebContentsForceDark; custom scrollbar CSS also defeats overlay rendering.
 }
 let pendingSchoologyDeepLink=null;
 let pendingExternalSchoolLogin=null;
@@ -88,22 +88,22 @@ nativeTheme.on('updated',()=>{
   if(next!==lastForceDarkActive){lastForceDarkActive=next;try{app.relaunch();app.exit(0)}catch(e){console.error('Could not refresh embedded dark mode:',e.message)}}
 });
 try{
+  // Use Chromium feature names rather than the chrome://flags labels.
+  // Threaded compositing is required for the overlay scrollbar fade/animation path.
   const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
-  if(forceDarkAtLaunch)requiredFeatures.unshift('WebContentsForceDark');
-  // Merge with Electron/Chromium's existing feature switches rather than
-  // appending a second --enable-features value that could win/lose by order.
+  if(forceDarkAtLaunch)requiredFeatures.push('WebContentsForceDark');
   const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
-  const disabledFeatures=existingDisabled.filter(v=>!requiredFeatures.includes(v));
+  // FluentScrollbar can supersede the classic overlay implementation on Windows.
+  const disabledFeatures=[...new Set([...existingDisabled.filter(v=>!requiredFeatures.includes(v)),'FluentScrollbar'])];
   app.commandLine.removeSwitch('enable-features');
   app.commandLine.removeSwitch('disable-features');
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
-  if(disabledFeatures.length)app.commandLine.appendSwitch('disable-features',disabledFeatures.join(','));
-  // Retain the legacy switch as a compatibility hint; OverlayScrollbar is
-  // the Chromium feature that actually controls native overlay rendering.
-  app.commandLine.appendSwitch('overlay-scrollbars');
-  if(forceDarkAtLaunch)app.commandLine.appendSwitch('force-dark-mode');
+  app.commandLine.appendSwitch('disable-features',disabledFeatures.join(','));
+  app.commandLine.appendSwitch('enable-threaded-compositing');
+  console.info('Schoology Chromium enable-features:',app.commandLine.getSwitchValue('enable-features'));
+  console.info('Schoology Chromium disable-features:',app.commandLine.getSwitchValue('disable-features'));
 }catch(e){console.error('Could not enable Chromium features:',e.message)}
 function windowChromeOverlayEnabled(){
   if(process.platform==='darwin'){try{const v=JSON.parse(fs.readFileSync(windowChromeSettingsFile,'utf8'));return v?.overlay===true}catch{};return false}
@@ -674,7 +674,7 @@ async function loginExternalSchool(info){
     child.webContents.on('did-navigate',(event,url)=>{handleCandidate(url,null)});
     child.webContents.on('did-navigate-in-page',(event,url)=>{handleCandidate(url,null)});
     child.webContents.on('did-fail-load',(_,code,desc)=>{if(code!==-3)console.error('School external login failed:',code,desc)});
-    child.webContents.on('console-message',(_,level,message,line,source)=>console.log('School external login:',message,'at',source+':'+line));
+    child.webContents.on('console-message',(_event,details)=>{const message=details?.message||'';const line=details?.lineNumber??'';const source=details?.sourceId||'';console.log('School external login:',message,'at',source+':'+line)});
     child.on('closed',()=>{if(!settled)finish(new Error('School login window was closed.'))});
     child.loadURL(rawUrl).catch(e=>{if(String(e?.message||e).includes('ERR_ABORTED')||e?.errno===-3)return;finish(e)});
   });
@@ -769,7 +769,7 @@ function create(){
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
   win.webContents.on('render-process-gone',(_,details)=>console.error('Schoology renderer process gone:',details));
-  win.webContents.on('console-message',(_,level,message,line,source)=>console.log('Renderer:',message,'at',source+':'+line));
+  win.webContents.on('console-message',(_event,details)=>{const message=details?.message||'';const line=details?.lineNumber??'';const source=details?.sourceId||'';console.log('Renderer:',message,'at',source+':'+line)});
   win.webContents.on('did-navigate',(_,url)=>console.log('Schoology navigated to:',url));
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
   win.webContents.on('did-finish-load',()=>{if(pendingSchoologyDeepLink){const url=pendingSchoologyDeepLink;pendingSchoologyDeepLink=null;deliverSchoologyDeepLink(url)}});

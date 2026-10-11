@@ -1105,7 +1105,7 @@ async function routeSchoologyLink(rawUrl){
  const mParentAssignment=path.match(/^\/parents?\/\d+\/sections?\/(\d+)\/assignments?\/(\d+)(?:\/.*)?$/i);
  if(mParentAssignment){showAssignment(Number(mParentAssignment[1]),Number(mParentAssignment[2]));return true}
  const mCourseAssessment=path.match(/^\/course(?:s)?\/(\d+)\/assessments?\/(\d+)(?:\/.*)?$/i);
- if(mCourseAssessment){const assessmentId=Number(mCourseAssessment[2]);await A.prepareWebSession();showEmbeddedWeb(\`https://app.schoology.com/assignment/\${assessmentId}\`,'Assessment',{allowBrowser:false,quiz:true,assessment:true});return true}
+ if(mCourseAssessment){const assessmentId=Number(mCourseAssessment[2]);await A.prepareWebSession();showEmbeddedWeb('https://app.schoology.com/assignment/'+assessmentId,'Assessment',{allowBrowser:false,quiz:true,assessment:true});return true}
  const mSchool=path.match(/^\/schools?\/(\d+)(?:\/.*)?$/i);
  if(mSchool){await openSchoolProfile(Number(mSchool[1]),'School');return true}
  const mCourse=path.match(/^\/course(?:s)?\/(\d+)(?:\/materials(?:\/gp\/(\d+))?)?$/i);

@@ -23,14 +23,15 @@ const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 const attachedGuestWebContents=new Set();
+const attachedGuestThemeCss=new WeakMap();
 function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
-  const dark=isDarkAppearance();
-  try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  // Chromium's native Force Dark algorithm preserves hues while adapting
-  // light surfaces and dark text, unlike blanket CSS recoloring.
-  try{if(dark)guest.enableWebContentsForceDark?.();else guest.disableWebContentsForceDark?.()}
-  catch(e){console.warn('Could not apply native Force Dark to shared webview:',e.message)}
+  const dark=isDarkAppearance();try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
+  try{if(dark)guest.enableWebContentsForceDark?.();else guest.disableWebContentsForceDark?.()}catch(e){console.warn('Could not apply native Force Dark to shared webview:',e.message)}
+  const previous=attachedGuestThemeCss.get(guest);if(previous){try{guest.removeInsertedCSS?.(previous)}catch{};attachedGuestThemeCss.delete(guest)}
+  if(!dark||typeof guest.insertCSS!=='function')return;
+  const css=`:root,html{color-scheme:dark!important;background-color:#17191c!important}body{background-color:#17191c!important;color:#e6e8eb!important}body,main,[role="main"],#page,#container,#content,.page,.content,.main-content,.main-content-wrapper,.page-container,.content-wrapper{background-color:#17191c!important;color:#e6e8eb!important}a:not([role="button"]){color:#8abfff!important}input,textarea,select,[contenteditable="true"]{color-scheme:dark!important;background-color:#292d32!important;color:#e6e8eb!important;border-color:#3a3f46!important}`;
+  try{Promise.resolve(guest.insertCSS(css,{cssOrigin:'user'})).then(key=>{if(key&&guest.isDestroyed?.())return;if(key)attachedGuestThemeCss.set(guest,key)}).catch(e=>console.warn('Could not inject shared-webview dark theme:',e.message))}catch(e){console.warn('Could not inject shared-webview dark theme:',e.message)}
 }
 let pendingSchoologyDeepLink=null;
 let rendererDeepLinkReady=false;

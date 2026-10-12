@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('schoology',{
   onFileUploadProgress:fn=>{const h=(_,data)=>fn(data);ipcRenderer.on('file-upload-progress',h);return()=>ipcRenderer.removeListener('file-upload-progress',h)},
   launchCourseApp:x=>ipcRenderer.invoke('launch-course-app',x),
   openDownloadedFile:x=>ipcRenderer.invoke('open-downloaded-file',x),
+  revealDownloadedFile:x=>ipcRenderer.invoke('reveal-downloaded-file',x),
   openExternal:u=>ipcRenderer.invoke('open-external',u),
   openChromeExtensionFolder:()=>ipcRenderer.invoke('open-chrome-extension-folder'),
   platform:process.platform,

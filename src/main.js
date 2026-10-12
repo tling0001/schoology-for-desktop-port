@@ -880,6 +880,7 @@ app.whenReady().then(()=>{
     return j;
   });
   ipcMain.handle('open-downloaded-file',(_,x)=>shell.openPath(String(x?.path||'')));
+  ipcMain.handle('reveal-downloaded-file',(_,x)=>{const filePath=path.resolve(String(x?.path||''));if(!fs.existsSync(filePath))return 'Downloaded file was not found.';shell.showItemInFolder(filePath);return '';});
   ipcMain.handle('open-external',(_,u)=>shell.openExternal(u));
   ipcMain.handle('open-chrome-extension-folder',async()=>{const bundled=path.join(process.resourcesPath,'chrome-link-handler');const development=path.join(__dirname,'../chrome-link-handler');const folder=fs.existsSync(path.join(bundled,'manifest.json'))?bundled:development;if(!fs.existsSync(path.join(folder,'manifest.json')))throw new Error('The companion Chrome extension folder is missing from this installation.');return shell.openPath(folder)});
   ipcMain.handle('pick-file',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile']});return r.canceled?null:r.filePaths[0]});

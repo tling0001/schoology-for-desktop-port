@@ -5,7 +5,8 @@
   "description": "Open LAUSD Schoology and app.schoology.com links in Schoology Desktop Port.",
   "permissions": [
     "tabs",
-    "webNavigation"
+    "webNavigation",
+    "storage"
   ],
   "host_permissions": [
     "https://lms.lausd.net/*",
@@ -14,5 +15,9 @@
   ],
   "background": {
     "service_worker": "service-worker.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   }
 }

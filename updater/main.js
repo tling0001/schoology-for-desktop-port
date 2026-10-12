@@ -53,10 +53,10 @@ async function deleteFileWithCmd(file){
   if(fs.existsSync(file))throw new Error('Windows could not delete the file: '+file);
 }
 
-function scheduleSelfCleanup(){
+function scheduleSelfCleanup(innerPath,outerPath){
   const target=String(payload.stagedUpdaterPath||'');
-  const inner=path.join(TEMP_DIR,'inner-installer');
-  const outer=path.join(TEMP_DIR,'installer-outer');
+  const inner=path.resolve(String(innerPath||path.join(TEMP_DIR,'inner-installer')));
+  const outer=path.resolve(String(outerPath||path.join(TEMP_DIR,'installer-outer')));
   const updaterPid=process.pid;
   const resourcesPath=path.resolve(process.resourcesPath||'');
   const tempRoot=path.resolve(TEMP_DIR)+path.sep;
@@ -170,8 +170,9 @@ async function main(){
   log('startup',{payload:{...payload,parentPid:payload.parentPid},tempDir:TEMP_DIR,schoologyDir:SCHOOLGY_DIR});
   const sevenMsi=path.join(TEMP_DIR,'7z2604-x64.msi');
   const installer=path.join(TEMP_DIR,'schoology-installer.exe');
-  const outer=path.join(TEMP_DIR,'installer-outer');
-  const inner=path.join(TEMP_DIR,'inner-installer');
+  const extractionId=process.pid+'-'+Date.now();
+  const outer=path.join(TEMP_DIR,'installer-outer-'+extractionId);
+  const inner=path.join(TEMP_DIR,'inner-installer-'+extractionId);
   let seven=find7z();
   log('paths',{sevenMsi,installer,outer,inner,seven});
   if(seven){configureSevenZip(false);}
@@ -189,7 +190,7 @@ async function main(){
   ui('schoologyDownload','done','Complete',100);
   status(`Installing ${productName}…`);ui('install','determinate','Preparing installation…',5);
   await waitForPid(Number(payload.parentPid||0));
-  ui('install','determinate','Preparing extraction…',10);log('prepare-extraction',{outer,inner});fs.rmSync(outer,{recursive:true,force:true});fs.rmSync(inner,{recursive:true,force:true});fs.mkdirSync(outer,{recursive:true});fs.mkdirSync(inner,{recursive:true});log('extraction-directories-created',{outerExists:fs.existsSync(outer),innerExists:fs.existsSync(inner)});
+  ui('install','determinate','Preparing extraction…',10);log('prepare-extraction',{outer,inner});fs.mkdirSync(outer,{recursive:true});fs.mkdirSync(inner,{recursive:true});log('extraction-directories-created',{outerExists:fs.existsSync(outer),innerExists:fs.existsSync(inner)});
   log('extract-installer-start',{installer,outer});
   await run(seven,['x',installer,`-o${outer}`,'-y']);
   ui('install','determinate','Installer extracted…',45);log('extract-installer-complete',{outerEntries:fs.existsSync(outer)?fs.readdirSync(outer):[]});
@@ -239,7 +240,7 @@ async function main(){
   }
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen,appAsarExists:fs.existsSync(targetAsar)});
   ui('install','done','Complete',100);cleanupArtifacts([installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
-  scheduleSelfCleanup();
+  scheduleSelfCleanup(inner,outer);
   if(win&&!win.isDestroyed())win.close();
   app.quit();
 }

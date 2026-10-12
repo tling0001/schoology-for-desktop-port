@@ -12,7 +12,7 @@ let loadTabGeneration=0;
 let pendingDeepLinkAfterLogin=null;
 let schoologyStartupComplete=false;
 let queuedIncomingDeepLink=null;
-let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',experimentalForceDark:false};
+let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',experimentalForceDark:false,peopleEnabled:false};
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
 function applyTheme(mode,save=false){const selected=['light','dark','system'].includes(mode)?mode:'system';state.themeMode=selected;document.documentElement.dataset.theme=resolveTheme(selected);document.documentElement.dataset.themeMode=selected;if(document.documentElement.dataset.theme==='dark')requestAnimationFrame(()=>fixDarkRichTextColors());if(save){try{Promise.resolve(A.setThemeMode?.(selected)).catch(()=>{})}catch{}}}
 window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.themeMode==='system')applyTheme('system')});
@@ -101,14 +101,14 @@ function shell(){
  const drawerItems=[
   ['messages','Messages','ic_menu_messages'],['notifications','Notifications','ic_menu_notifications'],['requests','Requests','ic_menu_requests'],
   ['home','Home','ic_menu_home'],['courses','Courses','ic_menu_courses'],['groups','Groups','ic_menu_groups'],['resources','Resources','ic_menu_resources'],['grades','Grades','ic_menu_grades'],['calendar','Calendar','ic_menu_calender'],
-  ['settings','Settings','ic_menu_account_settings'],['logout','Logout','ic_menu_logout']
+  ...(state.peopleEnabled?[['people','People','ic_menu_people']]:[]),['settings','Settings','ic_menu_account_settings'],['logout','Logout','ic_menu_logout']
  ];
  const drawerPage=state.drawerPage==='courses'||state.drawerPage==='groups'||state.drawerPage==='grades'?`
    <div class="drawerSub">
     <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">${officialBackIcon()}</button><span>${state.drawerPage==='grades'?'Grades':state.drawerPage==='groups'?'Groups':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction" style="display:none">+</button>':state.drawerPage==='groups'?'<button id="joinGroup" class="drawerHeaderAction" style="display:none">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
     <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='grades'?'grades':state.drawerPage==='groups'?'groups':'courses'}…</div></div>
    </div>`:'';
- const drawerList=drawerItems.map(([id,label,icon],i)=>`${i===3?'<div class="drawerDivider"></div>':''}${i===9?'<div class="drawerDivider"></div>':''}${drawerItemMarkup(id,label,icon)}`).join('');
+ const drawerList=drawerItems.map(([id,label,icon],i)=>`${i===3?'<div class="drawerDivider"></div>':''}${id==='settings'?'<div class="drawerDivider"></div>':''}${drawerItemMarkup(id,label,icon)}`).join('');
  return `<div class="shell">
  <header class="toolbar">${state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">${officialBackIcon()}</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
  <main id="content"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></main>
@@ -308,7 +308,7 @@ function bind(){
     closeDrawerThen(async()=>{
       if(id==='logout'){await A.logout();state.auth=null;state.school=null;state.tab='home';state.screen='login';render();return}
       if(id==='settings'){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab='settings';state.toolbarTitle='Settings';state.screen='app';render();loadTab();return}
-      if(['home','calendar','grades','messages','notifications','requests','resources','profile','groups'].includes(id)){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
+      if(['home','calendar','grades','messages','notifications','requests','resources','profile','groups','people'].includes(id)){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
     });
   }));
 
@@ -321,6 +321,20 @@ function bind(){
   document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Link')));
   document.querySelectorAll('[data-embed-html]').forEach(b=>b.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(b.dataset.embedHtml),'Embedded content'));
   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const i=+b.dataset.courseSub;const c=window.__schoologyCourses?.[i];state.drawerPage=null;state.tab='courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(c)||courseTitleOf(c);state.screen='app';render();showCourse(c)});
+}
+function directoryIsPublic(user){
+ const objects=[user,user?.user_permissions,user?.userPermissions,user?.permissions,user?.user?.user_permissions,user?.user?.userPermissions,user?.user?.permissions].filter(Boolean);
+ for(const o of objects){for(const key of ['is_directory_public','directory_public','isDirectoryPublic','directoryPublic'])if(Object.prototype.hasOwnProperty.call(o,key))return o[key]===true||o[key]===1||String(o[key]).toLowerCase()==='true';}
+ return false;
+}
+async function resolvePeopleDrawerVisibility(){
+ // Android 2026.06.0 shows People for public directories on enterprise accounts.
+ // ENT_STAT is Android-local, so use explicit API metadata or the active school context.
+ const uid=state.auth?.userId||state.auth?.user?.id;let user=state.auth?.user||{};
+ try{if(uid){const response=await A.api({path:'users/'+uid,params:{}});user=response?.user||response?.data?.user||response||user;}}catch{}
+ const mobile=state.mobileMe||{};
+ const enterprise=[user,mobile,state.auth||{},state.school||{}].some(o=>o&&(o.ent_stat===573||o.entStat===573||o.enterprise===true||o.is_enterprise===true||o.isEnterprise===true||o.enterprise_enabled===true))||!!(state.school?.id||state.auth?.schoolId||state.auth?.school_id||mobile.school_id||mobile.schoolId);
+ state.peopleEnabled=enterprise&&directoryIsPublic(user);
 }
 async function afterLogin(){
   stopQR();
@@ -340,6 +354,7 @@ async function afterLogin(){
     console.warn('Unable to load mobile homepage preferences:',e?.message||e);
     state.mobileMe={};state.courseDashboardEnabled=false;state.preferredHomepage='recent';state.homeTab='recent';
   }
+  await resolvePeopleDrawerVisibility();
   state.loading=false;state.screen='app';render();await loadTab();
   if(pendingDeepLinkAfterLogin){const pending=pendingDeepLinkAfterLogin;pendingDeepLinkAfterLogin=null;setTimeout(async()=>{try{if(await routeSchoologyLink(pending))return;await showEmbeddedWeb(pending,'Schoology Link',{openInitialExternalInBrowser:false})}catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e))}},0)}
 }
@@ -1104,6 +1119,19 @@ async function routeSchoologyLink(rawUrl){
  if(scheme&&host==='lti-assignment'){
    const message=u.searchParams.get('error-message');showAppDialog('Unable to open LTI assignment',message||'Schoology could not open this LTI assignment.');return true;
  }
+ // Native destinations for Schoology web URLs (both LAUSD LMS and app.schoology.com).
+ const mCourseDestination=path.match(/^\/course(?:s)?\/(\d+)\/(student_grades|updates)\/?$/i);
+ if(mCourseDestination){const sid=Number(mCourseDestination[1]),destination=mCourseDestination[2].toLowerCase()==='student_grades'?'grades':'updates';try{const response=await A.api({path:'sections/'+sid,params:{}});const course=response?.section||response||{id:sid};if(!course.id&&!course.section_id)course.id=sid;state.screen='app';state.tab='courses';state.currentGroup=null;state.profileUser=null;state.message=null;state.embeddedTitle=null;state.assignmentView=null;state.selectedCourse=course;render();await showCourse(course,destination);return true}catch(e){showSchoologyRequestError(e);return true}}
+ const mProfileDestination=path.match(/^\/(?:user|users|profile|profiles)\/(?:view\/)?(\d+)(?:\/.*)?$/i);
+ if(mProfileDestination){openProfileById(Number(mProfileDestination[1]),'Profile');return true}
+ if(/^\/people\/?$/i.test(path)){if(!state.peopleEnabled){showAppDialog('People','The Schoology people directory is not available for this account.');return true}state.screen='app';state.tab='people';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.message=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='People';render();loadTab();return true}
+ if(/^\/settings\/account\/?$/i.test(path)){state.screen='app';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.message=null;state.assignmentView=null;state.embeddedReturn={tab:'settings',title:'Settings'};render();await A.prepareWebSession();showEmbeddedWeb('https://'+webHost+'/settings/account','Account Info',{allowBrowser:false,accountInfo:true});return true}
+ if(/^\/messages\/sent\/?$/i.test(path)||/^\/messages\/?$/i.test(path)){state.screen='app';state.tab='messages';state.message=null;state.messageThread=null;state.messageFolder='inbox';state.messageTab=/^\/messages\/sent\/?$/i.test(path)?'sent':'inbox';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Messages';render();loadTab();return true}
+ const mMessageView=path.match(/^\/messages\/view\/(\d+)\/?$/i);
+ if(mMessageView){state.screen='app';state.tab='messages';state.message={id:Number(mMessageView[1])};state.messageFolder='view';state.messageThread=null;state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Messages';render();await loadMessageThread(state.message);return true}
+ if(/^\/home\/course-dashboard(?:\/.*)?$/i.test(path)){state.screen='app';state.tab='home';state.homeTab='dashboard';state.courseDashboardEnabled=true;state.homeUpcomingReturn=false;state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.message=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Home';render();loadTab();return true}
+ if(/^\/home\/recent-activity\/?$/i.test(path)){state.screen='app';state.tab='home';state.homeTab='recent';state.homeUpcomingReturn=false;state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.message=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Home';render();loadTab();return true}
+ if(/^\/grades\/grades\/?$/i.test(path)){state.screen='app';state.tab='grades';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.message=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='Grades';render();loadTab();return true}
  const mSectionAssignment=path.match(/^\/(?:section|sections)\/(\d+)\/assignments?\/(\d+)(?:\/.*)?$/i);
  if(mSectionAssignment){showAssignment(Number(mSectionAssignment[1]),Number(mSectionAssignment[2]));return true}
  const mSectionAssessment=path.match(/^\/(?:section|sections)\/(\d+)\/assessments?\/(\d+)(?:\/.*)?$/i);
@@ -1696,7 +1724,7 @@ async function showGroupResourceFolder(gid,folderId,title,collectionId){
 async function loadMessageThread(m){
   try{
     const id=m?.id||m?.message_id||m?.messageId; if(!id)throw new Error('Message ID is missing.');
-    const folder=state.messageFolder||'inbox'; const x=await A.api({path:`messages/${state.messageFolder||'inbox'}/${id}`,params:{with_attachments:'TRUE',keep_unread:'TRUE'}});
+    let folder=state.messageFolder||'inbox'; let x; const params={with_attachments:'TRUE',keep_unread:'TRUE'}; if(folder==='view'){try{x=await A.api({path:`messages/inbox/${id}`,params});folder='inbox';}catch{x=await A.api({path:`messages/sent/${id}`,params});folder='sent';}state.messageFolder=folder;}else{x=await A.api({path:`messages/${folder}/${id}`,params});}
     const payload=x?.data||x; const raw=payload?.message||payload?.messages||[]; const msgs=Array.isArray(raw)?raw:(raw?.message||raw?.messages||[]); const users={};
     const userList=payload?.user||payload?.users||payload?.data?.user||payload?.data?.users||[];
     for(const u of (Array.isArray(userList)?userList:[userList])){const id=Number(u?.id||u?.user_id||u?.uid||0);if(id)users[id]=u?.user||u}

@@ -1918,3 +1918,52 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .courseMainPane .sectionProfileTabs .sectionProfileTab.active{border-bottom:3px solid #fff!important}
 .officialBackIconRepair{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;vertical-align:middle;flex:0 0 24px}
 .officialBackIconRepair .officialBackIcon{display:block;width:24px;height:24px}
+
+/* Final fidelity override: Schoology Android color_primary is #002137, including course tabs. */
+.courseLandscapePage .courseMainPane .sectionProfileTabs,
+.courseLandscapePage .courseMainPane .sectionProfileTabs *,
+.courseMainPane .sectionProfileTabs,
+.courseMainPane .sectionProfileTabs .sectionProfileTab,
+.courseMainPane .sectionProfileTabs .sectionProfileTab.active,
+.courseMainPane .sectionProfileTabs .sectionProfileTab:hover,
+.courseMainPane .sectionProfileTabs .sectionProfileTab:focus,
+.courseMainPane .courseTabs,
+.courseMainPane .courseTabs *,
+.courseTabs,
+.courseTabs button,
+.courseTabs button.active,
+.courseTabs button:hover,
+.sectionProfileTabs,
+.sectionProfileTabs .sectionProfileTab,
+.sectionProfileTabs .sectionProfileTab.active,
+.sectionProfileTabs .sectionProfileTab:hover {
+  background:#002137!important;
+  background-color:#002137!important;
+  background-image:none!important;
+}
+.courseLandscapePage .courseMainPane .sectionProfileTabs .sectionProfileTab,
+.courseMainPane .sectionProfileTabs .sectionProfileTab,
+.courseMainPane .courseTabs button,
+.courseTabs button,
+.sectionProfileTabs .sectionProfileTab {
+  color:#fff!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+.courseLandscapePage .courseMainPane .sectionProfileTabs .sectionProfileTab.active,
+.courseMainPane .sectionProfileTabs .sectionProfileTab.active,
+.courseMainPane .courseTabs button.active,
+.courseTabs button.active,
+.sectionProfileTabs .sectionProfileTab.active {
+  color:#fff!important;
+  border-bottom:3px solid #fff!important;
+  box-shadow:none!important;
+}
+.courseLandscapePage .courseMainPane .sectionProfileTabs .sectionProfileTab:hover,
+.courseMainPane .sectionProfileTabs .sectionProfileTab:hover,
+.courseMainPane .courseTabs button:hover,
+.courseTabs button:hover,
+.sectionProfileTabs .sectionProfileTab:hover {
+  color:#fff!important;
+  filter:brightness(1.06);
+}

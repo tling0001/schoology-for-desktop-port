@@ -53,10 +53,11 @@ async function deleteFileWithCmd(file){
   if(fs.existsSync(file))throw new Error('Windows could not delete the file: '+file);
 }
 
-function scheduleSelfCleanup(innerPath,outerPath){
+function scheduleSelfCleanup(innerPath,outerPath,runTempPath){
   const target=String(payload.stagedUpdaterPath||'');
   const inner=path.resolve(String(innerPath||path.join(TEMP_DIR,'inner-installer')));
   const outer=path.resolve(String(outerPath||path.join(TEMP_DIR,'installer-outer')));
+  const runTemp=path.resolve(String(runTempPath||path.dirname(inner)));
   const updaterPid=process.pid;
   const resourcesPath=path.resolve(process.resourcesPath||'');
   const tempRoot=path.resolve(TEMP_DIR)+path.sep;
@@ -77,9 +78,9 @@ function scheduleSelfCleanup(innerPath,outerPath){
 `$innerAsar='${ps(path.join(inner,'resources','app.asar'))}'; if(Test-Path -LiteralPath $innerAsar -PathType Leaf){cmd.exe /d /s /c ('del /f /q "'+$innerAsar+'"'); Write-FinalizeLog ('inner-app-asar-del-exit='+$LASTEXITCODE)}`,
       `$inner='${ps(inner)}'; if(Test-Path -LiteralPath $inner){Remove-Item -LiteralPath $inner -Recurse -Force -ErrorAction SilentlyContinue; if(Test-Path -LiteralPath $inner){Write-FinalizeLog 'inner-cleanup-failed'}else{Write-FinalizeLog 'inner-cleaned'}}`,
       `$outer='${ps(outer)}'; if(Test-Path -LiteralPath $outer){Remove-Item -LiteralPath $outer -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'outer-cleaned'}`,
-      `$files=@('${ps(path.join(TEMP_DIR,'schoology-installer.exe'))}','${ps(path.join(TEMP_DIR,'7z2604-x64.msi'))}','${ps(target)}'); foreach($file in $files){if($file -and (Test-Path -LiteralPath $file)){Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('file-cleaned '+$file)}}`,
+      `$target='${ps(target)}'; if($target -and (Test-Path -LiteralPath $target)){Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('file-cleaned '+$target)}`,
       ...(resourcesInsideTemp?[ `$resources='${ps(resourcesPath)}'; if(Test-Path -LiteralPath $resources){Remove-Item -LiteralPath $resources -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'updater-resources-cleaned'}` ]:[]),
-      `$temp='${ps(TEMP_DIR)}'; if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}`,
+      `$runTemp='${ps(runTemp)}'; if(Test-Path -LiteralPath $runTemp){Remove-Item -LiteralPath $runTemp -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('run-temp-cleaned '+$runTemp)}`,
       `$exe='${ps(schoologyExe)}'; $work='${ps(SCHOOLGY_DIR)}'; if(Test-Path -LiteralPath $exe){$launched=$false;for($attempt=1;$attempt -le 2 -and -not $launched;$attempt++){try{$p=Start-Process -FilePath $exe -WorkingDirectory $work -PassThru -ErrorAction Stop; Write-FinalizeLog ('schoology-start-requested pid='+$p.Id+' attempt='+$attempt); Start-Sleep -Seconds 3; if(Get-Process -Id $p.Id -ErrorAction SilentlyContinue){Write-FinalizeLog 'schoology-launched';$launched=$true}else{Write-FinalizeLog ('schoology-process-exited-early attempt='+$attempt);Start-Sleep -Milliseconds 700}}catch{Write-FinalizeLog ('schoology-launch-error attempt='+$attempt+' '+$_);Start-Sleep -Milliseconds 700}}if(-not $launched){Write-FinalizeLog 'schoology-launch-failed-after-retries'}}else{Write-FinalizeLog ('schoology-exe-missing '+$exe)}`
     ];
     const encoded=Buffer.from(lines.join('\r\n'),'utf16le').toString('base64');
@@ -168,11 +169,15 @@ async function main(){
   if(!payload.url)throw new Error('The Schoology installer URL is missing.');
   fs.mkdirSync(TEMP_DIR,{recursive:true});
   log('startup',{payload:{...payload,parentPid:payload.parentPid},tempDir:TEMP_DIR,schoologyDir:SCHOOLGY_DIR});
-  const sevenMsi=path.join(TEMP_DIR,'7z2604-x64.msi');
-  const installer=path.join(TEMP_DIR,'schoology-installer.exe');
   const extractionId=process.pid+'-'+Date.now();
-  const outer=path.join(TEMP_DIR,'installer-outer-'+extractionId);
-  const inner=path.join(TEMP_DIR,'inner-installer-'+extractionId);
+  // Isolate each update attempt. A detached finalizer from another update must
+  // never delete this run's installer or extracted app.asar.
+  const runTempDir=path.join(TEMP_DIR,'run-'+extractionId);
+  fs.mkdirSync(runTempDir,{recursive:true});
+  const sevenMsi=path.join(runTempDir,'7z2604-x64.msi');
+  const installer=path.join(runTempDir,'schoology-installer.exe');
+  const outer=path.join(runTempDir,'installer-outer');
+  const inner=path.join(runTempDir,'inner-installer');
   let seven=find7z();
   log('paths',{sevenMsi,installer,outer,inner,seven});
   if(seven){configureSevenZip(false);}
@@ -240,7 +245,7 @@ async function main(){
   }
   ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),copyOutputSeen,appAsarExists:fs.existsSync(targetAsar)});
   ui('install','done','Complete',100);cleanupArtifacts([installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
-  scheduleSelfCleanup(inner,outer);
+  scheduleSelfCleanup(inner,outer,runTempDir);
   if(win&&!win.isDestroyed())win.close();
   app.quit();
 }

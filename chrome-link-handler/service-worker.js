@@ -1,5 +1,5 @@
 // Configurable Schoology Desktop companion link handler.
-const DEFAULTS={courseMaterials:true,courses:true,courseUpdates:true,courseGrades:true,groups:true,homepage:true,resources:true,peopleDirectory:true,profiles:true,messages:true,accountSettings:true,calendar:true,grades:true,other:true};
+const DEFAULTS={courseMaterials:true,courses:true,courseUpdates:true,courseGrades:true,groups:true,homepage:true,resources:true,peopleDirectory:true,profiles:true,messages:true,accountSettings:true,calendar:true,grades:false,other:true};
 function categoryFor(url){
  try{
   const u=new URL(url);if(u.protocol!=='https:')return null;

@@ -41,18 +41,8 @@ function findExtractedApplicationRoot(root){
   const dir=path.resolve(current.dir);if(seen.has(dir))continue;seen.add(dir);
   let entries;try{entries=fs.readdirSync(dir,{withFileTypes:true})}catch{continue}
   const byLower=new Map(entries.map(entry=>[entry.name.toLowerCase(),entry]));
-  const exe=byLower.get('schoology.exe'),resources=byLower.get('resources');
-  // Locate the executable independently. Do not reject an extracted update
-  // solely because app.asar is not discovered beside it during this scan.
-  if(exe&&exe.isFile()){
-   let asar=path.join(dir,resources&&resources.isDirectory()?resources.name:'resources','app.asar');
-   if(resources&&resources.isDirectory()){
-    let resourceEntries=[];try{resourceEntries=fs.readdirSync(path.join(dir,resources.name))}catch{}
-    const asarName=resourceEntries.find(name=>name.toLowerCase()==='app.asar');
-    if(asarName)asar=path.join(dir,resources.name,asarName);
-   }
-   return {root:dir,exe:path.join(dir,exe.name),asar};
-  }
+  const exe=byLower.get('schoology.exe');
+  if(exe&&exe.isFile())return {root:dir,exe:path.join(dir,exe.name)};
   for(const entry of entries){
    if(!entry.isDirectory()||entry.isSymbolicLink())continue;
    if(['locales','swiftshader','resources'].includes(entry.name.toLowerCase()))continue;
@@ -61,7 +51,6 @@ function findExtractedApplicationRoot(root){
  }
  return null;
 }
-
 function cleanupArtifacts(paths){
   for(const target of paths){
     try{
@@ -199,8 +188,7 @@ async function main(){
   fs.mkdirSync(TEMP_DIR,{recursive:true});
   log('startup',{payload:{...payload,parentPid:payload.parentPid},tempDir:TEMP_DIR,schoologyDir:SCHOOLGY_DIR});
   const extractionId=process.pid+'-'+Date.now();
-  // Isolate each update attempt. A detached finalizer from another update must
-  // never delete this run's installer or extracted app.asar.
+  // Isolate each update attempt so another updater run cannot remove its temporary files.
   const runTempDir=path.join(TEMP_DIR,'run-'+extractionId);
   fs.mkdirSync(runTempDir,{recursive:true});
   const sevenMsi=path.join(runTempDir,'7z2604-x64.msi');
@@ -232,20 +220,16 @@ async function main(){
   log('extract-application-start',{app7z,inner});
   await run(seven,['x',app7z,`-o${inner}`,'-y']);
   ui('install','determinate','Application files extracted…',70);log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
-  const extractedApp=findExtractedApplicationRoot(inner)||{root:inner,exe:path.join(inner,'Schoology.exe'),asar:path.join(inner,'resources','app.asar')};
-  const appRoot=extractedApp.root,sourceExe=extractedApp.exe,sourceAsar=extractedApp.asar;
+  const extractedApp=findExtractedApplicationRoot(inner)||{root:inner,exe:path.join(inner,'Schoology.exe')};
+  const appRoot=extractedApp.root;
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
-  log('copy-application-start',{inner,appRoot,sourceExe,sourceAsar,schoologyDir:SCHOOLGY_DIR,stagedInstallDir:payload.stagedInstallDir||null});
-  const targetAsar=path.join(SCHOOLGY_DIR,'resources','app.asar');
+  log('copy-application-start',{inner,appRoot,schoologyDir:SCHOOLGY_DIR,stagedInstallDir:payload.stagedInstallDir||null});
   await run('robocopy.exe',[appRoot,SCHOOLGY_DIR,'/E','/IS','/IT','/R:2','/W:1'],{
     acceptCodes:[0,1,2,3,4,5,6,7],
     onOutput:()=>ui('install','determinate','Copying application files…',85)
   });
   if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   if(!fs.existsSync(schoologyExe))throw new Error('The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.');
-  if(!fs.existsSync(targetAsar)||!fs.statSync(targetAsar).isFile()||fs.statSync(targetAsar).size<=0)throw new Error('The update copy finished, but resources\\app.asar is missing or empty. Schoology was not relaunched.');
-  log('app-asar-copy-complete',{sourceAsar,targetAsar,sourceSize:fs.statSync(sourceAsar).size,targetSize:fs.statSync(targetAsar).size});
-  ui('install','determinate','Finalizing installation…',97);log('copy-application-complete',{schoologyExeExists:fs.existsSync(schoologyExe),appAsarExists:fs.existsSync(targetAsar)});
   ui('install','done','Complete',100);cleanupArtifacts([installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
   scheduleSelfCleanup(inner,outer,runTempDir);
   if(win&&!win.isDestroyed())win.close();

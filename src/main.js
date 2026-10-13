@@ -736,9 +736,22 @@ async function installUpdate(info){
     const helper=fs.existsSync(updaterPath)?updaterPath:(fs.existsSync(devUpdater)?devUpdater:null);
     if(!helper)throw new Error('The Schoology Windows updater is not installed with this build.');
     const installContext=getWindowsInstallContext();
-    const stagedUpdater=path.join(app.getPath('temp'),`SchoologyUpdater-${process.pid}-${Date.now()}.exe`);
-    fs.copyFileSync(helper,stagedUpdater);
-    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),darkTheme:isDarkAppearance(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater,...installContext};
+    const stagedInstallDir=path.join(app.getPath('temp'),`SchoologyUpdateWork-${process.pid}-${Date.now()}`);
+    let stagedUpdater;
+    try{
+      fs.cpSync(installContext.installDir,stagedInstallDir,{recursive:true,force:true,errorOnExist:false});
+      const stagedResources=path.join(stagedInstallDir,'resources');
+      stagedUpdater=path.join(stagedResources,'SchoologyUpdater.exe');
+      if(!fs.existsSync(stagedUpdater)){
+        fs.mkdirSync(stagedResources,{recursive:true});
+        fs.copyFileSync(helper,stagedUpdater);
+      }
+      if(!fs.existsSync(stagedUpdater))throw new Error('The staged Schoology updater was not found.');
+    }catch(error){
+      try{fs.rmSync(stagedInstallDir,{recursive:true,force:true})}catch{}
+      throw new Error('Could not prepare a temporary copy of Schoology for updating: '+(error?.message||error));
+    }
+    const payload={url:String(info.url||''),size:Number(info.size||0),digest:info.digest||null,version:String(info.version||info.tag||''),productName:String(info.productName||'Schoology'),themeMode:readThemeMode(),darkTheme:isDarkAppearance(),parentPid:process.pid,stagedUpdaterPath:stagedUpdater,stagedInstallDir,...installContext};
     const encoded=Buffer.from(JSON.stringify(payload),'utf8').toString('base64');
     const {spawn}=require('child_process');
     let child;

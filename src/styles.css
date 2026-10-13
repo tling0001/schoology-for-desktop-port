@@ -2174,7 +2174,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .schoolProfileUpcomingContent .assignmentInfo small{font-size:11px}
 @media (min-width:801px){
  .schoolProfileNativePage{height:calc(100vh - 56px);min-height:0;overflow:hidden}
- .schoolProfileLandscapeSplit{display:grid;grid-template-columns:minmax(0,4fr) minmax(260px,1fr);height:100%;min-height:0;overflow:hidden}
+ .schoolProfileLandscapeSplit{display:grid;grid-template-columns:minmax(0,73fr) minmax(0,27fr);height:100%;min-height:0;overflow:hidden}
  .schoolProfileMainPane{height:100%;min-height:0;overflow:hidden}
  .schoolProfileMainPane .schoolProfileTabs{flex:0 0 48px}
  .schoolProfileMainPane .schoolProfileHeader,.schoolProfileMainPane .schoolProfileDivider{flex:0 0 auto}

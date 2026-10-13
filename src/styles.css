@@ -2040,3 +2040,36 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 @media (max-width:800px){.schoolProfileUpcomingSplit{display:block}.schoolProfileUpcomingSchool{display:none}.schoolProfileUpcomingEvents{min-width:0}}
 :root[data-theme="dark"] .schoolProfileUpcomingSplit,:root[data-theme="dark"] .schoolProfileUpcomingSchool,:root[data-theme="dark"] .schoolProfileUpcomingEvents,:root[data-theme="dark"] .schoolProfileUpcomingHeading{background:var(--theme-surface,#202328)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#393d43)!important}
 :root[data-theme="dark"] .schoolProfileUpcomingSchool h2,:root[data-theme="dark"] .schoolProfileUpcomingSchool p,:root[data-theme="dark"] .schoolProfileUpcomingDetail{color:var(--theme-text,#e6e8eb)!important}
+
+/* v161: targeted fidelity updates for course folders, event creation, attachments, and calendar arrows. */
+#createPostDialog.createEventDialogOverlay{padding:0!important;align-items:stretch!important;justify-content:stretch!important;background:#fff!important}
+#createPostDialog .androidCreateEventDialog{width:100vw!important;max-width:none!important;height:100vh!important;max-height:100vh!important;min-height:0!important;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:#fff!important}
+#createPostDialog .androidCreateEventDialog>.androidCommentDialogBar{flex:0 0 48px!important;height:48px!important;min-height:48px!important;background:#002137!important;box-shadow:none!important}
+#createPostDialog .androidCreateEventDialog .androidDialogTitle{font-size:16px!important;font-weight:500!important}
+#createPostDialog .androidCreateEventDialog .androidCreatePostBody{flex:1 1 auto!important;min-height:0!important;overflow:auto!important;padding:8px 0 24px!important;gap:0!important;background:#fff!important}
+#createPostDialog .androidCreateEventDialog .androidFieldLabel{display:block!important;margin:16px 20px 4px!important;color:#687681!important;font-size:13px!important;font-weight:400!important}
+#createPostDialog .androidCreateEventDialog .androidPostToField{min-height:40px!important;margin:0 16px 8px 20px!important;padding:10px 8px!important;border:1px solid #cbd1d6!important;border-radius:2px!important;background:#fff!important;color:#263744!important}
+#createPostDialog .androidCreateEventDialog .androidSwitchRow{min-height:44px!important;margin:0 16px 4px 28px!important;display:flex!important;align-items:center!important;color:#687681!important}
+#createPostDialog .androidCreateEventDialog .androidSwitchRow label{display:flex!important;align-items:center!important;gap:10px!important;font-size:14px!important}
+#createPostDialog .androidCreateEventDialog .androidDateRow{min-height:44px!important;margin:0 16px 8px 28px!important;display:flex!important;align-items:center!important;gap:8px!important;background:transparent!important;color:#687681!important}
+#createPostDialog .androidCreateEventDialog .androidDateRow>span{flex:0 0 auto!important;font-size:14px!important}
+#createPostDialog .androidCreateEventDialog .androidDateRow input{min-width:0!important;width:1px!important;flex:1 1 0!important;min-height:38px!important;padding:7px 5px!important;border:1px solid #cbd1d6!important;border-radius:2px!important;background:#fff!important;color:#263744!important;font-size:13px!important}
+#createPostDialog .androidCreateEventDialog .androidCheckRow{min-height:44px!important;margin:4px 16px 4px 28px!important;display:flex!important;align-items:center!important;gap:10px!important;color:#687681!important;font-size:14px!important}
+#createPostDialog .androidCreateEventDialog .androidCheckRow input,#createPostDialog .androidCreateEventDialog .androidSwitchRow input{accent-color:#002137!important}
+#createPostDialog .androidCreateEventDialog #createEventEndWrap{margin-left:36px!important}
+#createPostDialog .androidCreateEventDialog #createPostTitle,#createPostDialog .androidCreateEventDialog #createPostBody{display:block!important;width:calc(100% - 32px)!important;margin:8px 16px 0!important;padding:12px 0!important;border:0!important;border-bottom:1px solid #d8dde0!important;border-radius:0!important;outline:0!important; background:transparent!important;color:#263744!important;font:15px Arial,sans-serif!important}
+#createPostDialog .androidCreateEventDialog #createPostTitle{min-height:44px!important}
+#createPostDialog .androidCreateEventDialog #createPostBody{min-height:120px!important;resize:vertical!important}
+#createPostDialog .androidCreateEventDialog #createEventRsvp{width:calc(100% - 44px)!important;min-height:42px!important;margin:0 16px 8px 28px!important;padding:6px 8px!important;border:1px solid #cbd1d6!important;border-radius:2px!important;background:#fff!important;color:#263744!important}
+#createPostDialog .androidCreateEventDialog .createPostAttachmentChoices{margin:12px 16px 0!important;padding:8px 0!important;border-top:1px solid #e0e4e7!important;background:#fff!important}
+#createPostDialog .androidCreateEventDialog #createPostAttachmentList{margin:0 16px!important}
+#createPostDialog .androidCreateEventDialog .androidCreatePostStatus{margin:8px 16px!important}
+#createPostDialog.createEventDialogOverlay #createPostSend:disabled{opacity:.45!important}
+.calendarMonthHeader button{width:40px!important;height:40px!important;min-width:40px!important;padding:0!important;border:0!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#778088!important;font-size:initial!important;line-height:normal!important;cursor:pointer!important}
+.calendarMonthHeader button:hover{background:rgba(0,33,55,.08)!important}
+.calendarMonthHeader button:active{background:rgba(0,33,55,.14)!important}
+.calendarMonthHeader button svg{width:24px!important;height:24px!important;display:block!important;fill:currentColor!important}
+:root[data-theme="dark"] #createPostDialog.createEventDialogOverlay,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidCreatePostBody,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .createPostAttachmentChoices{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidPostToField,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidDateRow input,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog #createEventRsvp{background:var(--theme-input,#292d32)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog #createPostTitle,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog #createPostBody{color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] .calendarMonthHeader button{color:var(--theme-muted,#a9afb7)!important}

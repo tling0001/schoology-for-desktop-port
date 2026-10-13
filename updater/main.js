@@ -34,6 +34,29 @@ function log(message, details){
   }catch{}
 }
 
+function findExtractedApplicationRoot(root){
+ const pending=[{dir:root,depth:0}],seen=new Set();
+ while(pending.length){
+  const current=pending.shift();if(!current||current.depth>10)continue;
+  const dir=path.resolve(current.dir);if(seen.has(dir))continue;seen.add(dir);
+  let entries;try{entries=fs.readdirSync(dir,{withFileTypes:true})}catch{continue}
+  const byLower=new Map(entries.map(entry=>[entry.name.toLowerCase(),entry]));
+  const exe=byLower.get('schoology.exe'),resources=byLower.get('resources');
+  if(exe&&exe.isFile()&&resources&&resources.isDirectory()){
+   const resourceDir=path.join(dir,resources.name);let resourceEntries=[];
+   try{resourceEntries=fs.readdirSync(resourceDir)}catch{}
+   const asarName=resourceEntries.find(name=>name.toLowerCase()==='app.asar');
+   if(asarName){const candidate=path.join(resourceDir,asarName);try{if(fs.statSync(candidate).isFile())return {root:dir,exe:path.join(dir,exe.name),asar:candidate}}catch{}}
+  }
+  for(const entry of entries){
+   if(!entry.isDirectory()||entry.isSymbolicLink())continue;
+   if(['locales','swiftshader','resources'].includes(entry.name.toLowerCase()))continue;
+   pending.push({dir:path.join(dir,entry.name),depth:current.depth+1});
+  }
+ }
+ return null;
+}
+
 function cleanupArtifacts(paths){
   for(const target of paths){
     try{
@@ -203,18 +226,19 @@ async function main(){
   log('extract-application-start',{app7z,inner});
   await run(seven,['x',app7z,`-o${inner}`,'-y']);
   ui('install','determinate','Application files extracted…',70);log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
-  const sourceExe=path.join(inner,'Schoology.exe');if(!fs.existsSync(sourceExe))throw new Error('The extracted update does not contain Schoology.exe; the current installation was left unchanged.');
+  const extractedApp=findExtractedApplicationRoot(inner);
+  if(!extractedApp)throw new Error('The extracted update is missing a matching Schoology.exe and resources\\app.asar pair. The current installation was left unchanged.');
+  const appRoot=extractedApp.root,sourceExe=extractedApp.exe,sourceAsar=extractedApp.asar;
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
-  log('copy-application-start',{inner,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;
-  const sourceAsar=path.join(inner,'resources','app.asar'),targetAsar=path.join(SCHOOLGY_DIR,'resources','app.asar');
-  if(!fs.existsSync(sourceAsar))throw new Error('The downloaded update has no resources\\app.asar. The installed application was left unchanged.');
+  log('copy-application-start',{inner,appRoot,sourceExe,sourceAsar,schoologyDir:SCHOOLGY_DIR});let copyOutputSeen=false;
+  const targetAsar=path.join(SCHOOLGY_DIR,'resources','app.asar');
   const previousAsar=targetAsar+'.previous-'+Date.now();
   const stagedAsar=targetAsar+'.new-'+Date.now();
   let previousAsarStaged=false,stagedAsarExists=false;
   try{
     // Copy the rest of the extracted installation first. Exclude app.asar so
     // Robocopy never renames, deletes, or accidentally copies the old archive.
-    await run('robocopy.exe',[inner,SCHOOLGY_DIR,'/E','/IS','/IT','/XF','app.asar'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:()=>{ui('install','determinate','Copying application files…',85)}});
+    await run('robocopy.exe',[appRoot,SCHOOLGY_DIR,'/E','/IS','/IT','/XF','app.asar'],{acceptCodes:[0,1,2,3,4,5,6,7],onOutput:()=>{ui('install','determinate','Copying application files…',85)}});
     if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
     if(!fs.existsSync(schoologyExe))throw new Error('The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.');
     fs.mkdirSync(path.dirname(targetAsar),{recursive:true});
@@ -222,7 +246,7 @@ async function main(){
     fs.copyFileSync(sourceAsar,stagedAsar);stagedAsarExists=true;
     const [sourceSize,stagedSize,sourceDigest,stagedDigest]=await Promise.all([Promise.resolve(fs.statSync(sourceAsar).size),Promise.resolve(fs.statSync(stagedAsar).size),sha256(sourceAsar),sha256(stagedAsar)]);
     if(sourceSize!==stagedSize||sourceDigest!==stagedDigest)throw new Error('The staged app.asar did not match the downloaded release.');
-    log('app-asar-staged',{sourceSize,stagedSize,sourceDigest,stagedDigest,match:true});
+    log('app-asar-staged',{appRoot,sourceAsar,sourceSize,stagedSize,sourceDigest,stagedDigest,match:true});
     // Only after all other files are copied do we move the old archive aside.
     if(fs.existsSync(targetAsar)){fs.renameSync(targetAsar,previousAsar);previousAsarStaged=true;log('old-app-asar-staged-after-copy',{targetAsar,previousAsar});}
     fs.renameSync(stagedAsar,targetAsar);stagedAsarExists=false;

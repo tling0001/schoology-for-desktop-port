@@ -317,7 +317,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .homeRightPane .homeTabs{flex:0 0 48px}
 .homeRightPane #homeTabContent{flex:1 1 auto;min-height:0;height:auto;overflow:auto}
 .homePaneHeader{height:48px;background:#002137;color:#fff;display:flex;align-items:center;padding:0 16px;font-size:14px}
-@media (min-aspect-ratio:4/3){.homeLandscapeSplit .dashboardHybrid,.homeLandscapeSplit .dashboardHybrid webview{position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-height:0!important;flex:1 1 auto!important}.homeLandscapeSplit #homeTabContent:has(.dashboardHybrid){display:flex!important;flex-direction:column!important;padding:0!important;overflow:hidden!important}.homeLandscapeSplit #homeTabContent .dashboardHybrid{display:flex!important;flex:1 1 auto!important;overflow:hidden!important}}
+@media (min-width:801px){.homeLandscapeSplit .dashboardHybrid,.homeLandscapeSplit .dashboardHybrid webview{position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-height:0!important;flex:1 1 auto!important}.homeLandscapeSplit #homeTabContent:has(.dashboardHybrid){display:flex!important;flex-direction:column!important;padding:0!important;overflow:hidden!important}.homeLandscapeSplit #homeTabContent .dashboardHybrid{display:flex!important;flex:1 1 auto!important;overflow:hidden!important}}
 .toolbar{position:relative!important}.toolbarActionSlot{margin-left:auto!important;flex:0 0 48px!important;width:48px!important;height:56px!important;display:flex!important;align-items:center!important;justify-content:flex-end!important}.toolbarActionSlot .iconButton{margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
 .sectionProfilePage{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}.sectionProfileContent{flex:1 1 auto;min-height:0;overflow:auto}.materialList,.gradesNativeList,.upcomingList{overflow:visible}
 .resourcesAndroidPage{height:100%;min-height:0;overflow:auto;background:#fff}.resourceCategory{border-bottom:1px solid #ddd}.resourceCategoryHeader{width:100%;height:56px;border:0;background:#fff;display:flex;align-items:center;text-align:left;padding:0 16px;color:#333;cursor:pointer}.resourceCategoryHeader img{width:40px;height:40px;object-fit:contain;margin-right:12px}.resourceCategoryHeader b{font-size:16px;font-weight:400;flex:1}.resourceChevron{font-size:25px;color:#888;transform:rotate(0deg);transition:transform .15s}.resourceCategory.open .resourceChevron{transform:rotate(90deg)}.resourceCategoryChildren{display:none;background:#fafafa}.resourceCategory.open .resourceCategoryChildren{display:block}.resourceCollectionRow,.resourceFileRow{width:100%;min-height:58px;border:0;border-bottom:1px solid #e5e5e5;background:#fff;display:flex;align-items:center;text-align:left;padding:8px 16px 8px 32px;color:#333;cursor:pointer}.resourceCollectionRow img,.resourceFileRow img{width:40px;height:40px;object-fit:contain;margin-right:12px;flex:0 0 40px}.resourceCollectionRow span:nth-child(2),.resourceFileRow span:nth-child(2){flex:1;min-width:0}.resourceCollectionRow b,.resourceFileRow b{display:block;font-size:15px;font-weight:400;color:#2e66a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.resourceCollectionRow small,.resourceFileRow small{display:block;color:#888;font-size:11px;margin-top:3px}.resourceCollectionRow>span:last-child,.resourceFileRow>span:last-child{font-size:24px;color:#999}.resourceEmpty{padding:14px 32px;color:#888;font-size:13px}.resourceBackTitle{padding:14px 16px;font-size:18px;color:#333;border-bottom:1px solid #ddd;background:#fff}
@@ -348,11 +348,11 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .courseMainPane .sectionProfileContent{flex:1 1 auto;min-height:0;overflow:auto}
 .courseUpcomingPane{display:none;min-width:0;min-height:0;overflow:hidden;background:#fff;border-left:1px solid #ddd}
 .courseUpcomingContent{height:calc(100% - 48px);min-height:0;overflow:auto}
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .courseLandscapePage .courseUpcomingPane{display:block}
   .courseLandscapePage .courseUpcomingTab{display:none}
 }
-@media (max-aspect-ratio:4/3){
+@media (max-width:800px){
   .courseLandscapePage{display:block!important;height:auto!important;min-height:100%!important;overflow:visible!important}
   .courseMainPane{display:block;overflow:visible;min-height:100%}
   .courseUpcomingPane{display:none!important}
@@ -387,7 +387,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .shell>main#content>.dashboardHybrid.embeddedPage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;display:block!important;overflow:hidden!important;background:#fff!important}
 .shell>main#content>.dashboardHybrid.embeddedPage webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
 
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .courseLandscapePage{grid-template-columns:minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)!important;height:100%!important;min-height:0!important;overflow:hidden!important}
   .courseAppsSidePane{display:block!important}
   .courseMainPane{min-width:0!important;min-height:0!important;overflow:hidden!important}
@@ -428,7 +428,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .shell>main#content:has(.dashboardHybrid) webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important}
 
 /* v54 */
-.courseImage{width:64px;height:64px;flex:0 0 64px;border-radius:2px;background:#e7ebee;color:#002137;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;margin-right:16px;overflow:hidden}.courseImage img{width:100%;height:100%;object-fit:cover;display:block}.courseImageFallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%}.courseAppFallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#eef2f4;border-radius:50%}.courseAppFallback img{width:70%;height:70%;object-fit:contain}.officialMaterialIcon img{width:24px;height:24px;object-fit:contain;display:block}.folderLoadingState{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:#68757e;text-align:center}.folderLoadingState img{width:48px;height:48px}.folderLoadingState b{font-size:16px;font-weight:400;color:#34424c}.folderLoadingState small{font-size:13px;color:#8a949b}.schoologyErrorOverlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,33,55,.34);padding:24px}.schoologyErrorDialog{position:relative;width:min(440px,92vw);background:#fff;border-radius:5px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:28px 28px 24px;text-align:center;color:#263640}.schoologyErrorDialog h2{font-size:20px;font-weight:400;margin:8px 0 10px;color:#22303e}.schoologyErrorDialog p{font-size:14px;line-height:1.45;color:#68757e;margin:0 0 18px}.schoologyErrorClose{position:absolute;right:8px;top:5px;border:0;background:transparent;color:#66737c;font-size:28px;cursor:pointer}.schoologyErrorSpinner img{width:48px;height:48px}.schoologyErrorActions{display:flex;justify-content:center;gap:10px}.androidSecondary{border:1px solid #9ba5ab;background:#fff;color:#2e66a3;border-radius:3px;padding:9px 18px;cursor:pointer}.schoologyErrorDialog .androidPrimary{border:0;background:#2e66a3;color:#fff;border-radius:3px;padding:9px 20px;cursor:pointer}.homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane .homeTabs{flex:0 0 48px!important;height:48px!important}.homeLandscapeSplit .homeRightPane #homeTabContent{flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}@media (max-aspect-ratio:4/3){.homeTabViewport{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeTabViewport #homeTabContent{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeTabViewport #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}.homeTabViewport #homeTabContent .dashboardHybrid webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}}
+.courseImage{width:64px;height:64px;flex:0 0 64px;border-radius:2px;background:#e7ebee;color:#002137;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;margin-right:16px;overflow:hidden}.courseImage img{width:100%;height:100%;object-fit:cover;display:block}.courseImageFallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%}.courseAppFallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#eef2f4;border-radius:50%}.courseAppFallback img{width:70%;height:70%;object-fit:contain}.officialMaterialIcon img{width:24px;height:24px;object-fit:contain;display:block}.folderLoadingState{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:#68757e;text-align:center}.folderLoadingState img{width:48px;height:48px}.folderLoadingState b{font-size:16px;font-weight:400;color:#34424c}.folderLoadingState small{font-size:13px;color:#8a949b}.schoologyErrorOverlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,33,55,.34);padding:24px}.schoologyErrorDialog{position:relative;width:min(440px,92vw);background:#fff;border-radius:5px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:28px 28px 24px;text-align:center;color:#263640}.schoologyErrorDialog h2{font-size:20px;font-weight:400;margin:8px 0 10px;color:#22303e}.schoologyErrorDialog p{font-size:14px;line-height:1.45;color:#68757e;margin:0 0 18px}.schoologyErrorClose{position:absolute;right:8px;top:5px;border:0;background:transparent;color:#66737c;font-size:28px;cursor:pointer}.schoologyErrorSpinner img{width:48px;height:48px}.schoologyErrorActions{display:flex;justify-content:center;gap:10px}.androidSecondary{border:1px solid #9ba5ab;background:#fff;color:#2e66a3;border-radius:3px;padding:9px 18px;cursor:pointer}.schoologyErrorDialog .androidPrimary{border:0;background:#2e66a3;color:#fff;border-radius:3px;padding:9px 20px;cursor:pointer}.homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane .homeTabs{flex:0 0 48px!important;height:48px!important}.homeLandscapeSplit .homeRightPane #homeTabContent{flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}@media (max-width:800px){.homeTabViewport{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeTabViewport #homeTabContent{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeTabViewport #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}.homeTabViewport #homeTabContent .dashboardHybrid webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}}
 
 /* v55 Android fidelity fixes */
 .loginAnimated .logo,.loginAnimated .loginBody,.loginAnimated .loginBottom,.loginAnimated .back{animation:schoologyLoginFadeIn .38s ease both}.loginAnimated .loginBody{animation-delay:.08s}.loginAnimated .loginBottom{animation-delay:.16s}.loginAnimated .back{animation-delay:0s}@keyframes schoologyLoginFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -459,13 +459,13 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .profilePane h2{flex:0 0 48px;margin:0;padding:14px 16px;font-size:15px;font-weight:500;border-bottom:1px solid #ddd;color:#34424c}
 .profilePaneContent{flex:1 1 auto;min-height:0;overflow-y:auto}
 .profilePaneContent .activityCard,.profilePaneContent .profileInfoList,.profilePaneContent .badgeGrid{margin:0}
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
  .shell>main#content.dashboardContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;flex:none!important}
  .dashboardContentActive .dashboardHybrid{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
  .dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important}
  .homeTabViewport #homeTabContent.recentActivityScroll,.homeRightPane #homeTabContent.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;display:block!important}
 }
-@media (max-aspect-ratio:4/3){
+@media (max-width:800px){
  .homeTabViewport #homeTabContent.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;display:block!important}
 }
 
@@ -504,7 +504,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .downloadProgressWrap img,.settingProgress img{width:20px!important;height:20px!important;display:block!important;margin:0!important;object-fit:contain}
 .downloadBusy{opacity:.85}
 /* Upcoming intentionally gets more space than Course Apps in landscape. */
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .courseLandscapePage{grid-template-columns:minmax(0,18fr) minmax(0,55fr) minmax(0,27fr)!important}
 }
 .qr.loginAnimated{animation:schoologyLoginFadeIn .38s ease both}.qr.loginAnimated h1,.qr.loginAnimated p,.qr.loginAnimated video,.qr.loginAnimated .qrbox{animation:schoologyLoginFadeIn .38s ease both}.qr.loginAnimated video{animation-delay:.08s}.qr.loginAnimated .qrbox{animation-delay:.12s}.qr.loginAnimated .qrhint{animation-delay:.16s}
@@ -520,7 +520,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .messageListItem:focus,.messageListItem:active,.messageListItem:focus-visible{color:#333!important;background:#eef3f7!important}
 .messageListItem:focus .messageListText b,.messageListItem:active .messageListText b,.messageListItem:focus .messageListText strong,.messageListItem:active .messageListText strong{color:#333!important}
 .groupHeader{gap:12px}.groupHeader .groupHero{flex:0 0 64px;position:relative;overflow:hidden;margin:8px}.groupHeader .groupHero img{display:block;width:100%;height:100%;object-fit:cover}.groupHeader>div:last-child{flex:1 1 auto;min-width:0}
-@media (max-aspect-ratio:4/3){.profileHeader{position:relative!important;display:flex!important;flex-wrap:nowrap!important;min-height:82px!important}.profileHeader>div{min-width:0!important;flex:1 1 auto!important}.profileTabs{clear:both!important;position:relative!important;margin-top:0!important;overflow-x:auto!important}.profileAndroidPage{overflow-x:hidden!important}.profileAndroidPage:before,.profileAndroidPage:after{display:none!important}}
+@media (max-width:800px){.profileHeader{position:relative!important;display:flex!important;flex-wrap:nowrap!important;min-height:82px!important}.profileHeader>div{min-width:0!important;flex:1 1 auto!important}.profileTabs{clear:both!important;position:relative!important;margin-top:0!important;overflow-x:auto!important}.profileAndroidPage{overflow-x:hidden!important}.profileAndroidPage:before,.profileAndroidPage:after{display:none!important}}
 
 .groupResourceRow{display:flex!important;align-items:center!important;gap:10px!important}.groupResourceRow .officialMaterialIcon{width:32px!important;min-width:32px!important;display:flex!important;align-items:center!important;justify-content:center!important}.groupResourceRow .officialMaterialIcon img{width:24px!important;height:24px!important;object-fit:contain}.groupResourceRow>span:nth-child(2){flex:1;min-width:0}.groupResourceRow>span:last-child{font-size:24px;color:#999}.updateDownloadProgressWrap{padding:8px 0 4px}.updateDownloadProgressTrack{height:7px;background:#e1e5e8;border-radius:5px;overflow:hidden}.updateDownloadProgressBar{height:100%;background:#2e66a3;border-radius:5px;transition:width .15s ease}.updateDownloadProgressText{font-size:13px;color:#68757e;text-align:center;margin-top:9px}
 
@@ -612,7 +612,7 @@ html[data-electron-platform=win32] .toolbar .toolbarTitle,html[data-electron-pla
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{flex:1 1 0!important;height:auto!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important;position:relative!important;inset:auto!important;overflow:hidden!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{flex:1 1 0!important;width:100%!important;height:100%!important;min-height:0!important;position:absolute!important;inset:0!important;display:block!important}
 /* v76: homepage landscape Upcoming stays between 1/4 and 1/3 of the split width. */
-@media (min-aspect-ratio:4/3){.homeLandscapeSplit{grid-template-columns:minmax(0,17fr) minmax(0,7fr)!important;display:grid!important}.homeLandscapeSplit .homeRightPane{min-width:0!important}.homeLandscapeSplit .homeUpcomingPane{min-width:0!important}}
+@media (min-width:801px){.homeLandscapeSplit{grid-template-columns:minmax(0,17fr) minmax(0,7fr)!important;display:grid!important}.homeLandscapeSplit .homeRightPane{min-width:0!important}.homeLandscapeSplit .homeUpcomingPane{min-width:0!important}}
 /* v76: diagnostic overlay setting. When disabled, no app-bar space is reserved for native controls. */
 html[data-window-controls-overlay="false"] .toolbarActionSlot{margin-right:0!important}
 html[data-electron-platform="win32"][data-window-controls-overlay="false"] .toolbar,html[data-electron-platform="linux"][data-window-controls-overlay="false"] .toolbar{padding-right:4px!important}
@@ -637,10 +637,10 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .homeUpcomingHeader{height:48px;min-height:48px;flex:0 0 48px;background:#002137;color:#fff;display:flex;align-items:center;padding:0 16px;font-size:14px;position:relative;z-index:2}
 .homeUpcomingScroll{min-height:0;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;background:#fff}
 .homeUpcomingScroll .homeUpcomingList{min-height:100%}
-@media (max-aspect-ratio:4/3){.homeUpcomingHeader{display:none!important}.homeUpcomingScroll{overflow:visible!important}.homeTabViewport #homeUpcomingPane{display:none!important}}
+@media (max-width:800px){.homeUpcomingHeader{display:none!important}.homeUpcomingScroll{overflow:visible!important}.homeTabViewport #homeUpcomingPane{display:none!important}}
 
 /* v78: eliminate the remaining nested percentage-height chain around the dashboard. */
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .homeLandscapeSplit .homeRightPane{display:grid!important;grid-template-rows:48px minmax(0,1fr)!important;height:100%!important;min-height:0!important;overflow:hidden!important}
   .homeLandscapeSplit .homeRightPane .homeTabs{grid-row:1!important;height:48px!important;min-height:48px!important}
   .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{grid-row:2!important;position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;overflow:hidden!important;padding:0!important;margin:0!important;display:block!important}
@@ -657,7 +657,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton{position:relative!important;z-index:2!important}
 
 /* v79: landscape assignment page mirrors the homepage split proportions (17/24 + 7/24). */
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .assignmentLandscapePage{height:100%!important;min-height:0!important;overflow:hidden!important;padding:0!important}
   .assignmentLandscapeSplit{height:100%!important;min-height:0!important;display:grid!important;grid-template-columns:minmax(0,17fr) minmax(0,7fr)!important;overflow:hidden!important}
   .assignmentInfoPane,.assignmentSubmissionsPane{min-width:0!important;min-height:0!important;overflow:hidden!important;background:#fff}
@@ -708,14 +708,14 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{position:relative!important;z-index:1!important}
 
 /* v79: use the actual measured content area for the landscape dashboard. */
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .shell>main#content:has(.homeLandscapeSplit){position:relative!important;height:calc(100vh - 56px)!important;min-height:0!important;max-height:none!important;padding:0!important;margin:0!important;overflow:hidden!important}
   .homeLandscapeSplit{position:absolute!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;min-height:0!important}
 }
 
 /* v79: native course identity mirrors the course-card treatment used by the
    dashboard while keeping the Android-native course content below it. */
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .courseIdentityCard{display:flex!important;flex-direction:column!important;background:#fff!important;padding:0!important;margin:0!important;border:0!important;min-height:0!important;overflow:hidden!important}
   .courseIdentityImageWrap{height:150px;min-height:150px;position:relative;background:#e7ebee;overflow:hidden}
   .courseIdentityImageWrap .sectionProfileImage{position:absolute;inset:0;width:100%!important;height:100%!important;object-fit:cover!important;margin:0!important;border-radius:0!important}
@@ -744,7 +744,7 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 .nativeDashboardCourseInfo>small{font-size:11px;line-height:1.3;color:#8a949b;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* v80: portrait Upcoming is the scroll container itself. */
-@media (max-aspect-ratio:4/3){
+@media (max-width:800px){
   .homeTabViewport #homeTabContent.homePortraitUpcomingScroll{display:block!important;overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;flex:1 1 auto!important;padding:0!important}
   .homeTabViewport #homeTabContent.homePortraitUpcomingScroll #homeUpcomingList{min-height:100%;overflow:visible}
 }
@@ -952,7 +952,7 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 .drawerBadge{display:none;width:8px;height:8px;border-radius:50%;margin-left:auto;margin-right:8px;background:#e53935;flex:0 0 8px}.drawerBadge.visible{display:block}
 .profileAvatarCircle{width:40px;height:40px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#e7ebee;flex:0 0 40px}.profileAvatarCircle img{width:100%;height:100%;object-fit:cover}
 .groupImageFallback{align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#dfe4e8;font-weight:700;color:#44505d}.groupDiscussionRow{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;border:0;border-bottom:1px solid #e1e5e8;background:#fff;text-align:left}.groupDiscussionRow img{width:32px;height:32px;object-fit:contain}.groupDiscussionRow span{display:flex;flex-direction:column;gap:3px}.groupDiscussionRow b{color:#2e66a3}.groupDiscussionRow small{color:#777}
-.groupUpcomingSplit{display:grid;grid-template-columns:1fr;min-height:0;height:100%}@media (min-aspect-ratio:4/3){.groupUpcomingSplit{grid-template-columns:minmax(0,17fr) minmax(0,7fr)}.groupUpcomingSplit:before{content:'';display:block}.groupUpcomingList{grid-column:2;min-width:0}}
+.groupUpcomingSplit{display:grid;grid-template-columns:1fr;min-height:0;height:100%}@media (min-width:801px){.groupUpcomingSplit{grid-template-columns:minmax(0,17fr) minmax(0,7fr)}.groupUpcomingSplit:before{content:'';display:block}.groupUpcomingList{grid-column:2;min-width:0}}
 .commentAttachmentActions{display:flex;gap:8px;border-top:1px solid #e1e5e8;padding:8px 12px}.commentAttachmentActions button{display:flex;align-items:center;gap:6px;border:0;background:transparent;color:#2e66a3;padding:8px 12px}.commentAttachmentActions img,.commentAttachmentActions svg{width:24px;height:24px;object-fit:contain}
 .androidSimpleDialog,.androidCreatePostDialog{width:min(560px,calc(100vw - 32px));background:#fff;border-radius:3px;box-shadow:0 12px 40px #0004;overflow:hidden}.androidSimpleDialog header{height:56px;background:#2e66a3;color:#fff;display:flex;align-items:center;padding:0 12px}.androidSimpleDialog header b{flex:1}.androidSimpleDialogBody,.androidCreatePostBody{padding:18px;display:flex;flex-direction:column;gap:10px}.androidSimpleDialogBody input,.androidCreatePostBody input,.androidCreatePostBody textarea{font:inherit;border:1px solid #cbd1d6;padding:10px;border-radius:2px}.androidCreatePostBody textarea{min-height:150px;resize:vertical}.androidSimpleDialog footer{padding:12px;text-align:right;border-top:1px solid #e1e5e8}
 .toolbarAccountInfo{background:#ff0000!important}.toolbarAccountInfo .toolbarTitle{color:#fff!important}.toolbarAccountInfo .iconButton{color:#fff!important}.toolbarAccountInfo .toolbarActionSlot img{width:24px;height:24px;object-fit:contain}.toolbarLti{background:#90caf9!important}
@@ -960,10 +960,10 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 /* v86: keep native caption controls outside the action area with an additional safe inset. */
 html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{right:272px!important;width:48px!important;min-width:48px!important;max-width:48px!important;position:absolute!important;z-index:20!important}
 html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{max-width:calc(100% - 336px)!important}
-.groupLandscapeSplit{min-height:0;display:flex;flex-direction:column}.groupUpcomingPane{display:none}@media (min-aspect-ratio:4/3){.groupLandscapeSplit{display:grid;grid-template-columns:minmax(0,17fr) minmax(0,7fr);height:calc(100vh - 56px);min-height:0}.groupLandscapeSplit>#groupTabContent{min-width:0;min-height:0;overflow:auto}.groupUpcomingPane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-left:1px solid #d9dee2}.groupUpcomingPane #groupUpcomingContent{flex:1;min-height:0;overflow:auto;padding:8px}}
+.groupLandscapeSplit{min-height:0;display:flex;flex-direction:column}.groupUpcomingPane{display:none}@media (min-width:801px){.groupLandscapeSplit{display:grid;grid-template-columns:minmax(0,17fr) minmax(0,7fr);height:calc(100vh - 56px);min-height:0}.groupLandscapeSplit>#groupTabContent{min-width:0;min-height:0;overflow:auto}.groupUpcomingPane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-left:1px solid #d9dee2}.groupUpcomingPane #groupUpcomingContent{flex:1;min-height:0;overflow:auto;padding:8px}}
 .loginIconButton{display:flex!important;align-items:center;justify-content:center;gap:10px}.loginIconButton img{width:30px;height:30px;object-fit:contain}.loginIconButton>span{display:inline-block}
 /* v87: group Upcoming follows the same 1/5 side-pane proportion as Course Apps/Upcoming. */
-@media (min-aspect-ratio:4/3){.groupLandscapeSplit{grid-template-columns:minmax(0,4fr) minmax(0,1fr)!important}.groupProfilePage .groupTabs,.sectionProfileTabs{justify-content:center!important}}
+@media (min-width:801px){.groupLandscapeSplit{grid-template-columns:minmax(0,4fr) minmax(0,1fr)!important}.groupProfilePage .groupTabs,.sectionProfileTabs{justify-content:center!important}}
 .calendarDay.selected b{background:#2e66a3;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
 
 /* v88 Android-style create-post controls */
@@ -978,7 +978,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .androidGradingBox{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:10px 0}.androidGradingBox label{font-size:12px;color:#7b858c}.androidGradingBox input{width:100%;box-sizing:border-box;margin-top:4px;padding:8px;border:1px solid #d6dce0}
 .androidCreatePostStatus{font-size:13px;color:#a94442;min-height:18px}
 @media (max-width:700px){.androidDateRow{flex-wrap:wrap}.androidDateRow span{width:100%}.androidGradingBox{grid-template-columns:1fr}}
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .calendarAndroidPage .calendarMonthHeader,
   .calendarAndroidPage .calendarWeekLabels,
   .calendarAndroidPage .calendarGrid{width:40%;max-width:40%;margin-left:auto;margin-right:auto;box-sizing:border-box}
@@ -1012,17 +1012,17 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .groupLandscapeSplit{height:calc(100vh - 56px)!important;min-height:0!important;display:flex!important;flex-direction:column!important}
 .groupMainPane{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .groupMainPane #groupTabContent{min-height:0;overflow:auto;flex:1}
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .groupLandscapeSplit{display:grid!important;grid-template-columns:minmax(0,4fr) minmax(0,1fr)!important}
   .groupUpcomingPane{display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;overflow:hidden!important}
   .groupUpcomingPane #groupUpcomingContent{flex:1!important;min-height:0!important;overflow:auto!important;padding:8px!important}
   .groupUpcomingTab{display:none!important}
 }
-@media (max-aspect-ratio:4/3){.groupUpcomingPane{display:none!important}.groupMainPane{overflow:visible!important}.groupMainPane #groupTabContent{overflow:visible!important}}
+@media (max-width:800px){.groupUpcomingPane{display:none!important}.groupMainPane{overflow:visible!important}.groupMainPane #groupTabContent{overflow:visible!important}}
 .calendarAndroidPage{background:#fff;min-height:100%;overflow:auto}
 .calendarMonthWrap{width:100%}
 .calendarEventList{width:100%;padding:0 0 20px!important}
-@media (min-aspect-ratio:4/3){.calendarMonthWrap{width:40%;min-width:280px;margin:0 auto}.calendarMonthHeader,.calendarWeekLabels,.calendarGrid{width:100%!important;max-width:none!important;margin-left:0!important;margin-right:0!important}.calendarEventList{width:100%!important}}
+@media (min-width:801px){.calendarMonthWrap{width:40%;min-width:280px;margin:0 auto}.calendarMonthHeader,.calendarWeekLabels,.calendarGrid{width:100%!important;max-width:none!important;margin-left:0!important;margin-right:0!important}.calendarEventList{width:100%!important}}
 .assignmentAttachmentsButton{display:block;width:calc(100% - 32px);margin:10px 16px;padding:11px 14px;border:1px solid #d8dde2;border-radius:2px;background:#fff;color:#2e66a3;text-align:left;font:inherit;cursor:pointer}
 
 /* v91: Android message/composer and group resource/album fidelity */
@@ -1062,8 +1062,8 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .groupResourceRow>span:nth-child(2){font-size:15px!important;color:#333!important;overflow:hidden!important}
 .groupResourceRow>span:nth-child(2) b{font-weight:400!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 .groupResourceRow>span:last-child{font-size:26px!important;color:#888!important}
-@media (min-aspect-ratio:4/3){.groupLandscapeSplit{grid-template-columns:minmax(0,73fr) minmax(0,27fr)!important}.groupUpcomingPane{align-self:stretch!important}.groupUpcomingPane .homePaneHeader{flex:0 0 48px!important}.groupUpcomingPane #groupUpcomingContent{padding:8px!important}}
-@media (max-aspect-ratio:4/3){.groupUpcomingPane{display:none!important}.groupUpcomingTab{display:block!important}}
+@media (min-width:801px){.groupLandscapeSplit{grid-template-columns:minmax(0,73fr) minmax(0,27fr)!important}.groupUpcomingPane{align-self:stretch!important}.groupUpcomingPane .homePaneHeader{flex:0 0 48px!important}.groupUpcomingPane #groupUpcomingContent{padding:8px!important}}
+@media (max-width:800px){.groupUpcomingPane{display:none!important}.groupUpcomingTab{display:block!important}}
 /* Android course/assignment pager tabs use the blue app tab strip rather than white. */
 .sectionProfileTabs,.assignmentTabs{background:#002137!important;color:#fff!important}
 .sectionProfileTab,.assignmentTab{background:#002137!important;color:#fff!important}
@@ -1081,7 +1081,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .discussionNativePage{padding:0!important;background:#fff!important}
 .discussionTabs{margin:0!important;padding:0!important;border-radius:0!important}
 .discussionTabs .assignmentTab{margin:0!important}
-@media (min-aspect-ratio:4/3){
+@media (min-width:801px){
   .calendarAndroidPage{overflow:hidden!important}
   .calendarLandscapeMonth{display:grid!important;grid-template-columns:40% 60%!important;min-height:0;flex:1!important;height:100%!important}
   .calendarLandscapeMonth .calendarMonthWrap{width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}
@@ -1089,7 +1089,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
   .calendarLandscapeUpcoming .calendarEventList{flex:1!important;overflow:auto!important}
   .calendarSelectedDayList{display:none!important}
 }
-@media (max-aspect-ratio:4/3){.calendarLandscapeUpcoming{display:none!important}.calendarLandscapeMonth{display:block!important}}
+@media (max-width:800px){.calendarLandscapeUpcoming{display:none!important}.calendarLandscapeMonth{display:block!important}}
 
 /* v94: Android message pager has one blue tab strip and one active indicator */
 .messageTabs{height:48px!important;background:#002137!important;border-bottom:0!important;box-shadow:none!important;display:flex!important;justify-content:flex-start!important;overflow-x:auto!important}
@@ -1160,7 +1160,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .composeMessageDialog{position:relative;z-index:12001}
 #composeMessageDialog{z-index:2147483646!important;isolation:isolate}
 .resourceCollectionRow>span:last-child,.resourceFileRow>span:last-child{margin-left:auto!important;flex:0 0 24px!important;text-align:center}
-@media (min-aspect-ratio:4/3){.calendarAndroidPage{height:100%!important;min-height:0!important}}
+@media (min-width:801px){.calendarAndroidPage{height:100%!important;min-height:0!important}}
 
 /* v99: any remaining Schoology pager-style .tab controls use the same Android primary blue. */
 .schoologyPagerTabs,.pagerTabs{background:#002137!important}
@@ -2017,3 +2017,26 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .assignmentAttachmentDialog .assignmentAttachmentRow{background:var(--theme-surface,#202327);color:var(--theme-text,#e6e8eb);border-color:var(--theme-border,#3a3f46)}
 :root[data-theme="dark"] .assignmentAttachmentDialog .assignmentAttachmentRow:hover{background:var(--theme-surface-raised,#292d32)}
 :root[data-theme="dark"] .assignmentAttachmentDialog .appDialogActions button{background:transparent;color:var(--theme-blue,#7ab7ff)}
+
+/* Responsive split thresholds: two panes from 801px; three-pane course/profile layouts from 1000px. */
+@media (max-width:999px){
+ .profileAndroidPage.profileLandscapePage .profileLandscapePanes{display:none!important}
+ .profileAndroidPage.profileLandscapePage .profileTabs{display:flex!important}
+ .profileAndroidPage.profileLandscapePage #profileTabContent{display:block!important}
+ .courseLandscapePage{display:block!important;grid-template-columns:1fr!important;height:auto!important;min-height:100%!important;overflow:visible!important}
+ .courseLandscapePage .courseAppsSidePane,.courseLandscapePage .courseUpcomingPane{display:none!important}
+ .courseLandscapePage .courseMainPane{display:block!important;overflow:visible!important;min-height:100%!important}
+ .courseLandscapePage .sectionProfileTabs{display:flex!important;overflow-x:auto!important}
+ .courseLandscapePage .sectionProfileContent{display:block!important;overflow:visible!important}
+}
+@media (min-width:801px){
+ .schoolProfileUpcomingSplit{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);height:100%;min-height:0;overflow:hidden;background:#fff}
+ .schoolProfileUpcomingSchool{min-width:0;min-height:0;overflow:auto;padding:24px 20px;border-right:1px solid #d7dce0;background:#fff}
+ .schoolProfileUpcomingSchool h2{margin:0 0 12px;font-size:20px;font-weight:400;color:#34424c}
+ .schoolProfileUpcomingSchool p,.schoolProfileUpcomingDetail{font-size:14px;line-height:1.5;color:#68757e}
+ .schoolProfileUpcomingEvents{min-width:0;min-height:0;overflow:auto}
+ .schoolProfileUpcomingHeading{height:48px;padding:15px 16px;font-size:15px;font-weight:500;border-bottom:1px solid #d7dce0;color:#34424c;background:#fff}
+}
+@media (max-width:800px){.schoolProfileUpcomingSplit{display:block}.schoolProfileUpcomingSchool{display:none}.schoolProfileUpcomingEvents{min-width:0}}
+:root[data-theme="dark"] .schoolProfileUpcomingSplit,:root[data-theme="dark"] .schoolProfileUpcomingSchool,:root[data-theme="dark"] .schoolProfileUpcomingEvents,:root[data-theme="dark"] .schoolProfileUpcomingHeading{background:var(--theme-surface,#202328)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .schoolProfileUpcomingSchool h2,:root[data-theme="dark"] .schoolProfileUpcomingSchool p,:root[data-theme="dark"] .schoolProfileUpcomingDetail{color:var(--theme-text,#e6e8eb)!important}

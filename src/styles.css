@@ -2000,3 +2000,20 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .assignmentAttachmentIcon img{display:block;width:32px;height:32px;object-fit:contain;flex:0 0 32px}
 .assignmentAttachmentIcon{flex:0 0 32px;width:32px;height:36px}
 :root[data-theme="dark"] .assignmentAttachmentIcon img{filter:none}
+
+/* Android 2026.06.0 assignment info: attachment count button and list dialog. */
+.assignmentAttachmentsButton{display:block;width:calc(100% - 32px);margin:10px 16px 12px;padding:11px 14px;border:1px solid var(--theme-border,#d8dde2);border-radius:2px;background:var(--theme-surface,#fff);color:var(--theme-blue,#2e66a3);text-align:left;font:inherit;cursor:pointer}
+.assignmentAttachmentDialog{padding:20px 0 8px!important;width:min(480px,calc(100vw - 40px))!important;max-height:min(620px,calc(100vh - 48px))!important;overflow:hidden}
+.assignmentAttachmentDialog h2{padding:0 24px;margin:0 0 10px!important;flex:0 0 auto}
+.assignmentAttachmentDialog .assignmentAttachmentList{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;max-height:calc(100vh - 190px);overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--theme-border,#e1e4e8);border-bottom:1px solid var(--theme-border,#e1e4e8)}
+.assignmentAttachmentDialog .assignmentAttachmentRow{align-items:center;gap:16px;min-height:56px;padding:8px 24px;background:transparent;color:var(--theme-text,#263238);border-color:var(--theme-border,#eceff1)}
+.assignmentAttachmentDialog .assignmentAttachmentIcon{flex:0 0 32px;width:32px;height:36px}
+.assignmentAttachmentDialog .assignmentAttachmentIcon img{display:block;width:32px;height:32px;object-fit:contain}
+.assignmentAttachmentDialog .assignmentAttachmentName{flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.35;font-size:14px}
+.assignmentAttachmentDialog .appDialogActions{flex:0 0 auto;margin:0;padding:8px 16px 0}
+.assignmentAttachmentDialog .appDialogActions button{background:transparent;color:var(--theme-blue,#2e66a3)}
+:root[data-theme="dark"] .assignmentAttachmentsButton{background:var(--theme-surface,#202327);color:var(--theme-blue,#7ab7ff);border-color:var(--theme-border,#3a3f46)}
+:root[data-theme="dark"] .assignmentAttachmentDialog .assignmentAttachmentList{border-color:var(--theme-border,#3a3f46)}
+:root[data-theme="dark"] .assignmentAttachmentDialog .assignmentAttachmentRow{background:var(--theme-surface,#202327);color:var(--theme-text,#e6e8eb);border-color:var(--theme-border,#3a3f46)}
+:root[data-theme="dark"] .assignmentAttachmentDialog .assignmentAttachmentRow:hover{background:var(--theme-surface-raised,#292d32)}
+:root[data-theme="dark"] .assignmentAttachmentDialog .appDialogActions button{background:transparent;color:var(--theme-blue,#7ab7ff)}

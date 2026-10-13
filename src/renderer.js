@@ -673,14 +673,15 @@ function collectAssignmentAttachments(a){
     const links=v.links?.link||v.links||v.link; if(links){for(const l of (Array.isArray(links)?links:(links.link||links.list||[links])))add('link',l)}
     const videos=v.videos?.video||v.videos||v.video; if(videos){for(const x of (Array.isArray(videos)?videos:(videos.video||videos.list||[videos])))add('video',x)}
     const embeds=v.embeds?.embed||v.embeds||v.embed; if(embeds){for(const x of (Array.isArray(embeds)?embeds:(embeds.embed||embeds.list||[embeds])))add('embed',x)}
-    const t=String(v.type||v.attachmentType||'').toLowerCase();if(t==='file'||v.download_path||v.downloadPath||v.resolveDownloadUrl)add('file',v);if(t==='link'||v.linkURL||v.linkUrl)add('link',v);
-    for(const k of ['attachment','attachments','files','links','videos','embeds','file','link','video','embed'])if(v[k]&&v[k]!==a)walk(v[k]);
+    const tools=v.external_tools?.external_tool||v.external_tools||v.external_tool||v.externalTool||v.tools;if(tools){for(const x of (Array.isArray(tools)?tools:(tools.external_tool||tools.list||[tools])))add('external_tool',x)}
+    const t=String(v.type||v.attachmentType||v.attachment_type||'').toLowerCase();if(t==='file'||v.download_path||v.downloadPath||v.resolveDownloadUrl)add('file',v);if(t==='link'||v.linkURL||v.linkUrl)add('link',v);if(['external_tool','externaltool','lti'].includes(t)||v.launch_url||v.launchUrl)add('external_tool',v);
+    for(const k of ['attachment','attachments','files','links','videos','embeds','external_tools','external_tool','tools','file','link','video','embed'])if(v[k]&&v[k]!==a)walk(v[k]);
   };walk(a);return out;
 }
 function assignmentAttachmentIcon(item){
-  if(item.kind==='video')return 'ic_attach_audio.png';
-  if(item.kind==='link')return 'attachment_link_icon.png';
-  if(item.kind==='embed')return 'attachment_link_icon.png';
+  if(item.kind==='video')return 'attachment_video_icon.png';
+  if(item.kind==='link'||item.kind==='external_tool')return 'attachment_link_icon.png';
+  if(item.kind==='embed')return 'attachment_embed_icon.png';
   const name=String(item.filename||item.fileName||item.title||item.fileTitle||'').replaceAll('#','').toLowerCase();
   const mime=String(item.filemime||item.fileMIME||item.mime||item.convertedFileMime||item.converted_filemime||'').toLowerCase().split(';')[0].trim();
   const extension=name.includes('.')?name.split('.').pop():'';
@@ -698,18 +699,46 @@ function assignmentAttachmentIcon(item){
   return 'attachment_document_icon.png';
 }
 
-async function showAssignmentAttachmentDialog(attachments){
-  const items=collectAssignmentAttachments(attachments);if(!items.length)return;
-  const actions=items.slice(0,50).map(item=>({label:String(item.title||item.fileTitle||item.filename||item.fileName||item.linkTitle||item.videoTitle||'Attachment'),action:async()=>{
-    try{
-      if(item.kind==='file'){
-        const url=item.resolveDownloadUrl||item.resolve_download_url||item.converted_download_path||item.convertedDownloadPath||item.download_path||item.downloadPath||item.url;if(!url)throw new Error('Schoology did not provide a file URL.');
-        const r=await A.downloadFile({url,filename:item.filename||item.fileName||item.title||'Schoology file',mime:item.filemime||item.fileMIME||'application/octet-stream'});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err);
-      }else if(item.kind==='link'||item.kind==='video'){const u=item.url||item.linkURL||item.linkUrl||item.href||item.videoURL||item.videoUrl;if(!u)throw new Error('Schoology did not provide a link URL.');await A.prepareWebSession();showEmbeddedWeb(u,item.linkTitle||item.title||item.videoTitle||'Link');}
-      else if(item.kind==='embed'){const code=item.embed_code||item.embedCode||'';if(code)showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),item.title||'Embedded content',{allowBrowser:false});}
-    }catch(e){alert('Unable to open attachment: '+e.message)}
-  }}));
-  actions.push({label:'Cancel',action:null});showAppDialog('Attachments',`${items.length} attachment${items.length===1?'':'s'}`,actions);
+async function openAssignmentAttachmentItem(item,button,dialog){
+  try{
+    if(item.kind==='file'){
+      const url=item.resolveDownloadUrl||item.resolve_download_url||item.converted_download_path||item.convertedDownloadPath||item.download_path||item.downloadPath||item.url;
+      if(!url)throw new Error('Schoology did not provide a file URL.');
+      const result=await downloadWithFeedback(button,{url,filename:item.filename||item.fileName||item.title||'Schoology file',mime:item.filemime||item.fileMIME||'application/octet-stream'});
+      const error=await A.openDownloadedFile({path:result.path});if(error)throw new Error(error);
+      dialog?.classList.remove('open');
+    }else if(item.kind==='link'||item.kind==='video'){
+      const url=item.url||item.linkURL||item.linkUrl||item.link_url||item.href||item.videoURL||item.videoUrl||item.video_url;
+      if(!url)throw new Error('Schoology did not provide a link URL.');
+      dialog?.classList.remove('open');
+      if(await routeSchoologyLink(url))return;
+      await A.prepareWebSession();showEmbeddedWeb(url,item.linkTitle||item.title||item.videoTitle||item.video_title||'Link');
+    }else if(item.kind==='embed'){
+      const code=item.embed_code||item.embedCode||'';
+      if(!code)throw new Error('Schoology did not provide embedded content.');
+      dialog?.classList.remove('open');
+      showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),item.title||'Embedded content',{allowBrowser:false});
+    }else if(item.kind==='external_tool'){
+      const url=item.launch_url||item.launchUrl||item.url||item.tool_url||item.toolUrl||item.web_url||item.webUrl;
+      if(!url)throw new Error('Schoology did not provide a launch URL for this tool.');
+      dialog?.classList.remove('open');
+      await A.prepareWebSession();showEmbeddedWeb(url,item.tool_name||item.toolName||item.title||'External Tool',{allowBrowser:false,lti:true});
+    }
+  }catch(error){dialog?.classList.remove('open');showAppDialog('Unable to open attachment',error.message||String(error))}
+}
+function showAssignmentAttachmentDialog(attachments){
+  const items=(Array.isArray(attachments)?attachments:collectAssignmentAttachments(attachments)).slice(0,50);
+  if(!items.length)return;
+  let dialog=document.getElementById('assignmentAttachmentDialog');
+  if(!dialog){dialog=document.createElement('div');dialog.id='assignmentAttachmentDialog';dialog.className='appDialogOverlay';document.body.appendChild(dialog)}
+  dialog.innerHTML=`<section class="appDialog assignmentAttachmentDialog" role="dialog" aria-modal="true" aria-labelledby="assignmentAttachmentDialogTitle"><h2 id="assignmentAttachmentDialogTitle">Attachments</h2><div class="assignmentAttachmentList">${items.map((item,index)=>`<button type="button" class="assignmentAttachmentRow" data-assignment-attachment-index="${index}"><span class="assignmentAttachmentIcon" aria-hidden="true"><img src="../assets/icons/${esc(assignmentAttachmentIcon(item))}" alt=""></span><span class="assignmentAttachmentName">${esc(String(item.title||item.fileTitle||item.filename||item.fileName||item.linkTitle||item.videoTitle||item.name||item.tool_name||'Attachment'))}</span></button>`).join('')}</div><div class="appDialogActions"><button type="button" id="assignmentAttachmentCancel">Cancel</button></div></section>`;
+  dialog.classList.add('open');
+  dialog.querySelector('#assignmentAttachmentCancel')?.addEventListener('click',()=>dialog.classList.remove('open'));
+  dialog.querySelectorAll('[data-assignment-attachment-index]').forEach(button=>button.addEventListener('click',async()=>{
+    const item=items[Number(button.dataset.assignmentAttachmentIndex)];
+    if(item)await openAssignmentAttachmentItem(item,button,dialog);
+  }));
+  dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.classList.remove('open')},{once:true});
 }
 async function showAssignment(sectionId,assignmentId){
   const c=document.getElementById('content'); if(!c)return;
@@ -759,26 +788,9 @@ async function showAssignment(sectionId,assignmentId){
       const el=document.getElementById('assignmentTabContent');if(!el)return;
       const teacherComment=typeof assignmentGrade.comment==='string'?assignmentGrade.comment:(assignmentGrade.comment?.comment||assignmentGrade.comment?.body||'');
       const attachmentItems=collectAssignmentAttachments(attachments);
-      const attachmentLabel=item=>String(item.title||item.fileTitle||item.filename||item.fileName||item.linkTitle||item.videoTitle||item.name||'Attachment');
-      el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${teacherComment?`<section class="assignmentTeacherComment"><b>Teacher Comment</b><div>${teacherComment}</div></section>`:''}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>${attachmentItems.length?`<section class="assignmentAttachmentSection"><h2>Attachments</h2><div class="assignmentAttachmentList">${attachmentItems.map((item,i)=>`<button class="assignmentAttachmentRow" data-assignment-attachment="${i}"><span class="assignmentAttachmentIcon" aria-hidden="true"><img src="../assets/icons/${assignmentAttachmentIcon(item)}" alt="" loading="lazy"></span><span class="assignmentAttachmentName">${esc(attachmentLabel(item))}</span><span class="assignmentAttachmentChevron" aria-hidden="true">›</span></button>`).join('')}</div></section>`:''}`;
+      el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div>${attachmentItems.length?`<button type="button" id="viewAssignmentAttachments" class="assignmentAttachmentsButton">View Attachments (${attachmentItems.length})</button>`:''}<div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${teacherComment?`<section class="assignmentTeacherComment"><b>Teacher Comment</b><div>${teacherComment}</div></section>`:''}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
       state.assignmentTab='info';state.assignmentSubpage=null;state.submissionMenu=false;syncToolbar();
-      window.__schoologyAssignmentAttachments=attachmentItems;
-      el.querySelectorAll('[data-assignment-attachment]').forEach(button=>button.addEventListener('click',async()=>{
-        const item=window.__schoologyAssignmentAttachments?.[Number(button.dataset.assignmentAttachment)];if(!item)return;
-        try{
-          if(item.kind==='file'){
-            const url=item.resolveDownloadUrl||item.resolve_download_url||item.converted_download_path||item.convertedDownloadPath||item.download_path||item.downloadPath||item.url;
-            if(!url)throw new Error('Schoology did not provide a file URL.');
-            const result=await downloadWithFeedback(button,{url,filename:item.filename||item.fileName||item.title||'Schoology file',mime:item.filemime||item.fileMIME||'application/octet-stream'});
-            const error=await A.openDownloadedFile({path:result.path});if(error)throw new Error(error);
-          }else if(item.kind==='link'||item.kind==='video'){
-            const url=item.url||item.linkURL||item.linkUrl||item.href||item.videoURL||item.videoUrl;if(!url)throw new Error('Schoology did not provide a link URL.');
-            if(await routeSchoologyLink(url))return;await A.prepareWebSession();showEmbeddedWeb(url,item.linkTitle||item.title||item.videoTitle||'Link');
-          }else if(item.kind==='embed'){
-            const code=item.embed_code||item.embedCode||'';if(code)showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),item.title||'Embedded content',{allowBrowser:false});
-          }
-        }catch(error){showAppDialog('Unable to open attachment',error.message||String(error))}
-      }));
+      document.getElementById('viewAssignmentAttachments')?.addEventListener('click',()=>showAssignmentAttachmentDialog(attachmentItems));
       hydrateMediaImages(el);
       el.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(!href||href==='#')return;ev.preventDefault();ev.stopPropagation();try{const result=await A.openExternal(href);if(result)showAppDialog('Unable to open link',result)}catch(e){showAppDialog('Unable to open assignment link',e.message||String(e))}}));
     };

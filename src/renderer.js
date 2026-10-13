@@ -678,9 +678,9 @@ function collectAssignmentAttachments(a){
   };walk(a);return out;
 }
 function assignmentAttachmentIcon(item){
-  if(item.kind==='video')return 'attachment_video_icon.png';
+  if(item.kind==='video')return 'ic_attach_audio.png';
   if(item.kind==='link')return 'attachment_link_icon.png';
-  if(item.kind==='embed')return 'attachment_embed_icon.png';
+  if(item.kind==='embed')return 'attachment_link_icon.png';
   const name=String(item.filename||item.fileName||item.title||item.fileTitle||'').replaceAll('#','').toLowerCase();
   const mime=String(item.filemime||item.fileMIME||item.mime||item.convertedFileMime||item.converted_filemime||'').toLowerCase().split(';')[0].trim();
   const extension=name.includes('.')?name.split('.').pop():'';

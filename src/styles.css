@@ -1995,3 +1995,8 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .messagesAndroidPage .messageTabs .messageTab,
 .messagesAndroidPage .messageTabs .messageTab.active{border-bottom-color:transparent!important}
 .messagesAndroidPage .messageTabs .messageTab.active:after{display:block!important}
+
+/* Assignment attachment icons use the original Android drawable assets. */
+.assignmentAttachmentIcon img{display:block;width:32px;height:32px;object-fit:contain;flex:0 0 32px}
+.assignmentAttachmentIcon{flex:0 0 32px;width:32px;height:36px}
+:root[data-theme="dark"] .assignmentAttachmentIcon img{filter:none}

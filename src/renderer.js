@@ -677,6 +677,27 @@ function collectAssignmentAttachments(a){
     for(const k of ['attachment','attachments','files','links','videos','embeds','file','link','video','embed'])if(v[k]&&v[k]!==a)walk(v[k]);
   };walk(a);return out;
 }
+function assignmentAttachmentIcon(item){
+  if(item.kind==='video')return 'attachment_video_icon.png';
+  if(item.kind==='link')return 'attachment_link_icon.png';
+  if(item.kind==='embed')return 'attachment_embed_icon.png';
+  const name=String(item.filename||item.fileName||item.title||item.fileTitle||'').replaceAll('#','').toLowerCase();
+  const mime=String(item.filemime||item.fileMIME||item.mime||item.convertedFileMime||item.converted_filemime||'').toLowerCase().split(';')[0].trim();
+  const extension=name.includes('.')?name.split('.').pop():'';
+  const guess=mime||({pdf:'application/pdf',ppt:'application/vnd.ms-powerpoint',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',txt:'text/plain',csv:'text/csv',zip:'application/zip',mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',aac:'audio/aac',ogg:'audio/ogg',mp4:'video/mp4',mov:'video/quicktime',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[extension]||'');
+  if(guess.startsWith('video')||guess.startsWith('audio'))return 'ic_attach_audio.png';
+  if(guess.startsWith('text'))return 'ic_attach_text.png';
+  if(guess.startsWith('image'))return 'ic_attach_image.png';
+  if(guess.startsWith('application')){
+    if(guess.includes('pdf'))return 'ic_attach_app_pdf.png';
+    if(guess.includes('presentation')||guess.includes('powerpoint'))return 'ic_attach_app_ppt.png';
+    if(guess.includes('sheet')||guess.includes('excel'))return 'ic_attach_app_excel.png';
+    if(guess.includes('document')||guess.includes('msword'))return 'ic_attach_app_word.png';
+    if(guess.includes('zip'))return 'ic_attach_app_zip.png';
+  }
+  return 'attachment_document_icon.png';
+}
+
 async function showAssignmentAttachmentDialog(attachments){
   const items=collectAssignmentAttachments(attachments);if(!items.length)return;
   const actions=items.slice(0,50).map(item=>({label:String(item.title||item.fileTitle||item.filename||item.fileName||item.linkTitle||item.videoTitle||'Attachment'),action:async()=>{
@@ -739,7 +760,7 @@ async function showAssignment(sectionId,assignmentId){
       const teacherComment=typeof assignmentGrade.comment==='string'?assignmentGrade.comment:(assignmentGrade.comment?.comment||assignmentGrade.comment?.body||'');
       const attachmentItems=collectAssignmentAttachments(attachments);
       const attachmentLabel=item=>String(item.title||item.fileTitle||item.filename||item.fileName||item.linkTitle||item.videoTitle||item.name||'Attachment');
-      el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div>${attachmentItems.length?`<section class="assignmentAttachmentSection"><h2>Attachments</h2><div class="assignmentAttachmentList">${attachmentItems.map((item,i)=>`<button class="assignmentAttachmentRow" data-assignment-attachment="${i}"><span class="assignmentAttachmentIcon" aria-hidden="true">📎</span><span class="assignmentAttachmentName">${esc(attachmentLabel(item))}</span><span class="assignmentAttachmentChevron" aria-hidden="true">›</span></button>`).join('')}</div></section>`:''}<div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${teacherComment?`<section class="assignmentTeacherComment"><b>Teacher Comment</b><div>${teacherComment}</div></section>`:''}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>`;
+      el.innerHTML=`<div class="assignmentInfoHeader"><h1>${esc(at.title||'Assignment')}</h1><div>${esc(at.due||'')}</div></div><div class="assignmentDescription">${html||'<span class="muted">No description.</span>'}</div>${teacherComment?`<section class="assignmentTeacherComment"><b>Teacher Comment</b><div>${teacherComment}</div></section>`:''}<div class="assignmentMeta">${at.max_points!=null?`<span>${esc(at.max_points)} points</span>`:''}</div>${attachmentItems.length?`<section class="assignmentAttachmentSection"><h2>Attachments</h2><div class="assignmentAttachmentList">${attachmentItems.map((item,i)=>`<button class="assignmentAttachmentRow" data-assignment-attachment="${i}"><span class="assignmentAttachmentIcon" aria-hidden="true"><img src="../assets/icons/${assignmentAttachmentIcon(item)}" alt="" loading="lazy"></span><span class="assignmentAttachmentName">${esc(attachmentLabel(item))}</span><span class="assignmentAttachmentChevron" aria-hidden="true">›</span></button>`).join('')}</div></section>`:''}`;
       state.assignmentTab='info';state.assignmentSubpage=null;state.submissionMenu=false;syncToolbar();
       window.__schoologyAssignmentAttachments=attachmentItems;
       el.querySelectorAll('[data-assignment-attachment]').forEach(button=>button.addEventListener('click',async()=>{

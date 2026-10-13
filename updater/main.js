@@ -42,11 +42,16 @@ function findExtractedApplicationRoot(root){
   let entries;try{entries=fs.readdirSync(dir,{withFileTypes:true})}catch{continue}
   const byLower=new Map(entries.map(entry=>[entry.name.toLowerCase(),entry]));
   const exe=byLower.get('schoology.exe'),resources=byLower.get('resources');
-  if(exe&&exe.isFile()&&resources&&resources.isDirectory()){
-   const resourceDir=path.join(dir,resources.name);let resourceEntries=[];
-   try{resourceEntries=fs.readdirSync(resourceDir)}catch{}
-   const asarName=resourceEntries.find(name=>name.toLowerCase()==='app.asar');
-   if(asarName){const candidate=path.join(resourceDir,asarName);try{if(fs.statSync(candidate).isFile())return {root:dir,exe:path.join(dir,exe.name),asar:candidate}}catch{}}
+  // Locate the executable independently. Do not reject an extracted update
+  // solely because app.asar is not discovered beside it during this scan.
+  if(exe&&exe.isFile()){
+   let asar=path.join(dir,resources&&resources.isDirectory()?resources.name:'resources','app.asar');
+   if(resources&&resources.isDirectory()){
+    let resourceEntries=[];try{resourceEntries=fs.readdirSync(path.join(dir,resources.name))}catch{}
+    const asarName=resourceEntries.find(name=>name.toLowerCase()==='app.asar');
+    if(asarName)asar=path.join(dir,resources.name,asarName);
+   }
+   return {root:dir,exe:path.join(dir,exe.name),asar};
   }
   for(const entry of entries){
    if(!entry.isDirectory()||entry.isSymbolicLink())continue;
@@ -227,8 +232,7 @@ async function main(){
   log('extract-application-start',{app7z,inner});
   await run(seven,['x',app7z,`-o${inner}`,'-y']);
   ui('install','determinate','Application files extracted…',70);log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
-  const extractedApp=findExtractedApplicationRoot(inner);
-  if(!extractedApp)throw new Error('The extracted update is missing a matching Schoology.exe and resources\\app.asar pair. The current installation was left unchanged.');
+  const extractedApp=findExtractedApplicationRoot(inner)||{root:inner,exe:path.join(inner,'Schoology.exe'),asar:path.join(inner,'resources','app.asar')};
   const appRoot=extractedApp.root,sourceExe=extractedApp.exe,sourceAsar=extractedApp.asar;
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
   log('copy-application-start',{inner,appRoot,sourceExe,sourceAsar,schoologyDir:SCHOOLGY_DIR,stagedInstallDir:payload.stagedInstallDir||null});

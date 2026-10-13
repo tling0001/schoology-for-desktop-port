@@ -814,8 +814,16 @@ function create(){
   win.webContents.on('did-attach-webview',(_event,guest)=>{
     attachedGuestWebContents.add(guest);
     const applyGuestTheme=()=>styleAttachedGuest(guest);
-    applyGuestTheme();
+    // Set the guest background at navigation start, then inject the stylesheet
+    // as soon as Chromium commits the document rather than waiting for load end.
+    guest.on('did-start-navigation',(_navigationEvent,_url,isInPlace,isMainFrame)=>{
+      if(isMainFrame&&!isInPlace){try{guest.setBackgroundColor?.(isDarkAppearance()?'#17191c':'#ffffff')}catch{}}
+    });
+    guest.on('did-frame-navigate',(_navigationEvent,_url,_statusCode,_statusText,isMainFrame)=>{
+      if(isMainFrame)applyGuestTheme();
+    });
     guest.on('dom-ready',applyGuestTheme);
+    applyGuestTheme();
     guest.once('destroyed',()=>attachedGuestWebContents.delete(guest));
   });
   win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});

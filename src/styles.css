@@ -2111,3 +2111,78 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidSwitchRow input[type="checkbox"],:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidCheckRow:has(#createEventComments) input[type="checkbox"]{background:#3a3f46!important;border-color:#656c75!important}
 :root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidSwitchRow input[type="checkbox"]:checked,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidCheckRow:has(#createEventComments) input[type="checkbox"]:checked{background:#244b73!important;border-color:#244b73!important}
 @media(max-width:640px){#createPostDialog.createEventDialogOverlay{padding:12px!important}#createPostDialog .androidCreateEventDialog{width:calc(100vw - 24px)!important;max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 24px)!important;border-radius:8px!important}#createPostDialog .androidCreateEventDialog .androidDateRow{flex-wrap:wrap!important}#createPostDialog .androidCreateEventDialog .androidDateRow>span{width:100%!important}}
+
+
+/* v163: responsive School profile Upcoming split, Android event dialog, and settings switches. */
+.settingRow .settingSwitch{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:28px;margin-left:14px}
+.settingRow .settingSwitchInput{position:absolute!important;inset:0!important;width:42px!important;height:28px!important;margin:0!important;opacity:0!important;cursor:pointer;z-index:2}
+.settingRow .settingSwitchTrack{position:relative;width:38px;height:22px;display:block;border-radius:999px;background:#c4cbd1;border:2px solid #aeb7bf;transition:background .16s ease,border-color .16s ease;pointer-events:none}
+.settingRow .settingSwitchTrack:after{content:"";position:absolute;width:14px;height:14px;left:2px;top:2px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transition:transform .16s ease,background .16s ease}
+.settingRow .settingSwitchInput:checked+.settingSwitchTrack{background:#002137;border-color:#002137}
+.settingRow .settingSwitchInput:checked+.settingSwitchTrack:after{transform:translateX(16px);width:16px;height:16px;left:0;top:1px}
+.settingRow .settingSwitchInput:focus-visible+.settingSwitchTrack{outline:2px solid #3183c8;outline-offset:3px}
+.settingRow .settingSwitchInput:disabled+.settingSwitchTrack{opacity:.45}
+:root[data-theme="dark"] .settingRow .settingSwitchTrack{background:#454b52;border-color:#59616a}
+:root[data-theme="dark"] .settingRow .settingSwitchInput:checked+.settingSwitchTrack{background:#7ab7ff;border-color:#7ab7ff}
+:root[data-theme="dark"] .settingRow .settingSwitchTrack:after{background:#f5f7fa}
+
+/* Event creation follows event_post_layout.xml: a centered dialog, action bar, native switches and compact rows. */
+#createPostDialog.createEventDialogOverlay{padding:16px!important;align-items:center!important;justify-content:center!important;overflow:auto!important;background:rgba(0,33,55,.38)!important}
+#createPostDialog .androidCreateEventDialog{width:min(560px,calc(100vw - 32px))!important;max-width:560px!important;height:auto!important;max-height:calc(100dvh - 32px)!important;min-height:0!important;border-radius:3px!important;box-shadow:0 12px 40px #0004!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:#fff!important}
+#createPostDialog .androidCreateEventDialog>.androidCommentDialogBar{flex:0 0 48px!important;height:48px!important;min-height:48px!important;background:#002137!important;box-shadow:none!important}
+#createPostDialog .androidCreateEventDialog .androidDialogTitle{font-size:16px!important;font-weight:500!important}
+#createPostDialog .androidCreateEventDialog .androidCreatePostBody{flex:1 1 auto!important;min-height:0!important;max-height:calc(100dvh - 80px)!important;overflow:auto!important;padding:8px 0 20px!important;gap:0!important;background:#fff!important}
+#createPostDialog .androidCreateEventDialog .androidPostToField{min-height:40px!important;margin:16px 16px 8px 20px!important;padding:10px 8px!important;border:1px solid #cbd1d6!important;border-radius:2px!important;background:#fff!important;color:#263744!important;font-size:13px!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchRow{position:relative!important;min-height:44px!important;margin:0 16px 4px 28px!important;padding-right:48px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;color:#687681!important;font-size:14px!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchInput{position:absolute!important;right:12px!important;width:42px!important;height:28px!important;margin:0!important;opacity:0!important;cursor:pointer!important;z-index:2!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchTrack{position:absolute!important;right:16px!important;top:50%!important;transform:translateY(-50%)!important;width:30px!important;height:14px!important;border-radius:10px!important;background:#c4cbd0!important;pointer-events:none!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchTrack:after{content:""!important;position:absolute!important;left:-3px!important;top:-3px!important;width:20px!important;height:20px!important;border-radius:50%!important;background:#f7f7f7!important;border:1px solid #adb5bb!important;box-shadow:0 1px 2px #0002!important;transition:transform .15s ease,background .15s ease!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchInput:checked+.androidEventSwitchTrack{background:#80a9bf!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchInput:checked+.androidEventSwitchTrack:after{transform:translateX(15px)!important;background:#002137!important;border-color:#002137!important}
+#createPostDialog .androidCreateEventDialog .androidEventSwitchInput:focus-visible+.androidEventSwitchTrack{outline:2px solid #3183c8!important;outline-offset:3px!important}
+#createPostDialog .androidCreateEventDialog .androidEventWhenRow{min-height:44px!important;margin:0 16px 8px 28px!important;display:flex!important;align-items:center!important;gap:8px!important;background:transparent!important;color:#687681!important}
+#createPostDialog .androidCreateEventDialog .androidEventWhenRow>span{flex:0 0 auto!important;font-size:14px!important}
+#createPostDialog .androidCreateEventDialog .androidEventWhenRow input{min-width:0!important;width:1px!important;flex:1 1 0!important;min-height:38px!important;padding:7px 5px!important;border:1px solid #cbd1d6!important;border-radius:2px!important;background:#fff!important;color:#263744!important;font-size:13px!important}
+#createPostDialog .androidCreateEventDialog .androidEventEndToggle{min-height:44px!important;margin:4px 16px 4px 28px!important;display:flex!important;align-items:center!important;gap:10px!important;color:#687681!important;font-size:14px!important}
+#createPostDialog .androidCreateEventDialog .androidEventEndToggle input{accent-color:#002137!important;width:18px!important;height:18px!important;margin:0!important}
+#createPostDialog .androidCreateEventDialog #createEventEndWrap{margin-left:36px!important}
+#createPostDialog .androidCreateEventDialog #createPostTitle,#createPostDialog .androidCreateEventDialog #createPostBody{display:block!important;width:calc(100% - 32px)!important;margin:8px 16px 0!important;padding:12px 0!important;border:0!important;border-bottom:1px solid #d8dde0!important;border-radius:0!important;outline:0!important;background:transparent!important;color:#263744!important;font:15px Arial,sans-serif!important}
+#createPostDialog .androidCreateEventDialog #createPostTitle{min-height:44px!important}
+#createPostDialog .androidCreateEventDialog #createPostBody{min-height:100px!important;resize:vertical!important}
+#createPostDialog .androidCreateEventDialog .androidEventRsvpRow{display:flex!important;align-items:center!important;gap:16px!important;min-height:48px!important;padding:0 28px!important;margin:2px 0!important}
+#createPostDialog .androidCreateEventDialog .androidEventRsvpRow .androidFieldLabel{display:block!important;margin:0!important;min-width:54px!important;font-size:13px!important;color:#687681!important}
+#createPostDialog .androidCreateEventDialog #createEventRsvp{flex:1!important;width:auto!important;min-height:42px!important;margin:0!important;padding:6px 8px!important;border:1px solid #cbd1d6!important;border-radius:2px!important;background:#fff!important;color:#263744!important}
+#createPostDialog .androidCreateEventDialog .createPostAttachmentChoices{margin:12px 16px 0!important;padding:8px 0!important;border-top:1px solid #e0e4e7!important;background:#fff!important;display:flex!important;gap:1px!important}
+#createPostDialog .androidCreateEventDialog .createPostAttachmentChoices button{flex:1!important;min-height:64px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:6px!important;border:0!important;background:#f6f7f8!important;color:#2e66a3!important;font-size:13px!important}
+#createPostDialog .androidCreateEventDialog .createPostAttachmentChoices button img{width:24px!important;height:24px!important;object-fit:contain!important;display:block!important}
+#createPostDialog .androidCreateEventDialog #createPostAttachmentList{margin:0 16px!important}
+#createPostDialog .androidCreateEventDialog .androidCreatePostStatus{margin:8px 16px!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidCreatePostBody,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidPostToField,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog #createPostTitle,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog #createPostBody,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidEventWhenRow input,:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog #createEventRsvp{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#3a3f46)!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidEventSwitchTrack{background:#454b52!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidEventSwitchInput:checked+.androidEventSwitchTrack{background:#6087a2!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .androidEventSwitchInput:checked+.androidEventSwitchTrack:after{background:#8abfff!important;border-color:#8abfff!important}
+:root[data-theme="dark"] #createPostDialog .androidCreateEventDialog .createPostAttachmentChoices button{background:var(--theme-surface-raised,#292d32)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#3a3f46)!important}
+
+/* School profile mirrors the Home/Groups split: all tabs on the left, Upcoming fixed on the right. */
+.schoolProfileLandscapeSplit{display:flex;flex-direction:column;min-height:0;width:100%}
+.schoolProfileMainPane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.schoolProfileUpcomingPane{display:none}
+.schoolProfileUpcomingContent{min-height:0;overflow:visible;padding:8px}
+.schoolProfileUpcomingContent .upcomingAssignment{padding:10px 8px;min-height:64px}
+.schoolProfileUpcomingContent .assignmentIcon{width:32px;flex:0 0 32px}
+.schoolProfileUpcomingContent .assignmentInfo b{font-size:14px}
+.schoolProfileUpcomingContent .assignmentInfo small{font-size:11px}
+@media (min-width:801px){
+ .schoolProfileNativePage{height:calc(100vh - 56px);min-height:0;overflow:hidden}
+ .schoolProfileLandscapeSplit{display:grid;grid-template-columns:minmax(0,4fr) minmax(260px,1fr);height:100%;min-height:0;overflow:hidden}
+ .schoolProfileMainPane{height:100%;min-height:0;overflow:hidden}
+ .schoolProfileMainPane .schoolProfileTabs{flex:0 0 48px}
+ .schoolProfileMainPane .schoolProfileHeader,.schoolProfileMainPane .schoolProfileDivider{flex:0 0 auto}
+ .schoolProfileMainPane .schoolProfileTabContent{flex:1 1 auto;min-height:0;overflow:auto}
+ .schoolProfileTabs [data-school-profile-upcoming-tab="true"]{display:none}
+ .schoolProfileUpcomingPane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-left:1px solid #d9dee2;background:#fff}
+ .schoolProfileUpcomingPane .homePaneHeader{flex:0 0 48px}
+ .schoolProfileUpcomingContent{flex:1;overflow:auto;padding:8px}
+}
+:root[data-theme="dark"] .schoolProfileUpcomingPane{background:var(--theme-surface,#202327);border-color:var(--theme-border,#3a3f46)}
+:root[data-theme="dark"] .schoolProfileUpcomingContent .upcomingAssignment{background:var(--theme-surface,#202327);border-color:var(--theme-border,#3a3f46);color:var(--theme-text,#e6e8eb)}

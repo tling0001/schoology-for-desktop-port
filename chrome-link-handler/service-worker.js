@@ -5,6 +5,7 @@ function categoryFor(url){
   const u=new URL(url);if(u.protocol!=='https:')return null;
   const host=u.hostname.toLowerCase();if(!(host==='lms.lausd.net'||host==='app.schoology.com'||host==='schoology.com'||host.endsWith('.schoology.com')))return null;
   const path=u.pathname.replace(/\/+$/,'')||'/';
+  if(/^\/apps(?:\/|$)/i.test(path)||/^\/resources\/apps(?:\/|$)/i.test(path))return null;
   if(/^\/(oauth|login|logout|mobile_login_success|saml|auth)(?:\/|$)/i.test(path))return null;
   if(['oauth_token','oauth_callback','request_token','login_landing_dest','sgyInitialPage'].some(k=>u.searchParams.has(k)))return null;
   if(u.searchParams.get('__schoology_desktop_external')==='1')return null;

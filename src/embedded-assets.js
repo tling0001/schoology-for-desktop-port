@@ -1,0 +1,8 @@
+/* Rewrites packaged app images/logos/icons to embedded data URLs. */
+(()=>{
+ const assets=window.__schoologyEmbeddedAssets||{};
+ const resolve=value=>{if(typeof value!=='string'||!value||/^data:/i.test(value))return null;let p=value;try{p=decodeURIComponent(new URL(value,document.baseURI).pathname)}catch{}p=p.replace(/\\/g,'/');const i=p.lastIndexOf('/assets/');if(i>=0)p=p.slice(i+1);else if(p.startsWith('../assets/'))p=p.slice(3);else if(p.startsWith('./assets/'))p=p.slice(2);else if(!p.startsWith('assets/'))return null;return assets[p]||null};
+ const rewrite=el=>{if(!el||el.nodeType!==1)return;for(const attr of ['src','poster']){const v=el.getAttribute(attr);if(v){const d=resolve(v);if(d&&d!==v)el.setAttribute(attr,d)}}const srcset=el.getAttribute('srcset');if(srcset&&!/^data:/i.test(srcset)){const v=srcset.split(',').map(p=>{const b=p.trim().split(/\s+/),d=resolve(b[0]);if(d)b[0]=d;return b.join(' ')}).join(', ');if(v!==srcset)el.setAttribute('srcset',v)}const style=el.getAttribute('style');if(style&&/url\(/i.test(style)){const v=style.replace(/url\((['"]?)([^'")]+)\1\)/gi,(all,q,u)=>{const d=resolve(u.trim());return d?'url("'+d+'")':all});if(v!==style)el.setAttribute('style',v)}};
+ const scan=root=>{if(root?.nodeType===1)rewrite(root);root?.querySelectorAll?.('[src],[srcset],[poster],[style]').forEach(rewrite)};
+ scan(document.documentElement);new MutationObserver(rs=>{for(const r of rs){if(r.type==='attributes')rewrite(r.target);for(const n of r.addedNodes||[])scan(n)}}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['src','srcset','poster','style']});
+})();

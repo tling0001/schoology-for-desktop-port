@@ -24,14 +24,19 @@ const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 const attachedGuestWebContents=new Set();
 const attachedGuestThemeCss=new WeakMap();
-function styleAttachedGuest(guest){
+const attachedGuestThemeGeneration=new WeakMap();
+async function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  try{if(dark)guest.enableWebContentsForceDark?.();else guest.disableWebContentsForceDark?.()}catch(e){console.warn('Could not apply native Force Dark to shared webview:',e.message)}
-  const previous=attachedGuestThemeCss.get(guest);if(previous){try{guest.removeInsertedCSS?.(previous)}catch{};attachedGuestThemeCss.delete(guest)}
+  try{guest.disableWebContentsForceDark?.()}catch{}
+  const previous=attachedGuestThemeCss.get(guest);if(previous){try{await guest.removeInsertedCSS?.(previous)}catch{};attachedGuestThemeCss.delete(guest)}
   if(!dark||typeof guest.insertCSS!=='function')return;
-  const css=`:root,html{color-scheme:dark!important;background-color:#17191c!important}body{background-color:#17191c!important;color:#e6e8eb!important}body,main,[role="main"],#page,#container,#content,.page,.content,.main-content,.main-content-wrapper,.page-container,.content-wrapper{background-color:#17191c!important;color:#e6e8eb!important}a:not([role="button"]){color:#8abfff!important}input,textarea,select,[contenteditable="true"]{color-scheme:dark!important;background-color:#292d32!important;color:#e6e8eb!important;border-color:#3a3f46!important}`;
-  try{Promise.resolve(guest.insertCSS(css,{cssOrigin:'user'})).then(key=>{if(key&&guest.isDestroyed?.())return;if(key)attachedGuestThemeCss.set(guest,key)}).catch(e=>console.warn('Could not inject shared-webview dark theme:',e.message))}catch(e){console.warn('Could not inject shared-webview dark theme:',e.message)}
+  const generation=(attachedGuestThemeGeneration.get(guest)||0)+1;attachedGuestThemeGeneration.set(guest,generation);
+  let lightPage=true;
+  try{lightPage=await guest.executeJavaScript(`(()=>{const nodes=[document.querySelector('main'),document.querySelector('[role="main"]'),document.querySelector('#content'),document.querySelector('#container'),document.body,document.documentElement].filter(Boolean);const surfaces=nodes.map(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el).backgroundColor,m=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);if(!m||Number(m[4]??1)<.08)return null;return {area:Math.max(0,r.width)*Math.max(0,r.height),luminance:(.2126*Number(m[1])+.7152*Number(m[2])+.0722*Number(m[3]))}}).filter(Boolean).sort((a,b)=>b.area-a.area);return surfaces.length?surfaces[0].luminance>=145:true})()`,true)}catch{lightPage=true}
+  if(guest.isDestroyed?.()||attachedGuestThemeGeneration.get(guest)!==generation||!lightPage)return;
+  const css=`html{filter:invert(1) hue-rotate(180deg)!important;background:#17191c!important}html img,html picture,html video,html canvas,html svg,html iframe,html object,html embed,html [style*="background-image"]{filter:invert(1) hue-rotate(180deg)!important}html input,html textarea,html select,html [contenteditable="true"]{color-scheme:dark!important}`;
+  try{const key=await guest.insertCSS(css,{cssOrigin:'user'});if(key&&!guest.isDestroyed?.()&&attachedGuestThemeGeneration.get(guest)===generation)attachedGuestThemeCss.set(guest,key)}catch(e){console.warn('Could not apply shared-webview shade inversion:',e.message)}
 }
 let pendingSchoologyDeepLink=null;
 let rendererDeepLinkReady=false;

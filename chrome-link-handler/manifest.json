@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Schoology Desktop Link Handler",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Open LAUSD Schoology and app.schoology.com links in Schoology Desktop Port.",
   "permissions": [
     "tabs",
@@ -19,5 +19,11 @@
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/schoology.png",
+    "32": "icons/schoology.png",
+    "48": "icons/schoology.png",
+    "128": "icons/schoology.png"
   }
 }

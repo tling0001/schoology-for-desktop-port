@@ -2186,3 +2186,8 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 }
 :root[data-theme="dark"] .schoolProfileUpcomingPane{background:var(--theme-surface,#202327);border-color:var(--theme-border,#3a3f46)}
 :root[data-theme="dark"] .schoolProfileUpcomingContent .upcomingAssignment{background:var(--theme-surface,#202327);border-color:var(--theme-border,#3a3f46);color:var(--theme-text,#e6e8eb)}
+/* Center the three primary sign-in actions vertically without moving school-selection subpages. */
+.loginActionCenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:90%;max-width:420px;margin:0!important}
+.loginActionCenter .primary,.loginActionCenter .secondary,.loginActionCenter .qrButton{margin-top:14px}
+.loginActionCenter .primary:first-child{margin-top:0}
+@media(max-height:620px){.loginActionCenter{top:54%;max-height:calc(100vh - 120px);overflow:auto;padding:8px 0}}

@@ -83,8 +83,7 @@ function scheduleSelfCleanup(innerPath,outerPath,runTempPath){
   const finalizeLog=path.join(app.getPath('temp'),'schoology-update-finalize.log');
   try{
     // The helper's own resources may be locked while it runs. A detached
-    // PowerShell process waits for this PID, removes only updater-owned files,
-    // then starts the installed application with its install folder as cwd.
+    // PowerShell process waits for this PID, then removes only updater-owned files.
     const ps=value=>String(value).replace(/'/g,"''");
     const lines=[
       "$ErrorActionPreference='Continue'",
@@ -99,7 +98,6 @@ function scheduleSelfCleanup(innerPath,outerPath,runTempPath){
       ...(resourcesInsideTemp?[ `$resources='${ps(resourcesPath)}'; if(Test-Path -LiteralPath $resources){Remove-Item -LiteralPath $resources -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'updater-resources-cleaned'}` ]:[]),
       `$runTemp='${ps(runTemp)}'; if(Test-Path -LiteralPath $runTemp){Remove-Item -LiteralPath $runTemp -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('run-temp-cleaned '+$runTemp)}`,
       `$stagedInstall='${ps(stagedInstallDir)}'; if($stagedInstall -and (Test-Path -LiteralPath $stagedInstall)){Remove-Item -LiteralPath $stagedInstall -Recurse -Force -ErrorAction SilentlyContinue; if(Test-Path -LiteralPath $stagedInstall){Write-FinalizeLog 'staged-install-cleanup-failed'}else{Write-FinalizeLog ('staged-install-cleaned '+$stagedInstall)}}`,
-      `$exe='${ps(schoologyExe)}'; $work='${ps(SCHOOLGY_DIR)}'; if(Test-Path -LiteralPath $exe){$launched=$false;for($attempt=1;$attempt -le 2 -and -not $launched;$attempt++){try{$p=Start-Process -FilePath $exe -WorkingDirectory $work -PassThru -ErrorAction Stop; Write-FinalizeLog ('schoology-start-requested pid='+$p.Id+' attempt='+$attempt); Start-Sleep -Seconds 3; if(Get-Process -Id $p.Id -ErrorAction SilentlyContinue){Write-FinalizeLog 'schoology-launched';$launched=$true}else{Write-FinalizeLog ('schoology-process-exited-early attempt='+$attempt);Start-Sleep -Milliseconds 700}}catch{Write-FinalizeLog ('schoology-launch-error attempt='+$attempt+' '+$_);Start-Sleep -Milliseconds 700}}if(-not $launched){Write-FinalizeLog 'schoology-launch-failed-after-retries'}}else{Write-FinalizeLog ('schoology-exe-missing '+$exe)}`
     ];
     const encoded=Buffer.from(lines.join('\r\n'),'utf16le').toString('base64');
     const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-EncodedCommand',encoded],{detached:true,stdio:'ignore',windowsHide:true});
@@ -182,6 +180,26 @@ function waitForPid(pid,timeoutMs=15000){
     tick();
   });
 }
+function launchSchoologyBeforeUpdaterExit(){
+  return new Promise((resolve,reject)=>{
+    if(!fs.existsSync(schoologyExe)){
+      const error=new Error('Schoology.exe is missing after the update.');
+      log('schoology-launch-before-exit-failed',{error:error.message,schoologyExe});
+      return reject(error);
+    }
+    let settled=false;
+    const child=spawn(schoologyExe,[],{cwd:SCHOOLGY_DIR,detached:true,stdio:'ignore',windowsHide:true});
+    child.once('error',error=>{
+      log('schoology-launch-before-exit-error',{error:error?.stack||String(error),schoologyExe});
+      if(!settled){settled=true;reject(error);}
+    });
+    child.once('spawn',()=>{
+      child.unref();
+      log('schoology-launch-requested-before-updater-exit',{pid:child.pid,schoologyExe,workingDirectory:SCHOOLGY_DIR});
+      if(!settled){settled=true;resolve(child.pid||true);}
+    });
+  });
+}
 async function main(){
   if(process.platform!=='win32')throw new Error('This updater is Windows-only.');
   if(!payload.url)throw new Error('The Schoology installer URL is missing.');
@@ -231,6 +249,14 @@ async function main(){
   if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   if(!fs.existsSync(schoologyExe))throw new Error('The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.');
   ui('install','done','Complete',100);cleanupArtifacts([installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
+  try{
+    await launchSchoologyBeforeUpdaterExit();
+  }catch(error){
+    // The update itself has completed. Keep the updater's cleanup path intact,
+    // but record the launch failure instead of falsely reporting install failure.
+    log('schoology-relaunch-failed-after-update',{error:error?.stack||String(error)});
+    status('Update complete, but Schoology could not be launched.');
+  }
   scheduleSelfCleanup(inner,outer,runTempDir);
   if(win&&!win.isDestroyed())win.close();
   app.quit();

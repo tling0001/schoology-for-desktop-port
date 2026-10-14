@@ -26,13 +26,21 @@
     console.error('Schoology renderer promise error:',msg);
     showError('Schoology could not start',msg);
   });
-  if(!window.schoology){
-    showError('Schoology could not start','The Electron authentication bridge is unavailable.');
-    return;
+  // Electron normally exposes the preload bridge before page scripts run. Give
+  // startup a short grace period before showing a fatal error, rather than treating
+  // a transient initialization delay as a permanently missing bridge.
+  let bridgeAttempts=0;
+  function loadRendererWhenReady(){
+    if(!window.schoology){
+      if(++bridgeAttempts<20){setTimeout(loadRendererWhenReady,50);return;}
+      showError('Schoology could not start','The Electron authentication bridge is unavailable.');
+      return;
+    }
+    const s=document.createElement('script');
+    s.src='renderer.js';
+    s.onload=function(){console.log('Schoology renderer loaded.');};
+    s.onerror=function(){showError('Schoology could not start','renderer.js could not be loaded.');};
+    document.body.appendChild(s);
   }
-  const s=document.createElement('script');
-  s.src='renderer.js';
-  s.onload=function(){console.log('Schoology renderer loaded.');};
-  s.onerror=function(){showError('Schoology could not start','renderer.js could not be loaded.');};
-  document.body.appendChild(s);
+  loadRendererWhenReady();
 })();

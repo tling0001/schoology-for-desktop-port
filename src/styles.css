@@ -2202,3 +2202,40 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .login.loginAnimated:has(#schoolLogin) .loginBottom{position:absolute;left:0;right:0;bottom:24px;width:100%;margin:0;text-align:center}
 .login.loginAnimated:has(#schoolLogin)>.error{position:absolute;left:5%;right:5%;bottom:58px;max-width:420px;margin:0 auto}
 @media(max-height:560px){.login.loginAnimated:has(#schoolLogin){justify-content:flex-start;padding-top:110px;padding-bottom:60px}.login.loginAnimated:has(#schoolLogin) .logo{top:12px;width:210px;margin-left:-105px}.login.loginAnimated:has(#schoolLogin) .loginBody{margin-top:8px}}
+
+
+/* Final login centering correction: loginActionCenter used to remain absolutely positioned
+   inside a flex-centered login page, pushing the action group off-center on some sizes. */
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter{
+  position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;
+  transform:none!important;width:min(420px,calc(100vw - 40px))!important;max-width:420px!important;
+  margin:0!important;display:flex!important;flex-direction:column;align-items:stretch;justify-content:center;
+  flex:0 0 auto;gap:14px;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.loginIconButton{
+  width:100%!important;min-width:0;min-height:54px;margin:0!important;padding:12px 16px;
+  box-sizing:border-box;display:flex!important;align-items:center;justify-content:center;gap:10px;
+  text-align:center;white-space:normal;line-height:1.25;transform:none!important;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.loginIconButton>img{
+  flex:0 0 28px;width:28px;height:28px;object-fit:contain;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.loginIconButton>span{
+  flex:0 1 auto;min-width:0;text-align:center;overflow-wrap:anywhere;
+}
+.login.loginAnimated:has(#schoolLogin)>.loginBottom{
+  position:absolute;left:0;right:0;bottom:max(24px,env(safe-area-inset-bottom));width:100%;max-width:100%;
+  padding:8px 12px;border:0;background:transparent;color:#f4f5f5;font:inherit;font-size:14px;
+  text-align:center;text-decoration:none;cursor:pointer;transform:none!important;
+}
+.login.loginAnimated:has(#schoolLogin)>.loginBottom:hover{text-decoration:underline}
+.login.loginAnimated:has(#schoolLogin)>.error{
+  position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;
+  transform:none!important;width:min(420px,calc(100vw - 40px));max-width:420px;margin:12px auto 54px;
+}
+@media(max-height:560px){
+  .login.loginAnimated:has(#schoolLogin){justify-content:flex-start;padding-top:110px;padding-bottom:58px;min-height:100vh}
+  .login.loginAnimated:has(#schoolLogin) .logo{top:12px;width:210px;margin-left:-105px}
+  .login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter{margin-top:8px!important;gap:8px}
+  .login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.loginIconButton{min-height:44px;padding:8px 12px}
+}

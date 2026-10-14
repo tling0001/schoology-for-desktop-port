@@ -23,20 +23,13 @@ const storeFile=path.join(stableUserData,'auth.json');
 const legacyStoreFile=path.join(legacyUserData,'auth.json');
 let win;
 const attachedGuestWebContents=new Set();
-const attachedGuestThemeCss=new WeakMap();
-const attachedGuestThemeGeneration=new WeakMap();
-async function styleAttachedGuest(guest){
+function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
   const dark=isDarkAppearance();
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  const generation=(attachedGuestThemeGeneration.get(guest)||0)+1;
-  attachedGuestThemeGeneration.set(guest,generation);
-  // The preload owns the document-start stylesheet. Do not gate early styling on executeJavaScript
-  // here: on a navigating guest, that promise may not settle
-  // until the remote page finishes loading, which caused the visible dark-mode delay.
-  if(typeof guest.executeJavaScript!=='function')return;
-  const script=dark?(`(()=>{const root=document.documentElement;if(!root)return false;const nodes=[document.querySelector('main'),document.querySelector('[role="main"]'),document.querySelector('#content'),document.querySelector('#container'),document.body,root].filter(Boolean);const surfaces=nodes.map(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el).backgroundColor,m=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);if(!m||Number(m[4]??1)<.08)return null;return {area:Math.max(0,r.width)*Math.max(0,r.height),luminance:(.2126*Number(m[1])+.7152*Number(m[2])+.0722*Number(m[3]))}}).filter(Boolean).sort((a,b)=>b.area-a.area);const lightPage=surfaces.length?surfaces[0].luminance>=145:true;if(lightPage)root.setAttribute('data-schoology-shade-inversion','true');else root.removeAttribute('data-schoology-shade-inversion');return lightPage})()`):`(()=>{document.documentElement?.removeAttribute('data-schoology-shade-inversion');return false})()`;
-  try{const lightPage=await guest.executeJavaScript(script,true);if(guest.isDestroyed?.()||attachedGuestThemeGeneration.get(guest)!==generation)return;if(dark&&lightPage)console.debug('Shared webview shade inversion enabled for light page')}catch(e){console.warn('Could not update shared-webview theme state:',e.message)}
+  // The document-start guest preload handles page styling. This message is only
+  // for live theme changes; navigation never removes/reinstalls the stylesheet.
+  try{guest.send('shared-webview-theme-changed',{dark})}catch{}
 }
 let pendingSchoologyDeepLink=null;
 let rendererDeepLinkReady=false;
@@ -102,11 +95,11 @@ try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not se
 nativeTheme.on('updated',()=>{for(const guest of attachedGuestWebContents)styleAttachedGuest(guest)});
 try{
   // Keep overlay scrollbars process-wide, but limit dark transformation to shared webviews.
-  const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter','WebContentsForceDark'];
+  const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
   const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
-  const disabledFeatures=[...new Set([...existingDisabled.filter(v=>!requiredFeatures.includes(v)),'FluentScrollbar'])];
+  const disabledFeatures=[...new Set([...existingDisabled.filter(v=>!requiredFeatures.includes(v)),'FluentScrollbar','WebContentsForceDark'])];
   app.commandLine.removeSwitch('enable-features');app.commandLine.removeSwitch('disable-features');
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));
   app.commandLine.appendSwitch('disable-features',disabledFeatures.join(','));
@@ -822,17 +815,13 @@ function create(){
   });
   win.webContents.on('did-attach-webview',(_event,guest)=>{
     attachedGuestWebContents.add(guest);
-    const applyGuestTheme=()=>styleAttachedGuest(guest);
-    // Set the guest background at navigation start, then inject the stylesheet
-    // as soon as Chromium commits the document rather than waiting for load end.
+    try{guest.setBackgroundColor?.(isDarkAppearance()?'#17191c':'#ffffff')}catch{}
+    // The guest preload installs its stylesheet at document start and determines
+    // whether the page is light-themed at DOMContentLoaded. Do not reinject on
+    // navigation/DOM-ready: removing styles there caused visible flashes.
     guest.on('did-start-navigation',(_navigationEvent,_url,isInPlace,isMainFrame)=>{
       if(isMainFrame&&!isInPlace){try{guest.setBackgroundColor?.(isDarkAppearance()?'#17191c':'#ffffff')}catch{}}
     });
-    guest.on('did-frame-navigate',(_navigationEvent,_url,_statusCode,_statusText,isMainFrame)=>{
-      if(isMainFrame)applyGuestTheme();
-    });
-    guest.on('dom-ready',applyGuestTheme);
-    applyGuestTheme();
     guest.once('destroyed',()=>attachedGuestWebContents.delete(guest));
   });
   win.once('ready-to-show',()=>{try{if(overlay)win.setTitleBarOverlay?.({color:'#002137',symbolColor:'#ffffff',height:56})}catch{};win.show();});
@@ -846,6 +835,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('renderer-deep-link-ready',()=>{rendererDeepLinkReady=true;setImmediate(flushPendingSchoologyDeepLink);return true});
   ipcMain.handle('auth-state',()=>loadAuth());
   ipcMain.handle('get-theme-mode',()=>readThemeMode());
+  ipcMain.on('get-shared-webview-theme',event=>{event.returnValue={dark:isDarkAppearance()}});
   ipcMain.handle('app-version',()=>app.getVersion());
   ipcMain.handle('get-open-schoology-links',()=>readAppSettings().openSchoologyLinks);
   ipcMain.handle('set-open-schoology-links',(_,enabled)=>saveOpenSchoologyLinks(enabled));

@@ -1,4 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
+const path=require('path');
+const {pathToFileURL}=require('url');
+const webviewPreloadUrl=pathToFileURL(path.join(__dirname,'webview-preload.js')).href;
 try{document.documentElement.dataset.electronPlatform=process.platform}catch{}
 
 // The QR decoder is loaded as a browser script in app.html. Sandboxed preloads
@@ -51,5 +54,6 @@ contextBridge.exposeInMainWorld('schoology',{
   openExternal:u=>ipcRenderer.invoke('open-external',u),
   openChromeExtensionFolder:()=>ipcRenderer.invoke('open-chrome-extension-folder'),
   platform:process.platform,
+  webviewPreloadUrl,
   pickFile:()=>ipcRenderer.invoke('pick-file')
 });

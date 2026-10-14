@@ -188,7 +188,7 @@ function launchSchoologyBeforeUpdaterExit(){
       return reject(error);
     }
     let settled=false;
-    const child=spawn(schoologyExe,[],{cwd:SCHOOLGY_DIR,detached:true,stdio:'ignore',windowsHide:true});
+    const child=spawn(schoologyExe,[],{cwd:SCHOOLGY_DIR,detached:true,stdio:'ignore',windowsHide:false});
     child.once('error',error=>{
       log('schoology-launch-before-exit-error',{error:error?.stack||String(error),schoologyExe});
       if(!settled){settled=true;reject(error);}

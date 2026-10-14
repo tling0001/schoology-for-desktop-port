@@ -1,7 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
-const path=require('path');
-const {pathToFileURL}=require('url');
-const webviewPreloadUrl=pathToFileURL(path.join(__dirname,'webview-preload.js')).href;
+// Sandboxed Electron preloads expose only a restricted require() API. Resolve the
+// sibling preload URL from the current local document instead of requiring Node's path module.
+const webviewPreloadUrl=new URL('webview-preload.js',window.location.href).href;
 try{document.documentElement.dataset.electronPlatform=process.platform}catch{}
 
 // The QR decoder is loaded as a browser script in app.html. Sandboxed preloads

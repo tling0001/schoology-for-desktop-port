@@ -31,11 +31,11 @@ async function styleAttachedGuest(guest){
   try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
   const generation=(attachedGuestThemeGeneration.get(guest)||0)+1;
   attachedGuestThemeGeneration.set(guest,generation);
-  // The preload owns the document-start stylesheet. Do not await executeJavaScript
-  // before injecting CSS here: on a navigating guest, that promise may not settle
+  // The preload owns the document-start stylesheet. Do not gate early styling on executeJavaScript
+  // here: on a navigating guest, that promise may not settle
   // until the remote page finishes loading, which caused the visible dark-mode delay.
   if(typeof guest.executeJavaScript!=='function')return;
-  const script=dark?(`(()=>{const root=document.documentElement;if(!root)return false;const nodes=[document.querySelector('main'),document.querySelector('[role="main"]'),document.querySelector('#content'),document.querySelector('#container'),document.body,root].filter(Boolean);const surfaces=nodes.map(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el).backgroundColor,m=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);if(!m||Number(m[4]??1)<.08)return null;return {area:Math.max(0,r.width)*Math.max(0,r.height),luminance:(.2126*Number(m[1])+.7152*Number(m[2])+.0722*Number(m[3]))}}).filter(Boolean).sort((a,b)=>b.area-a.area);const lightPage=surfaces.length?surfaces[0].luminance>=145:true;root.toggleAttribute('data-schoology-shade-inversion',lightPage);return lightPage})()`):`(()=>{document.documentElement?.removeAttribute('data-schoology-shade-inversion');return false})()`;
+  const script=dark?(`(()=>{const root=document.documentElement;if(!root)return false;const nodes=[document.querySelector('main'),document.querySelector('[role="main"]'),document.querySelector('#content'),document.querySelector('#container'),document.body,root].filter(Boolean);const surfaces=nodes.map(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el).backgroundColor,m=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);if(!m||Number(m[4]??1)<.08)return null;return {area:Math.max(0,r.width)*Math.max(0,r.height),luminance:(.2126*Number(m[1])+.7152*Number(m[2])+.0722*Number(m[3]))}}).filter(Boolean).sort((a,b)=>b.area-a.area);const lightPage=surfaces.length?surfaces[0].luminance>=145:true;if(lightPage)root.setAttribute('data-schoology-shade-inversion','true');else root.removeAttribute('data-schoology-shade-inversion');return lightPage})()`):`(()=>{document.documentElement?.removeAttribute('data-schoology-shade-inversion');return false})()`;
   try{const lightPage=await guest.executeJavaScript(script,true);if(guest.isDestroyed?.()||attachedGuestThemeGeneration.get(guest)!==generation)return;if(dark&&lightPage)console.debug('Shared webview shade inversion enabled for light page')}catch(e){console.warn('Could not update shared-webview theme state:',e.message)}
 }
 let pendingSchoologyDeepLink=null;

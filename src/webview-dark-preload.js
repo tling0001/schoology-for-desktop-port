@@ -26,7 +26,7 @@ const {ipcRenderer}=require('electron');
     const root=document.documentElement;
     if(!darkEnabled){root.removeAttribute(ATTR);return}
     if(!document.body)return;
-    root.toggleAttribute(ATTR,pageIsLight());
+    if(pageIsLight())root.setAttribute(ATTR,'true');else root.removeAttribute(ATTR);
   };
   const scheduleApply=()=>{
     if(paintQueued)return;paintQueued=true;
@@ -39,7 +39,7 @@ const {ipcRenderer}=require('electron');
   };
   const initialize=()=>{
     if(!observe()){
-      if(!rootObserver){rootObserver=new MutationObserver(()=>{if(observe())rootObserver.disconnect()});rootObserver.observe(document,{subtree:true,childList:true})}
+      if(!rootObserver){rootObserver=new MutationObserver(()=>{if(observe()){rootObserver.disconnect();rootObserver=null;initialize()}});rootObserver.observe(document,{subtree:true,childList:true})}
       return;
     }
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scheduleApply,{once:true});

@@ -91,8 +91,18 @@ function resolveThemeColors(mode=readThemeMode()){const dark=isDarkAppearance(mo
 function getWindowsInstallContext(){const installDir=path.dirname(path.resolve(app.getPath('exe')));const programFiles=[process.env.ProgramFiles||'C:\\Program Files',process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)'];const normalized=value=>path.resolve(value).replace(/[\\/]+$/,'').toLowerCase();const allUsers=programFiles.some(root=>normalized(installDir)===normalized(path.join(root,'Schoology')));return {installDir,installMode:allUsers?'all-users':'per-user'};}
 // Keep Chromium's native color scheme in sync with Schoology's saved appearance.
 // The renderer data-theme attribute does not affect nativeTheme or isolated webviews.
-try{nativeTheme.themeSource=readThemeMode()}catch(e){console.error('Could not set native theme source:',e.message)}
-nativeTheme.on('updated',()=>{for(const guest of attachedGuestWebContents)styleAttachedGuest(guest)});
+function syncElectronTheme(mode=readThemeMode()){
+  const selected=['light','dark','system'].includes(mode)?mode:'system';
+  try{nativeTheme.themeSource=selected}catch(e){console.error('Could not set native theme source:',e.message)}
+  // Keep Electron's native color scheme and BrowserWindow backing surface
+  // aligned with the theme selected in Schoology.
+  try{if(win&&!win.isDestroyed())win.setBackgroundColor(isDarkAppearance(selected)?'#17191c':'#ffffff')}catch{}
+}
+syncElectronTheme();
+nativeTheme.on('updated',()=>{
+  try{if(win&&!win.isDestroyed())win.setBackgroundColor(isDarkAppearance()?'#17191c':'#ffffff')}catch{}
+  for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);
+});
 try{
   // Keep overlay scrollbars process-wide, but limit dark transformation to shared webviews.
   const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
@@ -795,6 +805,7 @@ function create(){
     ? (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#002137',symbolColor:'#ffffff',height:56}} : {})
     : (overlay ? {titleBarStyle:'hidden',titleBarOverlay:{color:'#002137',symbolColor:'#ffffff',height:56}} : {});
   win=new BrowserWindow({show:false,backgroundColor:'#002137',icon:appIcon,...titlebarOptions,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,webviewTag:true,media:true}});
+  try{win.setBackgroundColor(isDarkAppearance()?'#17191c':'#ffffff')}catch{}
   win.removeMenu();
   win.webContents.setUserAgent(CLIENT_UA+'; Android 14; Pixel 8');
   win.webContents.on('did-fail-load',(_,code,desc)=>console.error('Schoology renderer failed to load:',code,desc));
@@ -844,7 +855,7 @@ app.whenReady().then(()=>{
   ipcMain.handle('set-desktop-notifications',(_,enabled)=>saveDesktopNotifications(enabled));
   ipcMain.handle('get-notification-sound',()=>readAppSettings().notificationSound);
   ipcMain.handle('set-notification-sound',(_,enabled)=>saveNotificationSound(enabled));
-  ipcMain.handle('set-theme-mode',(_,mode)=>{const safe=saveThemeMode(mode);try{nativeTheme.themeSource=safe}catch(e){console.error('Could not update native theme source:',e.message)}for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);return safe});
+  ipcMain.handle('set-theme-mode',(_,mode)=>{const safe=saveThemeMode(mode);syncElectronTheme(safe);for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);return safe});
   ipcMain.handle('get-experimental-force-dark',()=>isDarkAppearance());
   ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{saveExperimentalForceDark(!!enabled);return isDarkAppearance()});
   ipcMain.handle('network-online',()=>require('electron').net.isOnline());

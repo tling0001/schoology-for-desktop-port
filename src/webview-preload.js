@@ -6,7 +6,6 @@ let dark=false;
 try{dark=!!ipcRenderer.sendSync('get-shared-webview-theme')?.dark}catch(error){console.warn('Could not read initial shared-webview theme:',error?.message||error)}
 
 const THEME_CSS=`
-  html[data-schoology-theme-pending="true"] body{visibility:hidden!important}
   html[data-schoology-shade-inversion="true"]{color-scheme:dark!important;background:#17191c!important}
   html[data-schoology-shade-inversion="true"] body{filter:invert(1) hue-rotate(180deg)!important}
   html[data-schoology-shade-inversion="true"] img,
@@ -50,38 +49,27 @@ function isLightPage(){
     return !textColor||(.2126*textColor.r+.7152*textColor.g+.0722*textColor.b)<145;
   }catch{return true}
 }
-function applyTheme(nextDark,{pending=false}={}){
+function applyTheme(nextDark){
   dark=!!nextDark;
   const ready=ensureStyles();
   const root=document.documentElement;
   if(!ready||!root)return;
   if(!dark){root.removeAttribute('data-schoology-theme-pending');root.removeAttribute('data-schoology-shade-inversion');return}
-  if(pending)root.setAttribute('data-schoology-theme-pending','true');
   const invert=isLightPage();
   root.toggleAttribute('data-schoology-shade-inversion',invert);
   root.removeAttribute('data-schoology-theme-pending');
 }
 function scheduleInitialTheme(){
-  if(!ensureStyles())return false;
-  const root=document.documentElement;
-  if(dark)root.setAttribute('data-schoology-theme-pending','true');
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>applyTheme(dark),{once:true});
-  else applyTheme(dark);
-  return true;
+  // Do not install theme CSS while the page is still loading. This one-shot
+  // callback reads the latest theme value after the document is fully loaded.
+  if(document.readyState==='complete'){applyTheme(dark);return}
+  window.addEventListener('load',()=>applyTheme(dark),{once:true});
 }
-function start(){
-  if(scheduleInitialTheme())return;
-  const observer=new MutationObserver(()=>{if(scheduleInitialTheme())observer.disconnect()});
-  observer.observe(document,{childList:true,subtree:true});
-}
-start();
+scheduleInitialTheme();
 ipcRenderer.on(THEME_CHANNEL,(_event,payload)=>{
   dark=!!payload?.dark;
-  if(dark&&document.readyState==='loading'){
-    ensureStyles();
-    document.documentElement?.setAttribute('data-schoology-theme-pending','true');
-    document.addEventListener('DOMContentLoaded',()=>applyTheme(dark),{once:true});
-    return;
-  }
+  // Theme changes during navigation update state only; the load callback
+  // applies the theme once the page has finished loading.
+  if(document.readyState!=='complete')return;
   applyTheme(dark);
 });

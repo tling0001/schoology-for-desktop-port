@@ -98,7 +98,7 @@ try{
   const requiredFeatures=['OverlayScrollbar','OverlayScrollbarFlashAfterAnyScrollUpdate','OverlayScrollbarFlashWhenMouseEnter'];
   const existingEnabled=app.commandLine.getSwitchValue('enable-features').split(',').map(v=>v.trim()).filter(Boolean);
   const existingDisabled=app.commandLine.getSwitchValue('disable-features').split(',').map(v=>v.trim()).filter(Boolean);
-  const enabledFeatures=[...new Set([...existingEnabled,...requiredFeatures])];
+  const enabledFeatures=[...new Set([...existingEnabled.filter(v=>v!=='WebContentsForceDark'),...requiredFeatures])];
   const disabledFeatures=[...new Set([...existingDisabled.filter(v=>!requiredFeatures.includes(v)),'FluentScrollbar','WebContentsForceDark'])];
   app.commandLine.removeSwitch('enable-features');app.commandLine.removeSwitch('disable-features');
   app.commandLine.appendSwitch('enable-features',enabledFeatures.join(','));

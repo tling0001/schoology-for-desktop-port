@@ -61,16 +61,27 @@ function applyTheme(nextDark,{pending=false}={}){
   root.toggleAttribute('data-schoology-shade-inversion',invert);
   root.removeAttribute('data-schoology-theme-pending');
 }
-function start(){
-  if(!ensureStyles()){
-    const observer=new MutationObserver(()=>{if(ensureStyles()){observer.disconnect();applyTheme(dark,{pending:dark})}});
-    observer.observe(document,{childList:true,subtree:true});
-    return;
-  }
+function scheduleInitialTheme(){
+  if(!ensureStyles())return false;
   const root=document.documentElement;
   if(dark)root.setAttribute('data-schoology-theme-pending','true');
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>applyTheme(dark),{once:true});
   else applyTheme(dark);
+  return true;
+}
+function start(){
+  if(scheduleInitialTheme())return;
+  const observer=new MutationObserver(()=>{if(scheduleInitialTheme())observer.disconnect()});
+  observer.observe(document,{childList:true,subtree:true});
 }
 start();
-ipcRenderer.on(THEME_CHANNEL,(_event,payload)=>applyTheme(!!payload?.dark,{pending:!!payload?.dark&&document.readyState==='loading'}));
+ipcRenderer.on(THEME_CHANNEL,(_event,payload)=>{
+  dark=!!payload?.dark;
+  if(dark&&document.readyState==='loading'){
+    ensureStyles();
+    document.documentElement?.setAttribute('data-schoology-theme-pending','true');
+    document.addEventListener('DOMContentLoaded',()=>applyTheme(dark),{once:true});
+    return;
+  }
+  applyTheme(dark);
+});

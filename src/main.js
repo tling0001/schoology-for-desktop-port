@@ -27,16 +27,16 @@ const attachedGuestThemeCss=new WeakMap();
 const attachedGuestThemeGeneration=new WeakMap();
 async function styleAttachedGuest(guest){
   if(!guest||guest.isDestroyed?.())return;
-  const dark=isDarkAppearance();try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
-  try{guest.disableWebContentsForceDark?.()}catch{}
-  const previous=attachedGuestThemeCss.get(guest);if(previous){try{await guest.removeInsertedCSS?.(previous)}catch{};attachedGuestThemeCss.delete(guest)}
-  if(!dark||typeof guest.insertCSS!=='function')return;
-  const generation=(attachedGuestThemeGeneration.get(guest)||0)+1;attachedGuestThemeGeneration.set(guest,generation);
-  let lightPage=true;
-  try{lightPage=await guest.executeJavaScript(`(()=>{const nodes=[document.querySelector('main'),document.querySelector('[role="main"]'),document.querySelector('#content'),document.querySelector('#container'),document.body,document.documentElement].filter(Boolean);const surfaces=nodes.map(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el).backgroundColor,m=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);if(!m||Number(m[4]??1)<.08)return null;return {area:Math.max(0,r.width)*Math.max(0,r.height),luminance:(.2126*Number(m[1])+.7152*Number(m[2])+.0722*Number(m[3]))}}).filter(Boolean).sort((a,b)=>b.area-a.area);return surfaces.length?surfaces[0].luminance>=145:true})()`,true)}catch{lightPage=true}
-  if(guest.isDestroyed?.()||attachedGuestThemeGeneration.get(guest)!==generation||!lightPage)return;
-  const css=`html{filter:invert(1) hue-rotate(180deg)!important;background:#17191c!important}html img,html picture,html video,html canvas,html svg,html iframe,html object,html embed,html [style*="background-image"]{filter:invert(1) hue-rotate(180deg)!important}html input,html textarea,html select,html [contenteditable="true"]{color-scheme:dark!important}`;
-  try{const key=await guest.insertCSS(css,{cssOrigin:'user'});if(key&&!guest.isDestroyed?.()&&attachedGuestThemeGeneration.get(guest)===generation)attachedGuestThemeCss.set(guest,key)}catch(e){console.warn('Could not apply shared-webview shade inversion:',e.message)}
+  const dark=isDarkAppearance();
+  try{guest.setBackgroundColor?.(dark?'#17191c':'#ffffff')}catch{}
+  const generation=(attachedGuestThemeGeneration.get(guest)||0)+1;
+  attachedGuestThemeGeneration.set(guest,generation);
+  // The preload owns the document-start stylesheet. Do not await executeJavaScript
+  // before injecting CSS here: on a navigating guest, that promise may not settle
+  // until the remote page finishes loading, which caused the visible dark-mode delay.
+  if(typeof guest.executeJavaScript!=='function')return;
+  const script=dark?(`(()=>{const root=document.documentElement;if(!root)return false;const nodes=[document.querySelector('main'),document.querySelector('[role="main"]'),document.querySelector('#content'),document.querySelector('#container'),document.body,root].filter(Boolean);const surfaces=nodes.map(el=>{const r=el.getBoundingClientRect(),c=getComputedStyle(el).backgroundColor,m=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);if(!m||Number(m[4]??1)<.08)return null;return {area:Math.max(0,r.width)*Math.max(0,r.height),luminance:(.2126*Number(m[1])+.7152*Number(m[2])+.0722*Number(m[3]))}}).filter(Boolean).sort((a,b)=>b.area-a.area);const lightPage=surfaces.length?surfaces[0].luminance>=145:true;root.toggleAttribute('data-schoology-shade-inversion',lightPage);return lightPage})()`):`(()=>{document.documentElement?.removeAttribute('data-schoology-shade-inversion');return false})()`;
+  try{const lightPage=await guest.executeJavaScript(script,true);if(guest.isDestroyed?.()||attachedGuestThemeGeneration.get(guest)!==generation)return;if(dark&&lightPage)console.debug('Shared webview shade inversion enabled for light page')}catch(e){console.warn('Could not update shared-webview theme state:',e.message)}
 }
 let pendingSchoologyDeepLink=null;
 let rendererDeepLinkReady=false;
@@ -811,6 +811,15 @@ function create(){
   win.webContents.on('did-navigate-in-page',(_,url)=>console.log('Schoology in-page navigation:',url));
   win.webContents.on('did-finish-load',()=>flushPendingSchoologyDeepLink());
   win.webContents.on('did-stop-loading',()=>flushPendingSchoologyDeepLink());
+  // A preload runs before the remote page's own scripts. The old approach
+  // waited for executeJavaScript() to inspect page colors before injecting CSS;
+  // that promise could resolve only after the full navigation, so dark mode flashed late.
+  win.webContents.on('will-attach-webview',(_event,webPreferences)=>{
+    webPreferences.preload=path.join(__dirname,'webview-dark-preload.js');
+    const args=Array.isArray(webPreferences.additionalArguments)?webPreferences.additionalArguments.filter(arg=>!String(arg).startsWith('--schoology-shared-webview-dark=')):[];
+    args.push(`--schoology-shared-webview-dark=${isDarkAppearance()?'1':'0'}`);
+    webPreferences.additionalArguments=args;
+  });
   win.webContents.on('did-attach-webview',(_event,guest)=>{
     attachedGuestWebContents.add(guest);
     const applyGuestTheme=()=>styleAttachedGuest(guest);

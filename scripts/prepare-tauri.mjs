@@ -11,12 +11,12 @@ copy(path.join(root, 'src'), path.join(out, 'src'));
 copy(path.join(root, 'assets'), path.join(out, 'assets'));
 const jsqr = path.join(root, 'node_modules', 'jsqr', 'dist', 'jsQR.js');
 if (fs.existsSync(jsqr)) {
-  const target = path.join(out, 'node_modules', 'jsqr', 'dist');
-  fs.mkdirSync(target, { recursive: true });
-  fs.copyFileSync(jsqr, path.join(target, 'jsQR.js'));
+  // Keep the staged frontend free of node_modules, which Tauri rejects.
+  fs.copyFileSync(jsqr, path.join(out, 'src', 'jsQR.js'));
 }
 const html = path.join(out, 'src', 'app.html');
 let page = fs.readFileSync(html, 'utf8');
+page = page.replace('../node_modules/jsqr/dist/jsQR.js', 'jsQR.js');
 if (!page.includes('tauri-bridge.js')) page = page.replace('<script src="appboot.js"></script>', '<script src="tauri-bridge.js"></script>\n<script src="appboot.js"></script>');
 fs.writeFileSync(html, page);
 // Custom Element names must contain a hyphen; Electron's built-in <webview>

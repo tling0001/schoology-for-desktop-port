@@ -10,14 +10,19 @@
     "dist:mac": "electron-builder --mac dmg --publish never",
     "dist:linux": "electron-builder --linux deb rpm --publish never",
     "build:updater": "electron-builder --config updater/electron-builder.yml --publish never",
-    "pre-dist:win": "npm run build:updater"
+    "pre-dist:win": "npm run build:updater",
+    "prepare:tauri": "node scripts/prepare-tauri.mjs",
+    "tauri:dev": "npm run prepare:tauri && tauri dev",
+    "tauri:build": "npm run prepare:tauri && tauri build"
   },
   "devDependencies": {
     "electron": "^39.1.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "@tauri-apps/cli": "^2.8.4"
   },
   "dependencies": {
-    "jsqr": "^1.4.0"
+    "jsqr": "^1.4.0",
+    "@tauri-apps/api": "^2.8.0"
   },
   "author": {
     "name": "Schoology Desktop Port",

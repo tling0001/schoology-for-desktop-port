@@ -2239,3 +2239,6 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
   .login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter{margin-top:8px!important;gap:8px}
   .login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.loginIconButton{min-height:44px;padding:8px 12px}
 }
+
+/* Tauri native title-bar overlay. The controls are omitted unless the saved overlay setting is on. */
+#tauriWindowControls{position:fixed;z-index:2147483000;top:0;right:0;width:138px;height:56px;display:flex;align-items:stretch;background:#002137;color:#fff;user-select:none;-webkit-user-select:none}#tauriWindowControls .tauriWindowDragArea{flex:1;min-width:0;-webkit-app-region:drag}#tauriWindowControls button{flex:0 0 46px;width:46px;height:56px;border:0;border-radius:0;background:transparent;color:inherit;font:20px/1 "Segoe UI",system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center}#tauriWindowControls button:hover{background:rgba(255,255,255,.15)}#tauriWindowControls button[data-window-action="close"]:hover{background:#c42b1c}#tauriWindowControls button:focus-visible{outline:2px solid #fff;outline-offset:-4px}html[data-window-controls-overlay="false"] #tauriWindowControls{display:none}

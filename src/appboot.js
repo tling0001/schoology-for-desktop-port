@@ -33,7 +33,7 @@
   function loadRendererWhenReady(){
     if(!window.schoology){
       if(++bridgeAttempts<20){setTimeout(loadRendererWhenReady,50);return;}
-      showError('Schoology could not start','The Electron authentication bridge is unavailable.');
+      showError('Schoology could not start','The native authentication bridge is unavailable.');
       return;
     }
     const s=document.createElement('script');

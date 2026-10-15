@@ -16,9 +16,6 @@
     "core:webview:allow-webview-close",
     "core:webview:allow-webview-position",
     "core:webview:allow-webview-size",
-    "core:webview:allow-webview-navigate",
-    "core:webview:allow-webview-reload",
-    "core:webview:allow-webview-eval",
     "core:webview:allow-clear-all-browsing-data"
   ]
 }

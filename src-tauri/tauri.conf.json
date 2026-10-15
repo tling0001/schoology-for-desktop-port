@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Schoology",
+  "version": "2026.6.0-port.178",
+  "identifier": "com.schoology.app",
+  "build": {
+    "beforeDevCommand": "npm run prepare:tauri",
+    "beforeBuildCommand": "npm run prepare:tauri",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../tauri-dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Schoology",
+        "width": 1200,
+        "height": 820,
+        "minWidth": 760,
+        "minHeight": 560,
+        "center": true,
+        "backgroundColor": "#ffffff",
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' asset: https: http://asset.localhost data: blob:; img-src 'self' asset: https: data: blob:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; connect-src 'self' ipc: http://ipc.localhost https: http: blob:; frame-src https: http: blob:; media-src 'self' https: blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "dmg",
+      "deb",
+      "rpm"
+    ],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "category": "Education",
+    "shortDescription": "Schoology desktop application",
+    "resources": {
+      "../chrome-link-handler/": "chrome-link-handler/"
+    },
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "runAfterFinish": true
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "schoology"
+        ]
+      }
+    }
+  }
+}

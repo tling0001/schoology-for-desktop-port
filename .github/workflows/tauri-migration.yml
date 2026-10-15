@@ -1,0 +1,50 @@
+name: Tauri migration builds (no release)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [tauri-migration]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Tauri ${{ matrix.platform }} build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            artifact: windows
+          - platform: macos
+            os: macos-latest
+            artifact: macos
+          - platform: linux
+            os: ubuntu-22.04
+            artifact: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+      - name: Install Linux Tauri dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build Tauri packages
+        run: npx tauri build
+      - name: Upload Tauri artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schoology-Tauri-${{ matrix.artifact }}
+          path: src-tauri/target/release/bundle/**/*
+          if-no-files-found: error
+          retention-days: 14

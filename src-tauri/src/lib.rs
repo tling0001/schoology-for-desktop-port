@@ -126,7 +126,7 @@ fn plaintext_header(token: &str, secret: &str, timestamp: i64) -> String {
 async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool) -> Result<reqwest::Response, String> {
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
     let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
-    let mut builder = client.request(method.parse().map_err(|e| e.to_string())?, url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "application/json");
+    let mut builder = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "application/json");
     if client_identity { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0"); }
     if let Some(a) = auth {
         let token = a.get("oauth_token").and_then(Value::as_str).unwrap_or("");
@@ -290,7 +290,7 @@ async fn fetch_image(app: &AppHandle, state: &HostState, raw: &str) -> Result<Va
     }
     let response = request.send().await.map_err(|e| e.to_string())?;
     if !response.status().is_success() { return Ok(Value::Null); }
-    let mime = response.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("image/png").split(';').next().unwrap_or("image/png");
+    let mime = response.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("image/png").split(';').next().unwrap_or("image/png").to_owned();
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
     if bytes.len() > 12 * 1024 * 1024 { return Err("Schoology image is too large to display.".into()); }
     Ok(json!(format!("data:{mime};base64,{}", BASE64.encode(bytes))))
@@ -300,7 +300,7 @@ async fn api_json(app: &AppHandle, state: &HostState, method: &str, url: Url, bo
     let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
     let header = signed_header(method, &url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp, &[])?;
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(90)).build().map_err(|e| e.to_string())?;
-    let mut request = client.request(method.parse().map_err(|e| e.to_string())?, url).header("User-Agent", ANDROID_UA).header("Accept", "application/json").header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0").header("Authorization", header).header("Cookie", MOBILE_COOKIE);
+    let mut request = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url).header("User-Agent", ANDROID_UA).header("Accept", "application/json").header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0").header("Authorization", header).header("Cookie", MOBILE_COOKIE);
     if let Some(value) = body {
         if json_body { request = request.json(&value); }
         else { request = request.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value)); }
@@ -421,7 +421,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 _ => true,
             }
         });
-    parent.window().add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
+    parent.add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
         .map_err(|e| format!("Could not create the embedded Schoology webview: {e}"))?;
     Ok(json!({"label":label,"created":true}))
 }
@@ -650,7 +650,8 @@ async fn poll_notifications(app: &AppHandle, state: &HostState) {
     } else { std::collections::HashSet::new() };
     let settings = read_json(app, "app-settings.json", json!({}));
     if same_user && settings.get("desktopNotifications").and_then(Value::as_bool).unwrap_or(true) {
-        let new_items: Vec<&Value> = items.iter().filter(|item| !seen.contains(&notification_key(item))).take(3).rev().collect();
+        let mut new_items: Vec<&Value> = items.iter().filter(|item| !seen.contains(&notification_key(item))).take(3).collect();
+        new_items.reverse();
         for item in &new_items {
             let body = notification_body(item);
             let title = item.get("title").or_else(|| item.get("type_label")).and_then(Value::as_str).unwrap_or("Schoology");
@@ -904,7 +905,7 @@ BACKUP="${{TARGET}}.schoology-backup-$$"
 if [ -e "$TARGET" ]; then mv "$TARGET" "$BACKUP"; fi
 if mv "$STAGED" "$TARGET"; then rm -rf "$BACKUP"; else [ ! -e "$BACKUP" ] || mv "$BACKUP" "$TARGET"; exit 1; fi
 open "$TARGET"
-"#, log=q(str(log_path)), installer=q(str(installer)), target=q(str(target_app)), staged=q(str(staged_path)), mount=q(str(mount_path)), pid=std::process::id());
+"#, log=q(log_path.to_string_lossy().as_ref()), installer=q(installer.to_string_lossy().as_ref()), target=q(target_app.to_string_lossy().as_ref()), staged=q(staged_path.to_string_lossy().as_ref()), mount=q(mount_path.to_string_lossy().as_ref()), pid=std::process::id());
     fs::write(&script_path, script).map_err(|e| e.to_string())?;
     #[cfg(unix)] {
         use std::os::unix::fs::PermissionsExt;

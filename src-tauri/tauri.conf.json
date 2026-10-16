@@ -52,7 +52,11 @@
         "installMode": "currentUser",
         "languages": [
           "English"
-        ]
+        ],
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "startMenuFolder": "Schoology",
+        "installerHooks": "nsis-hooks.nsi"
       }
     }
   },

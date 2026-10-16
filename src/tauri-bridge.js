@@ -1,6 +1,8 @@
 /* Tauri compatibility layer. Electron remains the supported release runtime until parity is complete. */
 (function () {
   'use strict';
+  // Match Electron: suppress the WebView's native browser context menu.
+  document.addEventListener('contextmenu', event => event.preventDefault(), true);
   const tauri = window.__TAURI__;
   if (!tauri?.core?.invoke) return;
   const invoke = (name, args) => tauri.core.invoke('schoology_invoke', { name, args: args === undefined ? null : args });

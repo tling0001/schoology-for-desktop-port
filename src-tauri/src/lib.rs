@@ -357,6 +357,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).max(1.0);
     let user_agent = info.get("userAgent").and_then(Value::as_str).unwrap_or(ANDROID_UA).to_owned();
     let initialization_script = info.get("initializationScript").and_then(Value::as_str).unwrap_or("").to_owned();
+    let initialization_script = format!("{initialization_script}\n;document.addEventListener('contextmenu', event => event.preventDefault(), true);");
     let downloads_dir = app.path().download_dir().ok().filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(app.path().app_cache_dir().map_err(|e| e.to_string())?.join("downloads"));
     fs::create_dir_all(&downloads_dir).map_err(|e| format!("Could not prepare the downloads folder: {e}"))?;

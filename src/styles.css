@@ -2350,3 +2350,12 @@ html[data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!imp
 html[data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important;margin:0!important;padding:0 12px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:48px!important;min-width:48px!important;max-width:48px!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;z-index:2!important}
 html[data-window-controls-overlay="true"] .toolbar::after{content:""!important;grid-column:4!important;grid-row:1!important;width:138px!important;height:56px!important;display:block!important;pointer-events:none!important}
+
+/* v181: native Windows caption glyph font and macOS left-side overlay layout. */
+html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
+html[data-electron-platform=darwin] #tauriWindowControls{top:28px!important;left:0!important;right:auto!important;z-index:20!important;width:138px!important;height:56px!important}
+html[data-electron-platform=darwin] .shell>.toolbar{padding-left:138px!important}
+html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
+html[data-electron-platform=darwin] #drawer{z-index:40!important}
+
+html[data-electron-platform=darwin] .login .back,html[data-electron-platform=darwin] .qr .back{left:138px!important}

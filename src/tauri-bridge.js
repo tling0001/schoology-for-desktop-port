@@ -52,6 +52,7 @@
     return target.dispatchEvent(event);
   };
   const platform = /Windows/i.test(navigator.userAgent) ? 'win32' : /Macintosh/i.test(navigator.userAgent) ? 'darwin' : 'linux';
+  document.documentElement.dataset.electronPlatform = platform;
   const isExternalLoginCandidate = (raw, expectedDomain) => {
     try {
       const url = new URL(String(raw || ''));
@@ -191,7 +192,7 @@
     controls.setAttribute('data-tauri-drag-region', '');
     controls.setAttribute('role', 'toolbar');
     controls.setAttribute('aria-label', 'Window controls');
-    controls.innerHTML = '<div class="tauriWindowDragArea" data-tauri-drag-region></div><button type="button" data-window-action="minimize" aria-label="Minimize" title="Minimize">−</button><button type="button" data-window-action="maximize" aria-label="Maximize" title="Maximize">□</button><button type="button" data-window-action="close" aria-label="Close" title="Close">×</button>';
+    controls.innerHTML = '<div class="tauriWindowDragArea" data-tauri-drag-region></div><button type="button" data-window-action="minimize" aria-label="Minimize" title="Minimize">'+(platform === 'win32'?'&#xE921;':'−')+'</button><button type="button" data-window-action="maximize" aria-label="Maximize" title="Maximize">'+(platform === 'win32'?'&#xE922;':'□')+'</button><button type="button" data-window-action="close" aria-label="Close" title="Close">'+(platform === 'win32'?'&#xE8BB;':'×')+'</button>';
     controls.addEventListener('click', async event => {
       const button = event.target.closest('button[data-window-action]');
       if (!button) return;
@@ -201,7 +202,7 @@
       if (action === 'maximize') {
         await invoke('window-toggle-maximize');
         const maximized = await invoke('window-is-maximized').catch(() => false);
-        button.textContent = maximized ? '❐' : '□';
+        button.textContent = platform === 'win32' ? (maximized ? '\uE923' : '\uE922') : (maximized ? '❐' : '□');
         button.setAttribute('aria-label', maximized ? 'Restore' : 'Maximize');
         button.title = maximized ? 'Restore' : 'Maximize';
       }
@@ -300,7 +301,7 @@
           // Clear the native cookie/storage partition as well as JS-visible cookies;
           // document.cookie alone cannot clear HttpOnly district SSO cookies.
           this.nativeView.clearAllBrowsingData().catch(() => {});
-          this.nativeView.eval(`(() => { const host = location.hostname.toLowerCase(); if (host !== 'app.schoology.com' && !host.endsWith('.schoology.com')) return; for (const item of document.cookie.split(';')) { const name = item.split('=')[0].trim(); if (!name) continue; document.cookie = name + '=; Max-Age=0; Path=/; Secure'; document.cookie = name + '=; Max-Age=0; Path=/; Domain=.schoology.com; Secure'; } })()`).catch(() => {});
+          this.nativeView.eval(`(() => { const host = location.hostname.toLowerCase(); if (host !== 'app.schoology.com' && !host.endsWith('.schoology.com') && host !== 'app.schoologyca.com' && !host.endsWith('.schoologyca.com')) return; for (const item of document.cookie.split(';')) { const name = item.split('=')[0].trim(); if (!name) continue; document.cookie = name + '=; Max-Age=0; Path=/; Secure'; document.cookie = name + '=; Max-Age=0; Path=/; Domain=.schoology.com; Secure'; document.cookie = name + '=; Max-Age=0; Path=/; Domain=.schoologyca.com; Secure'; } })()`).catch(() => {});
         };
         this._unlistenPageLoad = null;
         this._settingSrc = false;
@@ -347,7 +348,16 @@
         window.removeEventListener('schoology-tauri-theme-changed', this._themeHandler);
         embeddedViews.delete(this);
         this._unlistenPageLoad?.();
-        if (this.nativeView) { this.nativeView.close().catch(() => {}); this.nativeView = null; }
+        if (this.nativeView) {
+          const view = this.nativeView;
+          this.nativeView = null;
+          // Move the native surface away before destroying it: otherwise it can
+          // briefly remain above the app and swallow clicks after navigation.
+          try { view.hide().catch(() => {}); } catch (_) {}
+          try { view.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)).catch(() => {}); } catch (_) {}
+          try { view.setSize(new tauri.dpi.LogicalSize(1, 1)).catch(() => {}); } catch (_) {}
+          try { view.close().catch(() => {}); } catch (_) {}
+        }
       }
       async _syncBounds() {
         if (!this.nativeView || !this.isConnected) return;
@@ -431,12 +441,13 @@
           }).catch(() => {});
           this._unlistenPageLoad = await this.nativeView.onPageLoad(async event => {
             const payload = event?.payload || event || {};
-            if (payload.event === 'Started') {
+            const eventName = String(payload.event || payload.type || event?.event || '').toLowerCase();
+            if (eventName === 'started' || eventName === 'start') {
               this.loading = true;
               this.dispatchEvent(new Event('did-start-loading'));
               return;
             }
-            if (payload.event === 'Finished') {
+            if (eventName === 'finished' || eventName === 'finish') {
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
@@ -452,6 +463,10 @@
           // Navigation starts only after event listeners are attached, so the
           // renderer receives the initial loading and completion events too.
           await this.nativeView.navigate(this._url);
+          const firstUrl = this._url;
+          // A provider may omit the normal top-level Finished event. Avoid a
+          // permanently hidden native surface in that case.
+          setTimeout(() => { if (this.nativeView && this._url === firstUrl) this.nativeView.show().catch(() => {}); }, 8000);
         } else {
           await this.nativeView.navigate(this._url);
         }

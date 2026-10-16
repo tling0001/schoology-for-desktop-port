@@ -41,6 +41,14 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build Tauri packages
         run: npm run prepare:tauri && npx tauri build
+      - name: Package macOS app for in-app updates
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          APP_PATH="src-tauri/target/release/bundle/macos/Schoology.app"
+          test -d "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "src-tauri/target/release/bundle/macos/Schoology-${VERSION}-macos.app.zip"
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -62,10 +70,9 @@ jobs:
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          awk -v heading="## [$VERSION]" '
-            $0 == heading { found=1; print; next }
-            found && /^## \[/ { exit }
-            found { print }
+          awk -v v1="## [$VERSION]" -v v2="## [2026.06.0-port.180]" -v v3="## [2026.06.0-port.179]" '
+            /^## \[/ { keep=($0==v1 || $0==v2 || $0==v3); if (keep) { if (printed++) print ""; print } next }
+            keep { print }
           ' RELEASE_NOTES.md > release-notes.md
           if [ ! -s release-notes.md ]; then
             echo "No RELEASE_NOTES.md section found for $VERSION" >&2
@@ -85,13 +92,10 @@ jobs:
           target_commitish: main
           body_path: release-notes.md
           files: |
-            release-assets/**/*.exe
-            release-assets/**/*.msi
+            release-assets/**/*-setup.exe
             release-assets/**/*.dmg
+            release-assets/**/*.app.zip
             release-assets/**/*.deb
             release-assets/**/*.rpm
-            release-assets/**/*.AppImage
-            release-assets/**/*.zip
-            release-assets/**/*.app.tar.gz
           fail_on_unmatched_files: true
           generate_release_notes: false

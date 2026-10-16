@@ -624,7 +624,7 @@ async function getCourseNavigationPermissions(sectionId,userId){
  const userGradeBody=by[`/v1/users/${userId}/grades`]||'';
  const attendanceBody=by[`/v1/sections/${sectionId}/attendance`]||'';
  const documentsBody=by[`/v1/sections/${sectionId}/documents`]||'';
- const sectionDocumentsPost=/\\bpost\\b/i.test(documentsBody);
+ const sectionDocumentsPost=/\bpost\b/i.test(documentsBody)
  if(state.courseView==='course'&&String(state.selectedCourse?.id||state.selectedCourse?.section_id||state.selectedCourse?.sectionId)===String(sectionId)){state.courseCanAddResources=sectionDocumentsPost;syncToolbar()}
  return {sectionGradesPut:sectionGradeBody.includes('put'),userGradesGet:userGradeBody.includes('get'),attendanceGet:attendanceBody.includes('get'),sectionDocumentsPost};
 }
@@ -1314,7 +1314,7 @@ async function showEmbeddedWeb(url,title,options={}){
  w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},8000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
- w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(externalLinks&&initialPageLoaded){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).then(handled=>{if(handled)return;if(state.openSchoologyLinks&&isSchoologyRoutableLink(u)){w.src=u;return;}return A.openExternal(u)}).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(options.lti&&isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
+ w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(externalLinks&&initialPageLoaded&&!isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(A.openExternal(u)).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(options.lti&&isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
 }
 async function loadAttendanceTab(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;

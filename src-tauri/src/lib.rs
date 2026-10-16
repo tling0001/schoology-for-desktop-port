@@ -313,13 +313,14 @@ async fn api_call(app: &AppHandle, state: &HostState, args: &Value) -> Result<Va
     let mut url = schoology_api_url(path)?;
     let method = args.get("method").and_then(Value::as_str).unwrap_or("GET").to_uppercase();
     let params = args.get("params").cloned().unwrap_or_else(|| json!({}));
+    let is_multioptions = path.trim().trim_start_matches('/') == "multioptions" && method == "POST";
     if method == "GET" {
         if let Some(object) = params.as_object() {
             for (key, value) in object { url.query_pairs_mut().append_pair(key, if value.is_string() { value.as_str().unwrap_or("").to_owned() } else { value.to_string() }.as_str()); }
         }
         api_json(app, state, &method, url, None, false).await
     } else {
-        api_json(app, state, &method, url, Some(params), args.get("json").and_then(Value::as_bool).unwrap_or(false)).await
+        api_json(app, state, &method, url, Some(params), is_multioptions || args.get("json").and_then(Value::as_bool).unwrap_or(false)).await
     }
 }
 
@@ -754,11 +755,11 @@ async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value
     let safe_cookies: Vec<Value> = cookies.into_iter().filter(|cookie| {
         let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("");
         let value = cookie.get("value").and_then(Value::as_str).unwrap_or("");
-        let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(".schoology.com").trim_start_matches('.').to_ascii_lowercase();
+        let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(if web_host() == "app.schoologyca.com" { ".schoologyca.com" } else { ".schoology.com" }).trim_start_matches('.').to_ascii_lowercase();
         !name.is_empty() && !value.is_empty()
             && !name.chars().any(|c| c.is_control() || c == ';' || c == '=')
             && !value.chars().any(|c| c.is_control() || c == ';' || c == ',')
-            && (domain == "schoology.com" || domain.ends_with(".schoology.com"))
+            && (domain == "schoology.com" || domain.ends_with(".schoology.com") || domain == "schoologyca.com" || domain.ends_with(".schoologyca.com"))
     }).collect();
     if safe_cookies.is_empty() { return Err("Schoology returned no usable web-session cookies.".into()); }
     Ok(json!({ "cookies": safe_cookies, "mobileCookie": MOBILE_COOKIE.split_once('=').map(|(_, value)| value).unwrap_or("") }))
@@ -814,8 +815,8 @@ fn local_release_number() -> u64 {
 
 fn update_asset_suffixes() -> Vec<&'static str> {
     match std::env::consts::OS {
-        "windows" => vec!["-x64-setup.exe", "Setup-x64.exe", "-ia32-setup.exe", "Setup-ia32.exe"],
-        "macos" => if std::env::consts::ARCH == "aarch64" { vec!["aarch64.dmg", "arm64.dmg", ".app.zip", "x64.dmg"] } else { vec!["x64.dmg", ".app.zip", "aarch64.dmg", "arm64.dmg"] },
+        "windows" => vec!["_x64-setup.exe", "-x64-setup.exe", "Setup-x64.exe"],
+        "macos" => vec![".app.zip"],
         "linux" => vec!["amd64.deb", "x86_64.rpm"],
         _ => vec![],
     }
@@ -938,11 +939,11 @@ TARGET={target}
 STAGED={staged}
 MOUNT={mount}
 PID={pid}
-cleanup() {{ hdiutil detach "$MOUNT" >/dev/null 2>&1 || true; rm -rf "$MOUNT"; rm -f "$INSTALLER" "$0"; }}
+cleanup() {{ rm -rf "$MOUNT"; rm -f "$INSTALLER" "$0"; }}
 trap cleanup EXIT
 mkdir -p "$MOUNT"
 for i in {{1..300}}; do kill -0 "$PID" 2>/dev/null || break; sleep .2; done
-if [[ "$INSTALLER" == *.dmg ]]; then hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$INSTALLER" >/dev/null; else ditto -x -k "$INSTALLER" "$MOUNT"; fi
+ditto -x -k "$INSTALLER" "$MOUNT"
 APP=$(find "$MOUNT" -maxdepth 5 -name '*.app' -type d -print -quit)
 if [ -z "$APP" ]; then echo 'No .app bundle found in downloaded update'; exit 1; fi
 rm -rf "$STAGED"

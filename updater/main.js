@@ -70,12 +70,11 @@ async function deleteFileWithCmd(file){
   if(fs.existsSync(file))throw new Error('Windows could not delete the file: '+file);
 }
 
-function scheduleSelfCleanup(innerPath,outerPath,runTempPath){
+function scheduleSelfCleanup(outerPath,runTempPath){
   const target=String(payload.stagedUpdaterPath||'');
   const stagedInstallDir=payload.stagedInstallDir?path.resolve(String(payload.stagedInstallDir)):'';
-  const inner=path.resolve(String(innerPath||path.join(TEMP_DIR,'inner-installer')));
   const outer=path.resolve(String(outerPath||path.join(TEMP_DIR,'installer-outer')));
-  const runTemp=path.resolve(String(runTempPath||path.dirname(inner)));
+  const runTemp=path.resolve(String(runTempPath||path.dirname(outer)));
   const updaterPid=process.pid;
   const resourcesPath=path.resolve(process.resourcesPath||'');
   const tempRoot=path.resolve(TEMP_DIR)+path.sep;
@@ -92,7 +91,6 @@ function scheduleSelfCleanup(innerPath,outerPath,runTempPath){
       "function Write-FinalizeLog($m){try{Add-Content -LiteralPath $log -Value ((Get-Date -Format o)+' '+$m)}catch{}}",
       "Write-FinalizeLog 'finalizer-start'",
       "while(Get-Process -Id $pidToWait -ErrorAction SilentlyContinue){Start-Sleep -Milliseconds 250}",
-      `$inner='${ps(inner)}'; if(Test-Path -LiteralPath $inner){Remove-Item -LiteralPath $inner -Recurse -Force -ErrorAction SilentlyContinue; if(Test-Path -LiteralPath $inner){Write-FinalizeLog 'inner-cleanup-failed'}else{Write-FinalizeLog 'inner-cleaned'}}`,
       `$outer='${ps(outer)}'; if(Test-Path -LiteralPath $outer){Remove-Item -LiteralPath $outer -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'outer-cleaned'}`,
       `$target='${ps(target)}'; if($target -and (Test-Path -LiteralPath $target)){Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue; Write-FinalizeLog ('file-cleaned '+$target)}`,
       ...(resourcesInsideTemp?[ `$resources='${ps(resourcesPath)}'; if(Test-Path -LiteralPath $resources){Remove-Item -LiteralPath $resources -Recurse -Force -ErrorAction SilentlyContinue; Write-FinalizeLog 'updater-resources-cleaned'}` ]:[]),
@@ -102,7 +100,7 @@ function scheduleSelfCleanup(innerPath,outerPath,runTempPath){
     const encoded=Buffer.from(lines.join('\r\n'),'utf16le').toString('base64');
     const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-EncodedCommand',encoded],{detached:true,stdio:'ignore',windowsHide:true});
     child.unref();
-    log('self-cleanup-scheduled',{target,inner,outer,updaterPid,resourcesPath,resourcesInsideTemp,finalizeLog});
+    log('self-cleanup-scheduled',{target,outer,updaterPid,resourcesPath,resourcesInsideTemp,finalizeLog});
   }catch(error){log('self-cleanup-error',error?.stack||String(error));}
 }
 
@@ -212,9 +210,8 @@ async function main(){
   const sevenMsi=path.join(runTempDir,'7z2604-x64.msi');
   const installer=path.join(runTempDir,'schoology-installer.exe');
   const outer=path.join(runTempDir,'installer-outer');
-  const inner=path.join(runTempDir,'inner-installer');
   let seven=find7z();
-  log('paths',{sevenMsi,installer,outer,inner,seven});
+  log('paths',{sevenMsi,installer,outer,seven});
   if(seven){configureSevenZip(false);}
   else{
     configureSevenZip(true);
@@ -230,24 +227,19 @@ async function main(){
   ui('schoologyDownload','done','Complete',100);
   status(`Installing ${productName}…`);ui('install','determinate','Preparing installation…',5);
   await waitForPid(Number(payload.parentPid||0));
-  ui('install','determinate','Preparing extraction…',10);log('prepare-extraction',{outer,inner});fs.mkdirSync(outer,{recursive:true});fs.mkdirSync(inner,{recursive:true});log('extraction-directories-created',{outerExists:fs.existsSync(outer),innerExists:fs.existsSync(inner)});
+  ui('install','determinate','Preparing extraction…',10);log('prepare-extraction',{outer});fs.mkdirSync(outer,{recursive:true});log('extraction-directory-created',{outerExists:fs.existsSync(outer)});
   log('extract-installer-start',{installer,outer});
   await run(seven,['x',installer,`-o${outer}`,'-y']);
   ui('install','determinate','Installer extracted…',45);log('extract-installer-complete',{outerEntries:fs.existsSync(outer)?fs.readdirSync(outer):[]});
-  const app7z=path.join(outer,'$PLUGINSDIR','app-64.7z');if(!fs.existsSync(app7z))throw new Error('The Schoology installer did not contain $PLUGINSDIR\\app-64.7z.');
-  log('extract-application-start',{app7z,inner});
-  await run(seven,['x',app7z,`-o${inner}`,'-y']);
-  ui('install','determinate','Application files extracted…',70);log('extract-application-complete',{innerEntries:fs.existsSync(inner)?fs.readdirSync(inner):[]});
-  const extractedApp=findExtractedApplicationRoot(inner)||{root:inner,exe:path.join(inner,'Schoology.exe')};
-  const appRoot=extractedApp.root;
-  const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
-  log('copy-application-start',{inner,appRoot,schoologyDir:SCHOOLGY_DIR,stagedInstallDir:payload.stagedInstallDir||null});
+  ui('install','determinate','Application files extracted…',70);
+  const appRoot=outer;
+  fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
+  log('copy-application-start',{outer,appRoot,schoologyDir:SCHOOLGY_DIR,stagedInstallDir:payload.stagedInstallDir||null});
   await run('cmd.exe',['/d','/s','/c','del /f /q "'+SCHOOLGY_DIR+'\\*"'],{acceptCodes:[0]});
   await run('robocopy.exe',[appRoot,SCHOOLGY_DIR,'/E','/R:2','/W:1'],{
     acceptCodes:[0,1,2,3,4,5,6,7],
     onOutput:()=>ui('install','determinate','Copying application files…',85)
   });
-  if(fs.existsSync(uninstallSource))fs.copyFileSync(uninstallSource,uninstallTarget);
   if(!fs.existsSync(schoologyExe))throw new Error('The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.');
   ui('install','done','Complete',100);cleanupArtifacts([installer,sevenMsi]);completed=true;log('update-complete',{schoologyExe});status('Update complete. Finalizing cleanup…');
   try{
@@ -258,7 +250,7 @@ async function main(){
     log('schoology-relaunch-failed-after-update',{error:error?.stack||String(error)});
     status('Update complete, but Schoology could not be launched.');
   }
-  scheduleSelfCleanup(inner,outer,runTempDir);
+  scheduleSelfCleanup(outer,runTempDir);
   if(win&&!win.isDestroyed())win.close();
   app.quit();
 }

@@ -1,6 +1,20 @@
 # Schoology Desktop Port release history
 
-GitHub Actions extracts only the section matching `package.json`'s version for each GitHub Release.
+GitHub Actions includes the current release notes plus the previous two failed release sections in each release description.
+
+## [2026.06.0-port.181]
+
+### Fixed
+- Restored API-driven course tab discovery by sending Schoology multioptions requests as JSON and correctly matching documented permissions.
+- Fixed shared native webview loading events, Canadian session-cookie handling, and cleanup when leaving an embedded page so child webviews cannot keep intercepting app clicks.
+- Updated the Windows updater to extract the installer only once and copy the extracted root application layout directly into the installed Schoology folder.
+- Added a macOS in-app updater package that downloads a .app.zip, extracts it, replaces the installed Schoology.app after the app exits, and relaunches Schoology.
+- Fixed release publishing to include only actual installer assets and avoid failures from absent package patterns.
+- Updated the Window Controls Overlay with native Windows glyphs and a macOS left-side layout that stays below the navigation drawer.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.181.
+- Included the notes for failed releases 2026.06.0-port.180 and 2026.06.0-port.179 in the next release description.
 
 ## [2026.06.0-port.180]
 

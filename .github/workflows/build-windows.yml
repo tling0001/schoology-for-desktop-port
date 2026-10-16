@@ -2,7 +2,7 @@ name: Tauri builds (no release)
 
 on:
   push:
-    branches: ['main']
+    branches: ['**']
   workflow_dispatch:
 
 permissions:

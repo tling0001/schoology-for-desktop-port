@@ -173,7 +173,14 @@ async fn exchange_token(app: &AppHandle, state: &HostState, temporary: &Value) -
     let token_response = parse_form(&response_text);
     let token = token_response.get("oauth_token").and_then(Value::as_str).unwrap_or("");
     let secret = token_response.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
-    if token.is_empty() || secret.is_empty() { return Err("Schoology returned an invalid access token.".into()); }
+    if token.is_empty() || secret.is_empty() {
+        let detail = response_text.chars().take(500).collect::<String>();
+        return Err(if detail.is_empty() {
+            "Schoology returned an invalid access token (the response did not contain an access token or secret).".into()
+        } else {
+            format!("Schoology returned an invalid access token: {detail}")
+        });
+    }
     let auth = json!({"oauth_token":token,"oauth_token_secret":secret});
     let url = Url::parse(&format!("https://{API_HOST}/v1/users/me")).map_err(|e| e.to_string())?;
     let user_response = request("GET", url, None, Some(&auth), state, true, None, false).await?;

@@ -386,8 +386,9 @@
           });
           this.nativeView = await tauri.webview.Webview.getByLabel(label);
           if (!this.nativeView) throw new Error('The native embedded Schoology webview could not be retrieved.');
+          await this.nativeView.hide().catch(() => {});
           this.dispatchEvent(new Event('dom-ready'));
-          this.nativeView.once('tauri://error', event => dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true })).catch(() => {});
+          this.nativeView.once('tauri://error', event => { dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true }); this.nativeView?.show().catch(() => {}); }).catch(() => {});
           this.nativeView.onNavigation(url => {
             const nextUrl = String(url || this._url);
             let parsed = null;
@@ -414,6 +415,8 @@
             }
             const allowed = dispatchCompatEvent(this, 'will-navigate', { url: nextUrl, isMainFrame: true }, true);
             if (!allowed) return false;
+            // Native child surfaces otherwise cover the parent DOM's loading overlay.
+            this.nativeView.hide().catch(() => {});
             this.loading = true;
             this._url = nextUrl;
             dispatchCompatEvent(this, 'did-start-navigation', { url: nextUrl, isMainFrame: true });
@@ -435,6 +438,7 @@
                 await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme));
               } catch (_) {}
               await this._syncBounds();
+              await this.nativeView.show().catch(() => {});
             }
           });
           await this._syncBounds();

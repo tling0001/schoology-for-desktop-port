@@ -1096,9 +1096,22 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let enabled = args.as_bool().unwrap_or(false);
             write_json(&app,"window-chrome.json",&json!({"overlay":enabled}))?;
             let current = std::env::current_exe().map_err(|e| e.to_string())?;
-            Command::new(current).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
-                .spawn().map_err(|e| format!("Could not restart Schoology to apply window controls: {e}"))?;
-            schedule_app_exit(app.clone(), 350);
+            // Wait for the single-instance process to exit before relaunching; an
+            // immediate child would be forwarded to this process and then lost.
+            #[cfg(target_os = "windows")]
+            {
+                let executable = current.to_string_lossy().replace('"', "");
+                let command = format!("ping 127.0.0.1 -n 2 >NUL & start \"\" \"{executable}\"");
+                Command::new("cmd").arg("/C").arg(command).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+                    .spawn().map_err(|e| format!("Could not schedule Schoology restart: {e}"))?;
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Command::new("sh").arg("-c").arg("sleep 1; exec \"$1\"").arg("schoology-restart").arg(current)
+                    .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+                    .spawn().map_err(|e| format!("Could not schedule Schoology restart: {e}"))?;
+            }
+            schedule_app_exit(app.clone(), 150);
             Ok(json!(true))
         },
         "window-minimize" => { if let Some(window)=app.get_webview_window("main") { window.minimize().map_err(|e|e.to_string())?; } Ok(json!(true)) },

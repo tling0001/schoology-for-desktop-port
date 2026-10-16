@@ -37,7 +37,7 @@ document.addEventListener('click',async event=>{
  if(!rich)return;
  const href=anchor.href||anchor.getAttribute('href')||'';if(!(href.startsWith('http://')||href.startsWith('https://')))return;
  event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
- try{const result=await A.openExternal(href);if(result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}
+ try{const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}
 },true);
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
@@ -65,7 +65,7 @@ function messageDetail(){
    const date=ts?(typeof ts==='number'||/^\d+$/.test(String(ts))?new Date(Number(ts)*1000).toLocaleString():String(ts)):'';
    const body=msg.message||msg.body||'';
    const attachments=renderMessageAttachments(msg.attachments||msg.attachment||{});
-   return `<article class="messageThreadItem"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div><b>${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${esc(body)}</div>${attachments}</article>`;
+   return `<article class="messageThreadItem"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div class="messageThreadAuthorBlock"><b class="messageThreadAuthor">${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${esc(body)}</div>${attachments}</article>`;
  }).join(''):`<div class="messageThreadLoading">Loading message…</div>`;
  return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">${officialBackIcon()}</button><span class="toolbarTitle">${esc(subject)}</span><button id="messageRefresh" class="iconButton messageActionButton" aria-label="Refresh">${officialIcon('ic_action_refresh.png','Refresh')||'↻'}</button><button id="messageReply" class="iconButton messageActionButton" aria-label="Reply">${officialIcon('ic_action_reply.png','Reply')||'↩'}</button></header><main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main></div>`;
 }
@@ -115,9 +115,9 @@ function watchBackIconPlaceholders(){
 }
 function render(){let h=state.message?messageDetail():state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;repairBackIconPlaceholders(app);watchBackIconPlaceholders();bind();syncWindowChrome();return h}
 function syncWindowChrome(){if(A.platform!=='win32'&&A.platform!=='linux')return;let color='#002137';if(state.screen!=='app'){color=(state.screen==='login'||state.screen==='search'||state.screen==='credentials'||state.screen==='externalSelect'||state.screen==='qr')?'#44505d':'#22303e'}else if(document.getElementById('drawer')?.classList.contains('open'))color='#001827';A.setWindowChrome?.({color,symbolColor:'#ffffff',height:56}).catch?.(()=>{})}
-function login(){return `<div class="login loginAnimated"><img class="logo" src="../assets/logo_schoology.png" alt="Schoology"><div class="loginBody loginActionCenter"><button id="schoolLogin" class="primary loginIconButton"><img src="../assets/icons/ic_school.svg" alt=""><span>Sign in through my school</span></button><button id="continueSchoology" class="secondary loginIconButton"><img src="../assets/logo_schoology.png" alt=""><span>Sign in with my account</span></button><button id="qrLogin" class="qrButton loginIconButton"><img src="../assets/icons/ic_qr_code.svg" alt=""><span>Sign in with a QR code</span></button></div><button type="button" id="loginHelp" class="loginBottom">I need help signing in</button>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
+function login(){return `<div class="login loginAnimated"><img class="logo" src="../assets/logo_schoology.png" alt="Schoology"><div class="loginBody loginActionCenter"><button id="schoolLogin" class="primary loginIconButton"><img src="../assets/icons/ic_school.svg" alt=""><span>Sign in through my school</span></button><button id="continueSchoology" class="secondary loginIconButton accountSignInButton"><img src="../assets/icons/ic_sgy_logo.svg" alt=""><span>Sign in with my account</span></button><button id="qrLogin" class="qrButton loginIconButton"><img src="../assets/icons/ic_qr_code.svg" alt=""><span>Sign in with a QR code</span></button></div><button type="button" id="loginHelp" class="loginBottom">I need help signing in</button>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function schoolSearchScreen(){return `<div class="login loginAnimated"><button id="back" class="back">${officialBackIcon()}</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="label">School</div><div class="searchWrap"><input id="schoolSearch" autocomplete="off" autofocus placeholder="Enter your School or domain" value="${esc(state.q)}"><span>⌕</span></div><div id="schoolSearchStatus"></div><div id="schoolSuggestions"></div></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
-function credentials(){return `<div class="login loginAnimated"><button id="back" class="back" aria-label="Back">${officialBackIcon()}</button><img class="logo small" src="../assets/logo_schoology.png" alt="Schoology"><div class="loginBody accountLoginBody">${state.school?`<div class="selected">${esc(state.school.title||'School')}</div>`:'<div class="accountTitle">Sign in with my account</div>'}<div class="label">Username or Email</div><input id="user" class="field" autocomplete="username"><div class="label">Password</div><input id="pass" class="field" type="password" autocomplete="current-password"><button id="signIn" class="primary">Sign in</button><button id="switchCanada" class="linkbtn">I sign in to app.schoologyca.com</button><button id="loginHelpCredentials" class="linkbtn">I need help signing in</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
+function credentials(){return `<div class="login loginAnimated accountLoginScreen"><button id="back" class="back" aria-label="Back">${officialBackIcon()}</button><img class="logo small" src="../assets/logo_schoology.png" alt="Schoology"><div class="loginBody accountLoginBody">${state.school?`<div class="selected">${esc(state.school.title||'School')}</div>`:'<div class="accountTitle">Sign in with my account</div>'}<div class="label">Username or Email</div><input id="user" class="field" autocomplete="username"><div class="label">Password</div><input id="pass" class="field" type="password" autocomplete="current-password"><button id="signIn" class="primary">Sign in</button></div><div class="loginSecondaryBottom"><button id="switchCanada" class="linkbtn">I sign in to app.schoologyca.com</button><button id="loginHelpCredentials" class="linkbtn">I need help signing in</button></div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function schoolLoginDomain(school){
   for(const candidate of [school?.domain,school?.school_domain,school?.schoolDomain,school?.url]){
     const value=String(candidate||'').trim();if(!value)continue;
@@ -136,7 +136,7 @@ function externalSelect(){
   return `<div class="login loginAnimated"><button id="back" class="back" ${state.loading?'disabled':''}>${officialBackIcon()}</button><img class="logo small" src="../assets/logo_schoology.png"><div class="loginBody"><div class="selected">${esc(name)}</div>${state.loading?`<div class="qrAuthorizationLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><p>Continue signing in in your browser…</p></div>`:`<button id="browserLogin" class="primary">Try browser sign-in again</button>`}</div>${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`
 }
 
-function qr(){return `<div class="qr loginAnimated"><button id="back" class="back" ${state.loading?'disabled':''}>${officialBackIcon()}</button><h1>QR Code Login</h1>${state.loading?`<div class="qrAuthorizationLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><p>Signing in to Schoology…</p></div>`:`<p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>`}${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
+function qr(){return `<div class="qr loginAnimated qrLoginScreen"><button id="back" class="back" ${state.loading?'disabled':''}>${officialBackIcon()}</button><img class="logo small" src="../assets/logo_schoology.png" alt="Schoology"><h1>QR Code Login</h1>${state.loading?`<div class="qrAuthorizationLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><p>Signing in to Schoology…</p></div>`:`<p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>`}${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function drawerItemMarkup(id,label,icon){
  return `<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon"><img src="../assets/icons/${icon}.svg" alt=""></span><span class="drawerLabel">${label}</span>${['messages','notifications','requests'].includes(id)?'<span class="drawerBadge"></span>':''}${id==='courses'||id==='groups'||id==='grades'?'<span class="disclosure">›</span>':''}</button>`;
 }
@@ -302,7 +302,7 @@ function bind(){
   const openLoginHelp=()=>A.openExternal('https://docs.powerschool.com/SGYH/en/students/schoology-mobile-apps/logging-into-the-schoology-mobile-app-students').catch(e=>{state.error=e.message||'Unable to open the sign-in help page.';render()});
   document.getElementById('loginHelp')?.addEventListener('click',openLoginHelp);
   document.getElementById('loginHelpCredentials')?.addEventListener('click',openLoginHelp);
-  document.getElementById('switchCanada')?.addEventListener('click',async()=>{try{const result=await A.openExternal('https://app.schoologyca.com');if(result)showAppDialog('Unable to open Schoology Canada',result)}catch(e){showAppDialog('Unable to open Schoology Canada',e.message||String(e))}});
+  document.getElementById('switchCanada')?.addEventListener('click',async()=>{try{const result=await A.openExternal('https://app.schoologyca.com');if(typeof result==='string'&&result)showAppDialog('Unable to open Schoology Canada',result)}catch(e){showAppDialog('Unable to open Schoology Canada',e.message||String(e))}});
   document.getElementById('composeMessage')?.addEventListener('click',()=>showComposeMessage());document.getElementById('joinGroup')?.addEventListener('click',showJoinGroupDialog);
   document.getElementById('toolbarBack')?.addEventListener('click',()=>navigateBack());
   const schoolBtn=document.getElementById('schoolLogin');if(schoolBtn)schoolBtn.onclick=()=>{state.error='';state.q='';state.schools=[];state.screen='search';render();document.getElementById('schoolSearch')?.focus()};
@@ -358,7 +358,7 @@ function bind(){
   document.getElementById('messageBack')?.addEventListener('click',()=>{state.message=null;state.messageThread=null;render();loadTab()});
   document.querySelectorAll('[data-message-tab]').forEach(b=>b.onclick=()=>{state.messageTab=b.dataset.messageTab;loadTab()});
   document.querySelectorAll('[data-message]').forEach(b=>b.onclick=async()=>{const i=+b.dataset.message;const m=window.__schoologyMessages?.[i];if(!m)return;state.message=m;state.messageFolder=state.messageTab;state.messageThread=null;render();await loadMessageThread(m)});
-  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await downloadWithFeedback(b,{url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
+  document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await downloadWithFeedback(b,{url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
   document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Link')));
   document.querySelectorAll('[data-embed-html]').forEach(b=>b.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(b.dataset.embedHtml),'Embedded content'));
   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const i=+b.dataset.courseSub;const c=window.__schoologyCourses?.[i];state.drawerPage=null;state.tab='courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(c)||courseTitleOf(c);state.screen='app';render();showCourse(c)});
@@ -649,7 +649,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const landscape=window.matchMedia('(min-width: 1000px)').matches;
- const baseTabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),['grades','Grades'],['attendance','Attendance'],...(landscape?[]:[['courseapp','Course App']])];
+ const baseTabs=[['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],['grades','Grades'],['attendance','Attendance'],['courseapp','Course App']];
  let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
@@ -812,12 +812,12 @@ async function showAssignment(sectionId,assignmentId){
       state.assignmentTab='info';state.assignmentSubpage=null;state.submissionMenu=false;syncToolbar();
       document.getElementById('viewAssignmentAttachments')?.addEventListener('click',()=>showAssignmentAttachmentDialog(attachmentItems));
       hydrateMediaImages(el);
-      el.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(!href||href==='#')return;ev.preventDefault();ev.stopPropagation();try{const result=await A.openExternal(href);if(result)showAppDialog('Unable to open link',result)}catch(e){showAppDialog('Unable to open assignment link',e.message||String(e))}}));
+      el.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(!href||href==='#')return;ev.preventDefault();ev.stopPropagation();try{const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(e){showAppDialog('Unable to open assignment link',e.message||String(e))}}));
     };
     const select=async(id)=>{
       state.assignmentTab=id; state.submissionMenu=false;
       document.querySelectorAll('.assignmentTab').forEach(x=>x.classList.toggle('active',x.dataset.assignmentTab===id));
-      if(id==='info')renderInfo();
+      if(id==='info'){const infoEl=document.getElementById('assignmentTabContent');if(infoEl)infoEl.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';await new Promise(resolve=>requestAnimationFrame(resolve));renderInfo();}
       else if(id==='comments')await openAssignmentComments(sectionId,assignmentId,at);
       else if(id==='submit')await openAssignmentSubmissions(sectionId,assignmentId,at,isTeacher);
       syncToolbar();
@@ -1066,8 +1066,8 @@ async function hydrateMediaImages(root=document){
   await Promise.all([...els].map(async el=>{
     const u=el.getAttribute('data-media-image-url');try{const data=await A.fetchImage(u);if(data){el.src=data;el.style.display='block';if(el.nextElementSibling)el.nextElementSibling.style.display='none'}}catch{}
   }));
-  root.querySelectorAll?.('[data-open-url]')?.forEach(b=>{if(b.dataset.boundOpen)return;b.dataset.boundOpen='1';b.onclick=async()=>{const url=b.dataset.openUrl||'';try{const result=await A.openExternal(url);if(result)showAppDialog('Unable to open link',result)}catch(e){showAppDialog('Unable to open link',e.message||String(e))}}});
-  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{let info={url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime};if(b.dataset.submissionFileId&&b.dataset.submissionRevisionId&&b.dataset.submissionSectionId&&b.dataset.submissionGradeItemId&&b.dataset.submissionUserId){const rr=await A.api({path:`sections/${b.dataset.submissionSectionId}/submissions/${b.dataset.submissionSubmissionId||b.dataset.submissionGradeItemId}/${b.dataset.submissionUserId}/revision/${b.dataset.submissionRevisionId}`,params:{with_annotations:'TRUE',with_attachments:'TRUE'}});const revisions=rr?.revision||rr?.revisions||rr?.data?.revision||rr?.data?.revisions||[];const list=Array.isArray(revisions)?revisions:[revisions];let exact=null;for(const rv of list){const files=rv?.attachments?.files?.file||rv?.attachments?.files||rv?.attachments?.file||[];const fs=Array.isArray(files)?files:(files?[files]:[]);const hit=fs.find(f=>String(f?.id??f?.fid??'')===String(b.dataset.submissionFileId));if(hit){exact=hit;break;}}if(exact){const convertedOk=['success','converted','1'].includes(String(exact.converted_status??exact.convertedStatus??'').toLowerCase());const rawUrl=exact.download_path||exact.downloadPath||'';const convertedUrl=exact.converted_download_path||exact.convertedDownloadPath||'';info.url=convertedOk&&convertedUrl?convertedUrl:(rawUrl||convertedUrl);info.filename=(convertedOk&&exact.convertedFilename)||exact.filename||exact.title||info.filename;info.mime=(convertedOk&&exact.convertedFileMime)||exact.filemime||info.mime;}}const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
+  root.querySelectorAll?.('[data-open-url]')?.forEach(b=>{if(b.dataset.boundOpen)return;b.dataset.boundOpen='1';b.onclick=async()=>{const url=b.dataset.openUrl||'';try{const result=await A.openExternal(url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(e){showAppDialog('Unable to open link',e.message||String(e))}}});
+  root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{try{let info={url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime};if(b.dataset.submissionFileId&&b.dataset.submissionRevisionId&&b.dataset.submissionSectionId&&b.dataset.submissionGradeItemId&&b.dataset.submissionUserId){const rr=await A.api({path:`sections/${b.dataset.submissionSectionId}/submissions/${b.dataset.submissionSubmissionId||b.dataset.submissionGradeItemId}/${b.dataset.submissionUserId}/revision/${b.dataset.submissionRevisionId}`,params:{with_annotations:'TRUE',with_attachments:'TRUE'}});const revisions=rr?.revision||rr?.revisions||rr?.data?.revision||rr?.data?.revisions||[];const list=Array.isArray(revisions)?revisions:[revisions];let exact=null;for(const rv of list){const files=rv?.attachments?.files?.file||rv?.attachments?.files||rv?.attachments?.file||[];const fs=Array.isArray(files)?files:(files?[files]:[]);const hit=fs.find(f=>String(f?.id??f?.fid??'')===String(b.dataset.submissionFileId));if(hit){exact=hit;break;}}if(exact){const convertedOk=['success','converted','1'].includes(String(exact.converted_status??exact.convertedStatus??'').toLowerCase());const rawUrl=exact.download_path||exact.downloadPath||'';const convertedUrl=exact.converted_download_path||exact.convertedDownloadPath||'';info.url=convertedOk&&convertedUrl?convertedUrl:(rawUrl||convertedUrl);info.filename=(convertedOk&&exact.convertedFilename)||exact.filename||exact.title||info.filename;info.mime=(convertedOk&&exact.convertedFileMime)||exact.filemime||info.mime;}}const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}}});
 }
 function materialIconForType(item){
  const type=String(item?.type||item?.template_type||'').toLowerCase();
@@ -1165,7 +1165,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.converted_download_path||first?.convertedDownloadPath||first?.download_path||first?.downloadPath||first?.url||fileUrl;
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
-      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||data.converted_extension||data.convertedExtension||f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const r=await downloadWithFeedback(b,{url:fileUrl,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err)
+      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||data.converted_filemime||data.convertedFileMime||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||data.converted_extension||data.convertedExtension||f.file_extension||f.fileExtension||f.extension||f.converted_extension||f.convertedExtension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const r=await downloadWithFeedback(b,{url:fileUrl,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err)
     }catch(e){alert('Unable to open file: '+e.message)}})();return
   });
   }catch(e){showSchoologyRequestError(e,()=>loadFolder(course,folderId,false,title));}
@@ -1288,7 +1288,7 @@ async function routeSchoologyLink(rawUrl){
 async function showPageNative(realm,realmId,pageId,title='Page'){
  const c=document.getElementById('content');if(!c)return;state.assignmentView=null;state.embeddedTitle=null;state.embeddedTheme='';state.embeddedCanOpenExternal=false;state.toolbarTitle=title||'Page';syncToolbar();
  c.innerHTML='<section class="pageAndroid"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading page…</span></div></section>';
- try{const x=await A.api({path:`${realm}/${realmId}/pages/${pageId}`,params:{}});const page=x?.page||x;const body=page?.body||page?.description||page?.content||'';const pageTitle=page?.title||title||'Page';c.innerHTML=`<section class="pageAndroid"><div class="pageAndroidHeader"><h1>${esc(pageTitle)}</h1></div><div class="pageAndroidBody">${body||'<span class="muted">No page content.</span>'}</div></section>`;c.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(/^https?:\/\//i.test(href)){ev.preventDefault();ev.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}}}));}catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;}
+ try{const x=await A.api({path:`${realm}/${realmId}/pages/${pageId}`,params:{}});const page=x?.page||x;const body=page?.body||page?.description||page?.content||'';const pageTitle=page?.title||title||'Page';c.innerHTML=`<section class="pageAndroid"><div class="pageAndroidHeader"><h1>${esc(pageTitle)}</h1></div><div class="pageAndroidBody">${body||'<span class="muted">No page content.</span>'}</div></section>`;c.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(/^https?:\/\//i.test(href)){ev.preventDefault();ev.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}}}));}catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;}
 }
 async function showEmbeddedWeb(url,title,options={}){
  const c=document.getElementById('content');if(!c)return;
@@ -1297,7 +1297,7 @@ async function showEmbeddedWeb(url,title,options={}){
  // the shared webview into a general-purpose browser. Quiz and Account Info are
  // intentionally the only regular pages that keep their navigation embedded.
  if(!options.quiz&&!options.assessment&&!options.accountInfo&&options.openInitialExternalInBrowser!==false){
-   try{const initial=new URL(String(url||''));const h=initial.hostname.toLowerCase();const schoolHost=h==='lms.lausd.net'||h==='schoology.com'||h.endsWith('.schoology.com');if(['http:','https:'].includes(initial.protocol)&&!schoolHost){const handled=await routeSchoologyLink(initial.href);if(handled)return;const result=await A.openExternal(initial.href);if(result)showAppDialog('Unable to open link',result);return;}}catch(error){if(error instanceof TypeError){/* Relative or non-HTTP destinations continue into the webview. */}else{showAppDialog('Unable to open link',error.message||String(error));return;}}
+   try{const initial=new URL(String(url||''));const h=initial.hostname.toLowerCase();const schoolHost=h==='lms.lausd.net'||h==='schoology.com'||h.endsWith('.schoology.com');if(['http:','https:'].includes(initial.protocol)&&!schoolHost){const handled=await routeSchoologyLink(initial.href);if(handled)return;const result=await A.openExternal(initial.href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result);return;}}catch(error){if(error instanceof TypeError){/* Relative or non-HTTP destinations continue into the webview. */}else{showAppDialog('Unable to open link',error.message||String(error));return;}}
  }
  if(options.routeSchoology!==false){try{const u=new URL(String(url||''));if((u.hostname.toLowerCase()==='lms.lausd.net'||u.hostname.toLowerCase().endsWith('.schoology.com'))&&/^\/course(?:s)?\/\d+\/materials\/gp\/\d+\/?$/i.test(u.pathname)){if(await routeSchoologyLink(u.href))return;}}catch{}}
  try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
@@ -1305,14 +1305,14 @@ async function showEmbeddedWeb(url,title,options={}){
  const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><div id="embeddedWebviewLoading" class="webviewLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" allowpopups></${embeddedTag}></section>`;
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
- w.addEventListener('dom-ready',()=>{if(mainNavigation>0)setLoading(false)});
+ w.addEventListener('dom-ready',()=>{if(!window.__TAURI__&&mainNavigation>0)setLoading(false)});
  w.addEventListener('did-finish-load',()=>{if(mainNavigation>0){setLoading(false);initialPageLoaded=true}});
 
  w.addEventListener('did-navigate',e=>{if(e.isMainFrame){loadingStartedAt=Date.now();setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200);}});
  w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},8000);
- w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
- w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(externalLinks&&initialPageLoaded){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).then(handled=>{if(handled)return;if(state.openSchoologyLinks&&isSchoologyRoutableLink(u)){w.src=u;return;}return A.openExternal(u)}).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
+ w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
+ w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(externalLinks&&initialPageLoaded){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).then(handled=>{if(handled)return;if(state.openSchoologyLinks&&isSchoologyRoutableLink(u)){w.src=u;return;}return A.openExternal(u)}).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(!options.quiz&&!options.assessment&&!options.lti&&isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
 }
 async function loadAttendanceTab(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
@@ -1350,7 +1350,7 @@ async function loadCourseApps(course,targetEl){
       const launchResult=await A.launchCourseApp({launchUrl:href,appId:Number.isSafeInteger(appId)&&appId>0?appId:undefined,sectionId:Number(sid)});
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
-      openWithPressTransition(b,async()=>{const result=await A.openExternal(url);if(result)showAppDialog('Unable to open course app',result)});
+      openWithPressTransition(b,async()=>{const result=await A.openExternal(url);if(typeof result==='string'&&result)showAppDialog('Unable to open course app',result)});
     }catch(e){el.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);
@@ -1780,11 +1780,11 @@ async function openGroupResourceItem(d,b,gid){
   const t=String(d.template_type||d.templateType||d.type||'').toLowerCase(), dt=String(d.document_type||d.documentType||d.template?.template_document_type||d.template?.templateDocumentType||d.template_fields?.document_type||d.template_fields?.documentType||'').toLowerCase();
   if(t==='folder'){await showGroupResourceFolder(gid,d.id||d.folder_id||d.folderId,d.title||d.template_title||'Folder',d.collection_id||d.collectionID||d.collectionId);return;}
   if(t==='assignment'){const u=groupResourceDestination(d)||`https://app.schoology.com/assignment/${d.id}`;await A.prepareWebSession();showEmbeddedWeb(u,d.title||d.name||'Assignment');return;}
-  if(['link','web_content','external_tool','embed','video'].includes(t)||['link','external_tool','embed','video'].includes(dt)){const u=groupResourceDestination(d);if(u){const result=await A.openExternal(u);if(result)throw new Error(result);return;}}
+  if(['link','web_content','external_tool','embed','video'].includes(t)||['link','external_tool','embed','video'].includes(dt)){const u=groupResourceDestination(d);if(u){const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return;}}
   const u=groupResourceDestination(d);if(!u)throw new Error('Schoology did not provide a resource URL.');
   const f=groupResourceFirst(d,'files');const filename=f?.filename||f?.fileName||d.filename||d.fileName||d.title||d.name||'Schoology file';const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||d.filemime||d.fileMIME||'application/octet-stream';
-  if(dt==='link'||t==='link'){const result=await A.openExternal(u);if(result)throw new Error(result);return;}
-  const r=await downloadWithFeedback(b,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err);
+  if(dt==='link'||t==='link'){const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return;}
+  const r=await downloadWithFeedback(b,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);
 }
 async function openSchoolProfile(schoolId,title='School'){
   const c=document.getElementById('content');if(!c)return;
@@ -1951,7 +1951,7 @@ async function openCollectionResource(item,button){
  if(t==='document'){
    if(dt==='link'){
      const link=firstAttachment(item,'links');let u=link?.link_url||link?.linkURL||link?.url||link?.href||item.url||item.web_url||item.webUrl;
-     if(u){u=normalizeSchoologyWebUrl(u);const result=await A.openExternal(u);if(result)throw new Error(result);return}
+     if(u){u=normalizeSchoologyWebUrl(u);const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return}
    }
    if(dt==='embed'){
      const embed=firstAttachment(item,'embeds');const code=embed?.embed_code||embed?.embedCode;
@@ -1959,15 +1959,15 @@ async function openCollectionResource(item,button){
    }
    if(dt==='external_tool'){
      const u=item.launch_url||item.launchUrl||item.web_url||item.webUrl||item.url||item.href;
-     if(u){const result=await A.openExternal(u);if(result)throw new Error(result);return}
+     if(u){const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return}
    }
    if(dt==='file'){
      const f=firstAttachment(item,'files');const u=f?.resolveDownloadUrl||f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.converted_download_path||f?.convertedDownloadPath;
-     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const r=await downloadWithFeedback(button,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(err)alert(err);return}
+     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const r=await downloadWithFeedback(button,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);return}
    }
  }
  const u=item.web_url||item.webUrl||item.url||item.href||item.location||item.download_path||item.downloadPath||item.file_url||item.fileUrl;
- if(u){const result=await A.openExternal(u);if(result)throw new Error(result);return}
+ if(u){const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return}
  throw new Error('Schoology did not provide a destination for this resource.');
 }
 function setResourceLoading(button,text='Loading…'){
@@ -1987,7 +1987,7 @@ async function loadResourcesHome(c){
  c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceCategoryList">${categories.map(([key,label,list])=>`<section class="resourceCategory"><button class="resourceCategoryHeader" data-resource-category="${key}"><img src="../assets/icons/${collectionIcon(key)}" alt=""><b>${esc(label)}</b><span class="resourceChevron">›</span></button><div class="resourceCategoryChildren" id="resource-${key}">${list.length?list.map((o,i)=>`<button class="resourceCollectionRow" data-resource-collection="${key}" data-resource-index="${i}">${key==='apps'?(o.app_logo||o.appLogo?`<img class="resourceAppLogo" data-media-image-url="${esc(normalizeImageUrl(o.app_logo||o.appLogo))}" alt="" style="display:none"><img class="resourceAppFallback" src="../assets/icons/ic_menu_post.png" alt="">`:`<img src="../assets/icons/ic_menu_post.png" alt="">`):`<img src="../assets/icons/${o.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'}" alt="">`}<span><b>${esc(o.collection_title||o.title||o.name||'Resource')}</b></span><span>›</span></button>`).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`).join('')}</div></section>`;
  window.__resourceCategories=Object.fromEntries(categories.map(([k,l,a])=>[k,a])); await hydrateMediaImages(c);
  document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
- document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');await A.openExternal(url).then(result=>{if(result)showAppDialog('Unable to open resource app',result)})}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
+ document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');await A.openExternal(url).then(result=>{if(typeof result==='string'&&result)showAppDialog('Unable to open resource app',result)})}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
 }
 async function openResourceCollection(col){
  const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';syncToolbar();
@@ -2019,7 +2019,7 @@ async function openNotification(n){
       const parsed=new URL(notificationUrl),host=parsed.hostname.toLowerCase();
       const internal=host==='lms.lausd.net'||host==='schoology.com'||host.endsWith('.schoology.com');
       if(internal&&await routeSchoologyLink(parsed.href))return;
-      if(!internal){const result=await A.openExternal(parsed.href);if(result)showAppDialog('Unable to open notification',result);return}
+      if(!internal){const result=await A.openExternal(parsed.href);if(typeof result==='string'&&result)showAppDialog('Unable to open notification',result);return}
     }catch(e){console.warn('Could not resolve notification URL; falling back to notification type:',e.message)}
   }
   const realmRaw=String(n.realm||'user').toLowerCase();
@@ -2030,8 +2030,11 @@ async function openNotification(n){
   const candidates=[];
   const walk=v=>{if(!v)return;if(Array.isArray(v)){v.forEach(walk);return}if(typeof v==='object'){if(v.type&&v.id!=null)candidates.push(v);Object.values(v).forEach(x=>{if(x&&typeof x==='object')walk(x)})}}; walk(list);
   const notificationType=String(n.type||'').toLowerCase();
-  const expectedType = /badge/.test(notificationType)?'section':/discussion/.test(notificationType)?'discussion':/event/.test(notificationType)?'event':/assignment|grade_item_submit|assessment/.test(notificationType)?'assignment':/document|resource/.test(notificationType)?'document':/page/.test(notificationType)?'page':/group/.test(notificationType)?'group':/friend|profile|user/.test(notificationType)?'user':'';
-  let a=(expectedType&&[...candidates].reverse().find(candidate=>String(candidate.type||'').toLowerCase()===expectedType))
+  const lastArg=Array.isArray(list)?list[list.length-1]:null;
+  const lastArgType=String(lastArg?.type||lastArg?.template_type||lastArg?.templateType||'').toLowerCase();
+  const expectedType = /badge/.test(notificationType)?'section':/discussion/.test(notificationType)?'discussion':/event/.test(notificationType)?'event':/grade_item_submit/.test(notificationType)?(lastArgType||'assignment'):/assessment_v2|managed_assessment/.test(notificationType)?'assessment_v2':/assessment|quiz/.test(notificationType)?'assessment':/assignment/.test(notificationType)?'assignment':/document|resource/.test(notificationType)?'document':/page/.test(notificationType)?'page':/group/.test(notificationType)?'group':/friend|profile|user/.test(notificationType)?'user':'';
+  const typeMatches=(candidate,type)=>{const actual=String(candidate?.type||candidate?.template_type||candidate?.templateType||'').toLowerCase();if(actual===type)return true;if(type==='assessment_v2')return ['assessment_v2','managed_assessment','quiz'].includes(actual);if(type==='assessment')return ['assessment','quiz'].includes(actual);return false};
+  let a=(expectedType&&[...candidates].reverse().find(candidate=>typeMatches(candidate,expectedType)))
     || [...candidates].reverse().find(candidate=>String(candidate.type||'').toLowerCase()!=='user')
     || candidates[candidates.length-1];
   if(notificationType==='badge_award' && a?.type==='user')a={...a,type:'section'};
@@ -2379,7 +2382,7 @@ async function loadHomeTab(){
     finally{loader?.classList.add('hidden')}
   }else{
     c.classList.remove('recentActivityScroll');c.classList.add('homePortraitUpcomingScroll');
-    c.innerHTML='<div id="homeUpcomingList" class="homeUpcomingPortraitList"></div>';
+    c.innerHTML='<div id="homeUpcomingList" class="homeUpcomingPortraitList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';
     await renderUpcomingInto(document.getElementById('homeUpcomingList'));
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}

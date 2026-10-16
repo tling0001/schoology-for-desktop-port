@@ -2,8 +2,6 @@ name: Tauri migration builds (no release)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [tauri-migration]
 
 permissions:
   contents: read

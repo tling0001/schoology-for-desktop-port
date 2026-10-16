@@ -1,4 +1,4 @@
-name: Build Schoology Releases
+name: Tauri builds (no release)
 
 on:
   push:
@@ -6,115 +6,45 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  windows:
-    name: Windows installer
-    runs-on: windows-latest
+  build:
+    name: Tauri ${{ matrix.platform }} build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            artifact: windows
+          - platform: macos
+            os: macos-latest
+            artifact: macos
+          - platform: linux
+            os: ubuntu-22.04
+            artifact: linux
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Build Windows updater helper
-        run: npm run build:updater
-      - name: Build Windows installer
-        run: npx electron-builder --win nsis --publish never
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: Schoology-Windows-Installer-x64
-          path: dist/*Setup*.exe
-          if-no-files-found: error
-
-  macos:
-    name: macOS DMG
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Build macOS DMG
-        run: npm run dist:mac
-      - name: Create standalone macOS app update archive
-        shell: bash
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+      - name: Install Linux Tauri dependencies
+        if: matrix.platform == 'linux'
         run: |
-          set -euo pipefail
-          VERSION=$(node -p "require('./package.json').version")
-          MOUNT="$RUNNER_TEMP/schoology-update-mount"
-          mkdir -p "$MOUNT"
-          DMG=$(find dist -maxdepth 1 -name '*.dmg' -print -quit)
-          test -n "$DMG"
-          hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null
-          APP=$(find "$MOUNT" -maxdepth 3 -name '*.app' -type d -print -quit)
-          test -n "$APP"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Schoology-${VERSION}.app.zip"
-          hdiutil detach "$MOUNT" >/dev/null
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Schoology-macOS
-          path: |
-            dist/*.dmg
-            dist/*.app.zip
-          if-no-files-found: error
-
-  linux:
-    name: Linux DEB + RPM
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install dependencies
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+      - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
-      - name: Build Linux packages
-        run: npm run dist:linux
-      - name: Upload Linux artifacts
+      - name: Build Tauri packages
+        run: npx tauri build
+      - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Linux-x64
-          path: |
-            dist/*.deb
-            dist/*.rpm
+          name: Schoology-Tauri-${{ matrix.artifact }}
+          path: src-tauri/target/release/bundle/**/*
           if-no-files-found: error
-
-  release:
-    name: Create GitHub Release
-    needs: [windows, macos, linux]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download Windows installer
-        uses: actions/download-artifact@v4
-        with:
-          name: Schoology-Windows-Installer-x64
-          path: release-assets/windows
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: Schoology-macOS
-          path: release-assets/macos
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: Schoology-Linux-x64
-          path: release-assets/linux
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          TAG="v${PACKAGE_VERSION}"
-          gh release create "$TAG" release-assets/windows/* release-assets/macos/* release-assets/linux/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Schoology Desktop $TAG" \
-            --generate-notes \
-            --latest
+          retention-days: 14

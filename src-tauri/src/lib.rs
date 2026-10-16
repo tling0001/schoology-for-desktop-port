@@ -165,10 +165,22 @@ async fn request_token(state: &HostState) -> Result<Value, String> {
 async fn exchange_token(app: &AppHandle, state: &HostState, temporary: &Value) -> Result<Value, String> {
     let url = Url::parse(&format!("https://{API_HOST}/v1/oauth/access_token")).map_err(|e| e.to_string())?;
     let response = request("GET", url, None, Some(temporary), state, true, None, false).await?;
-    let token_response = parse_form(&response.text().await.map_err(|e| e.to_string())?);
+    let status = response.status();
+    let response_text = response.text().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("Schoology access-token exchange failed (HTTP {}): {}", status.as_u16(), response_text.chars().take(500).collect::<String>()));
+    }
+    let token_response = parse_form(&response_text);
     let token = token_response.get("oauth_token").and_then(Value::as_str).unwrap_or("");
     let secret = token_response.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
-    if token.is_empty() || secret.is_empty() { return Err("Schoology returned an invalid access token.".into()); }
+    if token.is_empty() || secret.is_empty() {
+        let detail = response_text.chars().take(500).collect::<String>();
+        return Err(if detail.is_empty() {
+            "Schoology returned an invalid access token (the response did not contain an access token or secret).".into()
+        } else {
+            format!("Schoology returned an invalid access token: {detail}")
+        });
+    }
     let auth = json!({"oauth_token":token,"oauth_token_secret":secret});
     let url = Url::parse(&format!("https://{API_HOST}/v1/users/me")).map_err(|e| e.to_string())?;
     let user_response = request("GET", url, None, Some(&auth), state, true, None, false).await?;
@@ -1079,6 +1091,30 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
 }
 pub fn run() {
     tauri::Builder::default()
+        // Register first so protocol activations are forwarded before any other
+        // plugin can initialize a second application instance.
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+            for arg in argv {
+                let candidate = arg.trim_matches(|ch| ch == '"' || ch == '\'');
+                let candidate = if candidate.starts_with("schoology://") {
+                    Some(candidate)
+                } else {
+                    candidate.find("schoology://").map(|index| &candidate[index..])
+                };
+                if let Some(url_text) = candidate {
+                    let url_text = url_text.split_whitespace().next().unwrap_or(url_text).trim_end_matches('"');
+                    if Url::parse(url_text).is_ok() {
+                        let handle = app.clone();
+                        tauri::async_runtime::spawn(handle_deep_link(handle, url_text.to_owned()));
+                    }
+                }
+            }
+        }))
         // Match the existing Electron media-permission behavior for the app shell.
         // Embedded remote webviews apply a stricter Schoology/LAUSD origin check.
         .on_permission_request(|_webview, kind| {
@@ -1133,21 +1169,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
-        // Forward schoology:// callbacks from second-instance launches to the existing app,
-        // where the pending OAuth request token lives, instead of creating a blank window.
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
-            for arg in argv {
-                if arg.starts_with("schoology://") {
-                    let handle = app.clone();
-                    tauri::async_runtime::spawn(handle_deep_link(handle, arg));
-                }
-            }
-        }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![schoology_invoke])
         .run(tauri::generate_context!())

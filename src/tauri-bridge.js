@@ -262,51 +262,6 @@
         }
       }, true);
     }
-    if (!window.__schoologyTauriContextMenu) {
-      window.__schoologyTauriContextMenu = true;
-      let menu = null;
-      let targetLink = '';
-      const closeMenu = () => { if (menu) { menu.remove(); menu = null; } };
-      const command = async action => {
-        const link = targetLink;
-        closeMenu();
-        if (action === 'back') { history.back(); return; }
-        if (action === 'forward') { history.forward(); return; }
-        if (action === 'reload') { location.reload(); return; }
-        if (action === 'select') { document.execCommand('selectAll'); return; }
-        if (action === 'copy') { try { await navigator.clipboard.writeText(String(getSelection() || '')); } catch (_) { document.execCommand('copy'); } return; }
-        if (action === 'copylink' && link) { try { await navigator.clipboard.writeText(link); } catch (_) {} return; }
-        if (action === 'open' && link) { window.open(link, '_blank'); return; }
-        if (action === 'download' && link && internalHost(link)) {
-          const u = new URL(link);
-          location.href = 'schoology-download://request?url=' + encodeURIComponent(u.href) + '&filename=' + encodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || 'Schoology-file') + '&mime=application/octet-stream';
-        }
-      };
-      document.addEventListener('contextmenu', event => {
-        const anchor = event.target?.closest?.('a[href]');
-        targetLink = anchor ? new URL(anchor.href, location.href).href : '';
-        event.preventDefault(); closeMenu();
-        menu = document.createElement('div');
-        menu.setAttribute('role', 'menu');
-        menu.style.cssText = 'position:fixed;z-index:2147483647;min-width:190px;padding:5px;border:1px solid #6665;border-radius:9px;background:Canvas;color:CanvasText;box-shadow:0 8px 28px #0004;font:14px system-ui;';
-        const items = [['back','Back'],['forward','Forward'],['reload','Reload'],['copy','Copy selection'],['select','Select all']];
-        if (targetLink) { items.push(['copylink','Copy link']); items.push(['open','Open link']); if (internalHost(targetLink)) items.push(['download','Download link']); }
-        for (const [action, label] of items) {
-          const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.setAttribute('role','menuitem');
-          button.style.cssText = 'display:block;width:100%;padding:8px 10px;border:0;border-radius:5px;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer;';
-          button.addEventListener('mouseenter', () => { button.style.background = 'color-mix(in srgb, CanvasText 12%, Canvas)'; });
-          button.addEventListener('mouseleave', () => { button.style.background = 'transparent'; });
-          button.addEventListener('click', () => { void command(action); });
-          menu.appendChild(button);
-        }
-        document.documentElement.appendChild(menu);
-        const width = menu.offsetWidth, height = menu.offsetHeight;
-        menu.style.left = Math.max(4, Math.min(event.clientX, innerWidth - width - 4)) + 'px';
-        menu.style.top = Math.max(4, Math.min(event.clientY, innerHeight - height - 4)) + 'px';
-      }, true);
-      document.addEventListener('pointerdown', event => { if (menu && !menu.contains(event.target)) closeMenu(); }, true);
-      document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); }, true);
-    }
     root.dataset.schoologyNativeDark = dark ? 'true' : 'false';
     let style = document.getElementById(styleId);
     if (!style) { style = document.createElement('style'); style.id = styleId; style.textContent = css; (document.head || root).appendChild(style); }

@@ -40,7 +40,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
       - name: Build Tauri packages
-        run: npx tauri build
+        run: npm run prepare:tauri && npx tauri build
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:

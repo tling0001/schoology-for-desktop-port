@@ -128,7 +128,7 @@ function schoolLoginDomain(school){
 async function startSchoolBrowserLogin(){
   state.loading=true;state.error='';render();
   try{const domain=schoolLoginDomain(state.school);if(!domain)throw new Error('This school did not provide a valid login domain.');state.auth=await A.loginSchoolBrowser({domain});await afterLogin();}
-  catch(e){state.loading=false;state.error=e.message||'Browser sign-in failed.';render();}
+  catch(e){state.loading=false;state.error=typeof e==='string'?e:(e?.message||String(e||'Browser sign-in failed.'));render();}
 }
 
 function externalSelect(){

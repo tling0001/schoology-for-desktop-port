@@ -421,7 +421,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 _ => true,
             }
         });
-    parent.add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
+    parent.window().add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
         .map_err(|e| format!("Could not create the embedded Schoology webview: {e}"))?;
     Ok(json!({"label":label,"created":true}))
 }

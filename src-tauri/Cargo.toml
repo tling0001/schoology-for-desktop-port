@@ -18,7 +18,7 @@ tauri = { version = "2.12", features = ["unstable"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-deep-link = "2"
+tauri-plugin-deep-link = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "0bd82c829b31732daedd25ef6674b94dfbe93e46" }
 # Use the published, non-yanked compatible rust-ini release used by tauri-plugin-deep-link.
 rust-ini = "=0.21.3"
 serde = { version = "1", features = ["derive"] }

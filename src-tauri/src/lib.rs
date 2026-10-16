@@ -350,7 +350,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     if !matches!(url.scheme(), "http" | "https") || !is_schoology_or_lausd_host(url.host_str().unwrap_or_default()) {
         return Err("Only Schoology and LAUSD pages can be embedded in the native Schoology webview.".into());
     }
-    let parent = app.get_webview_window("main").ok_or("The main Schoology window is unavailable.")?;
+    let parent = app.get_window("main").ok_or("The main Schoology window is unavailable.")?;
     let x = info.get("x").and_then(Value::as_f64).unwrap_or(0.0).max(0.0);
     let y = info.get("y").and_then(Value::as_f64).unwrap_or(0.0).max(0.0);
     let width = info.get("width").and_then(Value::as_f64).unwrap_or(1.0).max(1.0);
@@ -421,7 +421,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 _ => true,
             }
         });
-    parent.window().add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
+    parent.add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
         .map_err(|e| format!("Could not create the embedded Schoology webview: {e}"))?;
     Ok(json!({"label":label,"created":true}))
 }

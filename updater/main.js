@@ -242,7 +242,8 @@ async function main(){
   const appRoot=extractedApp.root;
   const uninstallSource=path.join(outer,'$R0','Uninstall Schoology.exe');const uninstallTarget=path.join(SCHOOLGY_DIR,'Uninstall Schoology.exe');fs.mkdirSync(SCHOOLGY_DIR,{recursive:true});
   log('copy-application-start',{inner,appRoot,schoologyDir:SCHOOLGY_DIR,stagedInstallDir:payload.stagedInstallDir||null});
-  await run('robocopy.exe',[appRoot,SCHOOLGY_DIR,'/E','/IS','/IT','/R:2','/W:1'],{
+  await run('cmd.exe',['/d','/s','/c','del /f /q "'+SCHOOLGY_DIR+'\\*"'],{acceptCodes:[0]});
+  await run('robocopy.exe',[appRoot,SCHOOLGY_DIR,'/E','/R:2','/W:1'],{
     acceptCodes:[0,1,2,3,4,5,6,7],
     onOutput:()=>ui('install','determinate','Copying application files…',85)
   });

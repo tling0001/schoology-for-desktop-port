@@ -5,7 +5,7 @@ use rand::RngCore;
 use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{Mutex, atomic::{AtomicU64, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
+use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder};
@@ -18,8 +18,9 @@ use url::Url;
 use tokio::sync::oneshot;
 
 type HmacSha1 = Hmac<Sha1>;
-const API_HOST: &str = "api.schoology.com";
-const WEB_HOST: &str = "app.schoology.com";
+static CANADIAN_INSTANCE: AtomicBool = AtomicBool::new(false);
+fn api_host() -> &'static str { if CANADIAN_INSTANCE.load(Ordering::Relaxed) { "api.schoologyca.com" } else { "api.schoology.com" } }
+fn web_host() -> &'static str { if CANADIAN_INSTANCE.load(Ordering::Relaxed) { "app.schoologyca.com" } else { "app.schoology.com" } }
 const CONSUMER_KEY: &str = "998121f221d5dc0f4956ee6946d27d5e04e55635e";
 const CONSUMER_SECRET: &str = "5cff9d3780d64695d762ba8e05a34e9e";
 const MOBILE_COOKIE: &str = "s_mobile=03447c0175ac0c7299a5508fde9569fc";
@@ -133,10 +134,10 @@ async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Valu
     let mut current_body = body;
     for redirect_count in 0..=5 {
         let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
-        let api_host = current_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(API_HOST));
+        let current_is_api_host = current_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(api_host()));
         let mut builder = client.request(current_method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, current_url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "application/json");
-        if client_identity && api_host { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0"); }
-        if let Some(a) = auth.filter(|_| api_host) {
+        if client_identity && current_is_api_host { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0"); }
+        if let Some(a) = auth.filter(|_| current_is_api_host) {
             let token = a.get("oauth_token").and_then(Value::as_str).unwrap_or("");
             let secret = a.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
             let qr_parameters = qr.map(|value| vec![("scanned_qr_data", enc(value))]).unwrap_or_default();
@@ -153,7 +154,7 @@ async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Valu
             if let Some(location) = response.headers().get("location").and_then(|value| value.to_str().ok()) {
                 if let Ok(next_url) = current_url.join(location) {
                     // Never forward a Schoology credential to a different host or scheme.
-                    let safe_api_redirect = next_url.scheme() == "https" && next_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(API_HOST));
+                    let safe_api_redirect = next_url.scheme() == "https" && next_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(api_host()));
                     if safe_api_redirect {
                         let status = response.status();
                         if status == reqwest::StatusCode::SEE_OTHER
@@ -180,21 +181,21 @@ async fn response_value(response: reqwest::Response) -> Result<Value, String> {
     Ok(serde_json::from_str(&text).unwrap_or(Value::String(text)))
 }
 async fn sync_server_time(state: &HostState) {
-    if let Ok(url) = Url::parse(&format!("https://{WEB_HOST}/oauth/timestamp")) {
+    if let Ok(url) = Url::parse(&format!("https://{}/oauth/timestamp", web_host())) {
         if let Ok(client) = reqwest::Client::builder().timeout(std::time::Duration::from_secs(10)).build() {
             if let Ok(response) = client.get(url).send().await { if let Ok(text) = response.text().await { if let Ok(server) = text.trim().parse::<i64>() { if let Ok(mut offset) = state.server_time_offset.lock() { *offset = server - epoch(); } } } }
         }
     }
 }
 async fn request_token(state: &HostState) -> Result<Value, String> {
-    let url = Url::parse(&format!("https://{API_HOST}/v1/oauth/request_token")).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/v1/oauth/request_token", api_host())).map_err(|e| e.to_string())?;
     let response = request("GET", url, None, Some(&json!({"oauth_token":"", "oauth_token_secret":""})), state, false, None, false).await?;
     let text = response.text().await.map_err(|e| e.to_string())?;
     if text.is_empty() { return Err("Schoology returned an empty request token.".into()); }
     Ok(parse_form(&text))
 }
 async fn exchange_token(app: &AppHandle, state: &HostState, temporary: &Value) -> Result<Value, String> {
-    let url = Url::parse(&format!("https://{API_HOST}/v1/oauth/access_token")).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/v1/oauth/access_token", api_host())).map_err(|e| e.to_string())?;
     let response = request("GET", url, None, Some(temporary), state, true, None, false).await?;
     let status = response.status();
     let response_text = response.text().await.map_err(|e| e.to_string())?;
@@ -213,7 +214,7 @@ async fn exchange_token(app: &AppHandle, state: &HostState, temporary: &Value) -
         });
     }
     let auth = json!({"oauth_token":token,"oauth_token_secret":secret});
-    let url = Url::parse(&format!("https://{API_HOST}/v1/users/me")).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/v1/users/me", api_host())).map_err(|e| e.to_string())?;
     let user_response = request("GET", url, None, Some(&auth), state, true, None, false).await?;
     let user = response_value(user_response).await?;
     let user_id = user.get("id").and_then(Value::as_i64).filter(|id| *id > 0).ok_or("Schoology did not return a valid user profile. Please try signing in again.")?;
@@ -229,7 +230,7 @@ async fn login_credentials(app: &AppHandle, state: &HostState, args: &Value) -> 
     form.insert("password".into(), args.get("password").cloned().unwrap_or(Value::String(String::new())));
     form.insert("oauth_token".into(), temporary.get("oauth_token").cloned().unwrap_or(Value::Null));
     if let Some(id) = args.get("schoolId").filter(|v| !v.is_null() && !v.as_str().unwrap_or("").is_empty()) { form.insert("school_id".into(), id.clone()); }
-    let url = Url::parse(&format!("https://{WEB_HOST}/oauth/authorize_auto")).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/oauth/authorize_auto", web_host())).map_err(|e| e.to_string())?;
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
     let response = client.post(url).header("User-Agent", ANDROID_UA).header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0").form(&form).send().await.map_err(|e| e.to_string())?;
     let status = response.status(); let text = response.text().await.unwrap_or_default();
@@ -240,7 +241,7 @@ async fn login_qr(app: &AppHandle, state: &HostState, qr: &str) -> Result<Value,
     sync_server_time(state).await;
     let temporary = request_token(state).await?;
     let mut form = serde_json::Map::new(); form.insert("scanned_qr_data".into(), json!(qr)); form.insert("oauth_token".into(), temporary.get("oauth_token").cloned().unwrap_or(Value::Null));
-    let url = Url::parse(&format!("https://{WEB_HOST}/oauth/qr_code_authorize_auto")).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/oauth/qr_code_authorize_auto", web_host())).map_err(|e| e.to_string())?;
     let response = request("POST", url, Some(Value::Object(form)), Some(&temporary), state, true, Some(qr), false).await?;
     if !response.status().is_success() { let status=response.status().as_u16(); let text=response.text().await.unwrap_or_default(); return Err(format!("QR authorization failed: {status} {text}")); }
     exchange_token(app, state, &temporary).await
@@ -324,11 +325,11 @@ async fn api_call(app: &AppHandle, state: &HostState, args: &Value) -> Result<Va
 
 async fn fetch_image(app: &AppHandle, state: &HostState, raw: &str) -> Result<Value, String> {
     let Some(auth) = auth_state(app) else { return Ok(Value::Null) };
-    let url = Url::parse(raw).or_else(|_| Url::parse(&format!("https://{WEB_HOST}/{}", raw.trim_start_matches('/')))).map_err(|_| "Invalid image URL.".to_string())?;
+    let url = Url::parse(raw).or_else(|_| Url::parse(&format!("https://{}/{}", web_host(), raw.trim_start_matches('/')))).map_err(|_| "Invalid image URL.".to_string())?;
     if !["https", "http"].contains(&url.scheme()) { return Ok(Value::Null); }
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
-    let mut request = client.get(url.clone()).header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36").header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8").header("Referer", format!("https://{WEB_HOST}/"));
-    if url.host_str() == Some(API_HOST) {
+    let mut request = client.get(url.clone()).header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36").header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8").header("Referer", format!("https://{}/", web_host()));
+    if url.host_str() == Some(api_host()) {
         request = request.header("Authorization", signed_header("GET", &url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?, &[])?);
     }
     let response = request.send().await.map_err(|e| e.to_string())?;
@@ -355,7 +356,7 @@ async fn submit_assignment_text(app: &AppHandle, state: &HostState, info: &Value
     let grade = info.get("gradeItemId").and_then(Value::as_i64).ok_or("Text submission information is incomplete.")?;
     let text = info.get("text").and_then(Value::as_str).unwrap_or("").trim();
     if text.is_empty() { return Err("Enter a submission before posting.".into()); }
-    let mut url = Url::parse(&format!("https://{API_HOST}/v1/sections/{section}/submissions/{grade}/create")).map_err(|e| e.to_string())?;
+    let mut url = Url::parse(&format!("https://{}/v1/sections/{section}/submissions/{grade}/create", api_host())).map_err(|e| e.to_string())?;
     url.query_pairs_mut().append_pair("realm", "sections").append_pair("realm_id", &section.to_string()).append_pair("grade_item_id", &grade.to_string()).append_pair("action", "create");
     let body = json!({"body":text,"draft":if info.get("draft").and_then(Value::as_bool).unwrap_or(false) {1} else {0}});
     api_json(app, state, "POST", url, Some(body), true).await?;
@@ -365,7 +366,7 @@ async fn submit_assignment_resource(app: &AppHandle, state: &HostState, info: &V
     let section = info.get("sectionId").and_then(Value::as_i64).ok_or("Resource submission information is incomplete.")?;
     let assignment = info.get("assignmentId").and_then(Value::as_i64).ok_or("Resource submission information is incomplete.")?;
     let resource = info.get("resourceId").ok_or("Resource submission information is incomplete.")?;
-    let url = Url::parse(&format!("https://{API_HOST}/v1/course/{section}/materials/assignments/{assignment}/dropbox/create_resource_submission")).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/v1/course/{section}/materials/assignments/{assignment}/dropbox/create_resource_submission", api_host())).map_err(|e| e.to_string())?;
     api_json(app, state, "POST", url, Some(json!({"files":[{"schoology_resource_id":resource.to_string()}]})), true).await?;
     Ok(json!(true))
 }
@@ -375,10 +376,10 @@ async fn launch_course_app(app: &AppHandle, state: &HostState, info: &Value) -> 
     let raw = info.get("launchUrl").or(info.get("href")).and_then(Value::as_str).unwrap_or("").trim();
     let (url, resource) = if !raw.is_empty() {
         let candidate = Url::parse(raw).map_err(|_| "Schoology returned an invalid course-app launch link.")?;
-        if candidate.scheme() != "https" || candidate.host_str() != Some(API_HOST) || !candidate.path().starts_with("/v2/sections/") && !candidate.path().starts_with("/v2/resources/applications/") { return Err("Schoology returned an unsupported course-app launch link.".into()); }
+        if candidate.scheme() != "https" || candidate.host_str() != Some(api_host()) || !candidate.path().starts_with("/v2/sections/") && !candidate.path().starts_with("/v2/resources/applications/") { return Err("Schoology returned an unsupported course-app launch link.".into()); }
         (candidate, raw.contains("/v2/resources/applications/"))
-    } else if section > 0 && app_id > 0 { (Url::parse(&format!("https://{API_HOST}/v2/sections/{section}/applications/{app_id}/launch")).map_err(|e| e.to_string())?, false) }
-    else if app_id > 0 { (Url::parse(&format!("https://{API_HOST}/v2/resources/applications/{app_id}/launch")).map_err(|e| e.to_string())?, true) }
+    } else if section > 0 && app_id > 0 { (Url::parse(&format!("https://{}/v2/sections/{section}/applications/{app_id}/launch", api_host())).map_err(|e| e.to_string())?, false) }
+    else if app_id > 0 { (Url::parse(&format!("https://{}/v2/resources/applications/{app_id}/launch", api_host())).map_err(|e| e.to_string())?, true) }
     else { return Err("The course app did not provide a valid launch link.".into()); };
     api_json(app, state, "GET", url, None, false).await.map_err(|e| if resource { format!("Resource app launch failed: {e}") } else { format!("Course app launch failed: {e}") })
 }
@@ -400,6 +401,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).max(1.0);
     let user_agent = info.get("userAgent").and_then(Value::as_str).unwrap_or(ANDROID_UA).to_owned();
     let initialization_script = info.get("initializationScript").and_then(Value::as_str).unwrap_or("").to_owned();
+    let force_dark_webview = info.get("forceDark").and_then(Value::as_bool).unwrap_or(false);
     let downloads_dir = app.path().download_dir().ok().filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(app.path().app_cache_dir().map_err(|e| e.to_string())?.join("downloads"));
     fs::create_dir_all(&downloads_dir).map_err(|e| format!("Could not prepare the downloads folder: {e}"))?;
@@ -464,6 +466,8 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 _ => true,
             }
         });
+    #[cfg(target_os = "windows")]
+    let builder = builder.additional_browser_args(if force_dark_webview { "--enable-features=OverlayScrollbar:mode/overlay,WebContentsForceDark" } else { "--enable-features=OverlayScrollbar:mode/overlay" });
     parent.add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
         .map_err(|e| format!("Could not create the embedded Schoology webview: {e}"))?;
     Ok(json!({"label":label,"created":true}))
@@ -472,6 +476,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
 fn is_schoology_or_lausd_host(host: &str) -> bool {
     let host = host.trim_end_matches('.').to_ascii_lowercase();
     host == "schoology.com" || host.ends_with(".schoology.com")
+        || host == "schoologyca.com" || host.ends_with(".schoologyca.com")
         || host == "lms.lausd.net" || host.ends_with(".lms.lausd.net")
 }
 
@@ -524,7 +529,7 @@ async fn login_external_school(app: &AppHandle, state: &HostState, info: &Value)
 async fn download_schoology_file(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
     let auth = auth_state(app).ok_or("Not signed in")?;
     let raw = info.get("url").and_then(Value::as_str).ok_or("File URL is missing.")?;
-    let mut url = Url::parse(raw).or_else(|_| Url::parse(&format!("https://{API_HOST}/{}", raw.trim_start_matches('/')))).map_err(|_| "Schoology returned an invalid file URL.")?;
+    let mut url = Url::parse(raw).or_else(|_| Url::parse(&format!("https://{}/{}", api_host(), raw.trim_start_matches('/')))).map_err(|_| "Schoology returned an invalid file URL.")?;
     if !["https", "http"].contains(&url.scheme()) { return Err("Unsupported file URL.".into()); }
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
     let mut builder = client.get(url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "*/*");
@@ -538,8 +543,8 @@ async fn download_schoology_file(app: &AppHandle, state: &HostState, info: &Valu
         let cookies = view.cookies_for_url(url.clone()).map_err(|e| format!("Could not read the embedded webview cookie store: {e}"))?;
         let cookie_header = cookies.iter().map(|cookie| format!("{}={}", cookie.name(), cookie.value())).collect::<Vec<_>>().join("; ");
         if !cookie_header.is_empty() { builder = builder.header("Cookie", cookie_header); }
-    } else if host == WEB_HOST || host.ends_with(".schoology.com") { builder = builder.header("Cookie", MOBILE_COOKIE); }
-    if host == API_HOST { builder = builder.header("Authorization", signed_header("GET", &url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?, &[])?); }
+    } else if host == web_host() || host.ends_with(".schoology.com") || host == "app.schoologyca.com" || host.ends_with(".schoologyca.com") || host == "app.schoologyca.com" || host.ends_with(".schoologyca.com") { builder = builder.header("Cookie", MOBILE_COOKIE); }
+    if host == api_host() { builder = builder.header("Authorization", signed_header("GET", &url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?, &[])?); }
     let response = builder.send().await.map_err(|e| e.to_string())?;
     if !response.status().is_success() { return Err(format!("Schoology file download failed (HTTP {})", response.status().as_u16())); }
     let response_filename = response.headers().get(reqwest::header::CONTENT_DISPOSITION).and_then(|value| value.to_str().ok())
@@ -577,7 +582,7 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     // Schoology's legacy metadata + raw PUT upload sequence.
     let mut primary_error = String::new();
     let mut file_id: Option<Value> = None;
-    let mut url = Url::parse(&format!("https://{API_HOST}/v1/file")).map_err(|e| e.to_string())?;
+    let mut url = Url::parse(&format!("https://{}/v1/file", api_host())).map_err(|e| e.to_string())?;
     url.query_pairs_mut().append_pair("name", &filename);
     let part = reqwest::multipart::Part::bytes(data.clone()).file_name(filename.clone()).mime_str(&mime).map_err(|e| e.to_string())?;
     let form = reqwest::multipart::Form::new().part("file", part);
@@ -603,7 +608,7 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     if file_id.is_none() {
         let _ = app.emit("file-upload-progress", json!({"percent":2,"phase":"Preparing upload fallback…"}));
         let checksum = format!("{:x}", Md5::digest(&data));
-        let metadata_url = Url::parse(&format!("https://{API_HOST}/v1/upload")).map_err(|e| e.to_string())?;
+        let metadata_url = Url::parse(&format!("https://{}/v1/upload", api_host())).map_err(|e| e.to_string())?;
         let metadata = api_json(app, state, "POST", metadata_url, Some(json!({
             "filename": filename,
             "md5_checksum": checksum,
@@ -611,7 +616,7 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
         })), true).await.map_err(|e| format!("FileService upload failed ({primary_error}); legacy metadata upload failed: {e}"))?;
         let upload_id = metadata.get("id").or_else(|| metadata.get("upload_file_id")).or_else(|| metadata.get("uploadFileID"))
             .cloned().ok_or_else(|| format!("FileService upload failed ({primary_error}); legacy metadata response did not contain an upload id."))?;
-        let put_url = Url::parse(&format!("https://{API_HOST}/v1/upload/{}", url::form_urlencoded::byte_serialize(upload_id.to_string().trim_matches('"').as_bytes()).collect::<String>())).map_err(|e| e.to_string())?;
+        let put_url = Url::parse(&format!("https://{}/v1/upload/{}", api_host(), url::form_urlencoded::byte_serialize(upload_id.to_string().trim_matches('"').as_bytes()).collect::<String>())).map_err(|e| e.to_string())?;
         let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
         let header = signed_header("PUT", &put_url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp, &[])?;
         let _ = app.emit("file-upload-progress", json!({"percent":5,"phase":"Uploading file…"}));
@@ -630,7 +635,7 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     if submit {
         let section = info.get("sectionId").and_then(Value::as_i64).ok_or("Submission information is incomplete.")?;
         let assignment = info.get("assignmentId").and_then(Value::as_i64).ok_or("Submission information is incomplete.")?;
-        let url = Url::parse(&format!("https://{API_HOST}/v1/section/{section}/assignment/{assignment}/submission")).map_err(|e| e.to_string())?;
+        let url = Url::parse(&format!("https://{}/v1/section/{section}/assignment/{assignment}/submission", api_host())).map_err(|e| e.to_string())?;
         api_json(app, state, "POST", url, Some(json!({"files":[{"id":file_id}]})), true).await?;
         let _ = app.emit("file-upload-progress", json!({"percent":100,"phase":"Upload complete"}));
         Ok(json!(true))
@@ -672,7 +677,7 @@ fn notification_body(item: &Value) -> String {
 
 async fn poll_notifications(app: &AppHandle, state: &HostState) {
     let Some(auth) = auth_state(app) else { return; };
-    let response = match api_json(app, state, "GET", Url::parse(&format!("https://{API_HOST}/v1/notifications")).unwrap(), None, false).await {
+    let response = match api_json(app, state, "GET", Url::parse(&format!("https://{}/v1/notifications", api_host())).unwrap(), None, false).await {
         Ok(value) => value,
         Err(error) => { if !error.contains("Not signed in") && !error.contains("401") { eprintln!("Schoology notification poll failed: {error}"); } return; }
     };
@@ -723,7 +728,7 @@ async fn update_assignment_grade(app: &AppHandle, state: &HostState, info: &Valu
     }
     let comment = info.get("comment").and_then(Value::as_str).unwrap_or("");
     let comment_status = if info.get("commentStatus").and_then(Value::as_bool).unwrap_or(false) { 1 } else { 0 };
-    let url = Url::parse(&format!("https://{API_HOST}/v1/sections/{section_id}/grades/{assignment_id}"))
+    let url = Url::parse(&format!("https://{}/v1/sections/{section_id}/grades/{assignment_id}", api_host()))
         .map_err(|e| e.to_string())?;
     let payload = json!({
         "enrollment_id": enrollment_id,
@@ -737,8 +742,8 @@ async fn update_assignment_grade(app: &AppHandle, state: &HostState, info: &Valu
 
 async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value, String> {
     let _auth = auth_state(app).ok_or("Not signed in")?;
-    let mut url = Url::parse(&format!("https://{API_HOST}/v1/sessionstart")).map_err(|e| e.to_string())?;
-    url.query_pairs_mut().append_pair("for_domain", "app.schoology.com");
+    let mut url = Url::parse(&format!("https://{}/v1/sessionstart", api_host())).map_err(|e| e.to_string())?;
+    url.query_pairs_mut().append_pair("for_domain", web_host());
     let response = api_json(app, state, "GET", url, None, false).await?;
     let cookies = response.get("cookie").or_else(|| response.get("cookies")).and_then(Value::as_array).cloned().unwrap_or_default();
     if cookies.is_empty() { return Err("Schoology did not return web-session cookies.".into()); }
@@ -763,8 +768,8 @@ fn schoology_api_url(path: &str) -> Result<Url, String> {
     let normalized = path.trim().trim_start_matches('/');
     if normalized.starts_with("http://") || normalized.starts_with("https://") {
         let url = Url::parse(normalized).map_err(|_| "Invalid Schoology API URL.".to_string())?;
-        if url.scheme() != "https" || url.host_str() != Some(API_HOST) {
-            return Err("Schoology API requests must target api.schoology.com over HTTPS.".into());
+        if url.scheme() != "https" || url.host_str() != Some(api_host()) {
+            return Err("Schoology API requests must target the active Schoology API host over HTTPS.".into());
         }
         return Ok(url);
     }
@@ -778,7 +783,7 @@ fn schoology_api_url(path: &str) -> Result<Url, String> {
     } else {
         format!("v1/{normalized}")
     };
-    Url::parse(&format!("https://{API_HOST}/{versioned_path}")).map_err(|e| e.to_string())
+    Url::parse(&format!("https://{}/{versioned_path}", api_host())).map_err(|e| e.to_string())
 }
 
 fn safe_filename(value: &str) -> String {
@@ -1025,6 +1030,10 @@ async fn latest_alternate_release(repo: &str, product_name: &str) -> Result<Valu
 
 #[tauri::command]
 async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: String, args: Option<Value>) -> Result<Value, String> {
+    if name != "set-server-instance" {
+        let enabled = read_json(&app, "server-instance.json", json!({"canadian":false})).get("canadian").and_then(Value::as_bool).unwrap_or(false);
+        CANADIAN_INSTANCE.store(enabled, Ordering::Relaxed);
+    }
     let args = args.unwrap_or(Value::Null);
     match name.as_str() {
         "auth-state" => Ok(auth_state(&app).unwrap_or(Value::Null)),
@@ -1041,6 +1050,8 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "set-desktop-notifications" => { let mut v=read_json(&app,"app-settings.json",json!({})); if !v.is_object(){v=json!({});} v["desktopNotifications"]=args; write_json(&app,"app-settings.json",&v)?; Ok(v["desktopNotifications"].clone()) },
         "get-notification-sound" => Ok(json!(read_json(&app,"app-settings.json",json!({})).get("notificationSound").and_then(Value::as_bool).unwrap_or(false))),
         "set-notification-sound" => { let mut v=read_json(&app,"app-settings.json",json!({})); if !v.is_object(){v=json!({});} v["notificationSound"]=args; write_json(&app,"app-settings.json",&v)?; Ok(v["notificationSound"].clone()) },
+        "get-server-instance" => { let enabled=read_json(&app,"server-instance.json",json!({"canadian":false})).get("canadian").and_then(Value::as_bool).unwrap_or(false); CANADIAN_INSTANCE.store(enabled,Ordering::Relaxed); Ok(json!(enabled)) },
+        "set-server-instance" => { let enabled=args.as_bool().unwrap_or(false); CANADIAN_INSTANCE.store(enabled,Ordering::Relaxed); write_json(&app,"server-instance.json",&json!({"canadian":enabled}))?; Ok(json!(enabled)) },
         "get-theme-mode" => Ok(json!(read_json(&app,"theme-settings.json",json!({"mode":"system"})).get("mode").and_then(Value::as_str).unwrap_or("system"))),
         "set-theme-mode" => { let mode=args.as_str().filter(|s| ["light","dark","system"].contains(s)).unwrap_or("system"); let mut v=read_json(&app,"theme-settings.json",json!({})); if !v.is_object(){v=json!({});} v["mode"]=json!(mode); write_json(&app,"theme-settings.json",&v)?; Ok(json!(mode)) },
         "get-experimental-force-dark" => Ok(json!(read_json(&app,"theme-settings.json",json!({})).get("forceDark").and_then(Value::as_bool).unwrap_or(false))),
@@ -1062,7 +1073,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let _ = app.emit("schoology-clear-web-session", json!({}));
             Ok(json!(true))
         },
-        "school-search" => { let query=args.as_str().unwrap_or(""); let url=Url::parse_with_params(&format!("https://{API_HOST}/v1/login/school_search"),&[("query",query)]).map_err(|e| e.to_string())?; let client=reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e|e.to_string())?; let response=client.get(url).header("User-Agent",ANDROID_UA).header("X-Schoology-Client","Android").header("X-Schoology-App-Version","2026.06.0").send().await.map_err(|e|e.to_string())?; let v=response_value(response).await?; Ok(v.get("school").cloned().unwrap_or(json!([]))) },
+        "school-search" => { let query=args.as_str().unwrap_or(""); let url=Url::parse_with_params(&format!("https://{}/v1/login/school_search", api_host()),&[("query",query)]).map_err(|e| e.to_string())?; let client=reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e|e.to_string())?; let response=client.get(url).header("User-Agent",ANDROID_UA).header("X-Schoology-Client","Android").header("X-Schoology-App-Version","2026.06.0").send().await.map_err(|e|e.to_string())?; let v=response_value(response).await?; Ok(v.get("school").cloned().unwrap_or(json!([]))) },
         "api" => api_call(&app,&state,&args).await,
         "fetch-image" => fetch_image(&app,&state,args.as_str().unwrap_or("")).await,
         "submit-assignment-text" => submit_assignment_text(&app,&state,&args).await,
@@ -1134,6 +1145,8 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
     }
 }
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--enable-features=OverlayScrollbar:mode/overlay");
     tauri::Builder::default()
         // Register first so protocol activations are forwarded before any other
         // plugin can initialize a second application instance.

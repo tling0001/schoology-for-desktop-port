@@ -58,7 +58,7 @@
       if (url.protocol !== 'https:') return false;
       const host = url.hostname.toLowerCase();
       if (url.search.includes('sgyInitialPage')) return true;
-      if (host === 'schoology.com' || host.endsWith('.schoology.com') || host === 'lms.lausd.net' || host.endsWith('.lms.lausd.net')) return true;
+      if (host === 'schoology.com' || host.endsWith('.schoology.com') || host === 'schoologyca.com' || host.endsWith('.schoologyca.com') || host === 'lms.lausd.net' || host.endsWith('.lms.lausd.net')) return true;
       const expected = String(expectedDomain || '').replace(/^https?:\/\//i, '').split('/')[0].split(':')[0].toLowerCase();
       return !!expected && (host === expected || host.endsWith('.' + expected));
     } catch (_) { return false; }
@@ -126,6 +126,8 @@
   const schoology = {
     onDeepLink: callback => subscribe('schoology-deep-link', callback),
     authState: () => invoke('auth-state'),
+    getServerInstance: () => invoke('get-server-instance'),
+    setServerInstance: enabled => invoke('set-server-instance', enabled),
     getThemeMode: () => invoke('get-theme-mode'),
     getAppVersion: () => invoke('app-version'),
     getOpenSchoologyLinks: () => invoke('get-open-schoology-links'),
@@ -217,19 +219,20 @@
   const makeEmbeddedThemeBootstrap = (dark, session = null) => `(() => {
     const session = ${JSON.stringify(session && typeof session === 'object' ? session : null)};
     const host = String(location.hostname || '').toLowerCase();
-    if (session && (host === 'app.schoology.com' || host.endsWith('.schoology.com'))) {
+    if (session && (host === 'app.schoology.com' || host.endsWith('.schoology.com') || host === 'app.schoologyca.com' || host.endsWith('.schoologyca.com'))) {
       const setCookie = (name, value, path = '/', domain = '') => {
         if (!name || /[\\r\\n;,=]/.test(name) || /[\\r\\n;,]/.test(value)) return;
         let line = name + '=' + value + '; Path=' + (String(path || '/').startsWith('/') ? path : '/');
         const safeDomain = String(domain || '').trim().replace(/^\\./, '').toLowerCase();
-        if (safeDomain === 'schoology.com' || safeDomain.endsWith('.schoology.com')) line += '; Domain=.' + safeDomain;
+        if (safeDomain === 'schoology.com' || safeDomain.endsWith('.schoology.com') || safeDomain === 'schoologyca.com' || safeDomain.endsWith('.schoologyca.com')) line += '; Domain=.' + safeDomain;
         line += '; Secure';
         document.cookie = line;
       };
+      const defaultDomain = host === 'app.schoologyca.com' || host.endsWith('.schoologyca.com') ? '.schoologyca.com' : '.schoology.com';
       for (const cookie of (Array.isArray(session.cookies) ? session.cookies : [])) {
-        setCookie(String(cookie.key || cookie.name || ''), String(cookie.value || ''), String(cookie.path || '/'), String(cookie.domain || '.schoology.com'));
+        setCookie(String(cookie.key || cookie.name || ''), String(cookie.value || ''), String(cookie.path || '/'), String(cookie.domain || defaultDomain));
       }
-      if (session.mobileCookie) setCookie('s_mobile', String(session.mobileCookie), '/', '.schoology.com');
+      if (session.mobileCookie) setCookie('s_mobile', String(session.mobileCookie), '/', defaultDomain);
     }
     const dark = ${JSON.stringify(!!dark)};
     const styleId = 'schoology-shared-webview-theme-style';
@@ -239,7 +242,7 @@
     // Tauri child webviews do not implement Electron's native allowpopups/preload
     // contract. Keep Schoology pages inside this view, but send non-Schoology
     // destinations to the user's default browser.
-    const internalHost = value => { try { const u = new URL(value, location.href); const h = u.hostname.toLowerCase(); return ['app.schoology.com','schoology.com','lms.lausd.net'].includes(h) || h.endsWith('.schoology.com') || h.endsWith('.lms.lausd.net'); } catch (_) { return false; } };
+    const internalHost = value => { try { const u = new URL(value, location.href); const h = u.hostname.toLowerCase(); return ['app.schoology.com','schoology.com','app.schoologyca.com','schoologyca.com','lms.lausd.net'].includes(h) || h.endsWith('.schoology.com') || h.endsWith('.schoologyca.com') || h.endsWith('.lms.lausd.net'); } catch (_) { return false; } };
     const openExternal = value => { try { const href = new URL(String(value || ''), location.href); if (href.protocol === 'https:' || href.protocol === 'http:') location.href = href.href; } catch (_) {} };
     if (!window.__schoologyTauriPopupShim) {
       window.__schoologyTauriPopupShim = true;
@@ -301,6 +304,7 @@
         };
         this._unlistenPageLoad = null;
         this._settingSrc = false;
+        this._ltiNavigation = false;
       }
       static get observedAttributes() { return ['src']; }
       attributeChangedCallback(name, oldValue, newValue) {
@@ -357,6 +361,7 @@
       }
       async loadURL(url) {
         this._url = String(url);
+        this._ltiNavigation = this.hasAttribute('data-lti') && this.getAttribute('data-lti') !== 'false';
         this._settingSrc = true;
         this.setAttribute('src', this._url);
         this._settingSrc = false;
@@ -368,7 +373,7 @@
           currentThemeMode = await invoke('get-theme-mode').catch(() => currentThemeMode);
           forceDarkMode = await invoke('get-experimental-force-dark').catch(() => forceDarkMode);
           const dark = resolvedDark();
-          const session = /^https:\/\/(?:[^/]+\.)?schoology\.com(?:[/:?#]|$)/i.test(this._url)
+          const session = /^https:\/\/(?:[^/]+\.)?schoology(?:ca)?\.com(?:[/:?#]|$)/i.test(this._url)
             ? await prepareWebSession().catch(() => null) : null;
           this._darkTheme = dark;
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
@@ -382,6 +387,7 @@
             height: Math.max(1, rect.height),
             userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
             initializationScript: makeEmbeddedThemeBootstrap(dark, session),
+            forceDark: dark,
             deferNavigation: true
           });
           this.nativeView = await tauri.webview.Webview.getByLabel(label);
@@ -406,8 +412,8 @@
                 });
               return false;
             }
-            const internalSchoology = !!parsed && ['http:', 'https:'].includes(parsed.protocol) && (host === 'app.schoology.com' || host === 'schoology.com' || host === 'lms.lausd.net' || host.endsWith('.schoology.com') || host.endsWith('.lms.lausd.net'));
-            if (parsed && ['http:', 'https:'].includes(parsed.protocol) && !internalSchoology) {
+            const internalSchoology = !!parsed && ['http:', 'https:'].includes(parsed.protocol) && (host === 'app.schoology.com' || host === 'schoology.com' || host === 'app.schoologyca.com' || host === 'schoologyca.com' || host === 'lms.lausd.net' || host.endsWith('.schoology.com') || host.endsWith('.schoologyca.com') || host.endsWith('.lms.lausd.net'));
+            if (parsed && ['http:', 'https:'].includes(parsed.protocol) && !internalSchoology && !this._ltiNavigation) {
               const allowed = dispatchCompatEvent(this, 'will-navigate', { url: nextUrl, isMainFrame: true }, true);
               if (!allowed) return false;
               invoke('open-external', nextUrl).catch(error => console.warn('Could not open external Schoology link:', error));
@@ -424,12 +430,13 @@
             return true;
           }).catch(() => {});
           this._unlistenPageLoad = await this.nativeView.onPageLoad(async event => {
-            if (event.payload?.event === 'Started') {
+            const payload = event?.payload || event || {};
+            if (payload.event === 'Started') {
               this.loading = true;
               this.dispatchEvent(new Event('did-start-loading'));
               return;
             }
-            if (event.payload?.event === 'Finished') {
+            if (payload.event === 'Finished') {
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));

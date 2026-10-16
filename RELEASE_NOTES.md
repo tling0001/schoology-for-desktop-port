@@ -2,6 +2,17 @@
 
 GitHub Actions extracts only the section matching `package.json`'s version for each GitHub Release.
 
+## [2026.06.0-port.180]
+
+### Fixed
+- Prevented release publication from uploading unpacked package internals and colliding duplicate asset names.
+- Corrected the in-app US/Canada sign-in instance switch to update the Schoology API and web host configuration, matching the Android login flow.
+- Kept LTI plugin assignment redirects embedded and limited the desktop deep-link router to internal navigation within LTI assignments.
+- Cleared stale top-level files in the Windows install directory before copying the staged application payload.
+
+### Changed
+- Recognized Canadian Schoology hosts in the embedded webview and session bootstrap.
+
 ## [2026.06.0-port.179]
 
 ### Fixed

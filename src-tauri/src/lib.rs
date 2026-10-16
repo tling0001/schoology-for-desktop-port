@@ -5,7 +5,7 @@ use rand::RngCore;
 use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Mutex, time::{SystemTime, UNIX_EPOCH}};
+use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{Mutex, atomic::{AtomicU64, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder};
@@ -70,7 +70,8 @@ fn auth_state(app: &AppHandle) -> Option<Value> {
     if value.get("oauth_token")?.as_str()?.is_empty() || value.get("oauth_token_secret")?.as_str()?.is_empty() { None } else { Some(value) }
 }
 fn epoch() -> i64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64 }
-fn random_nonce() -> String { let mut bytes = [0u8; 8]; rand::thread_rng().fill_bytes(&mut bytes); format!("{:016x}", u64::from_be_bytes(bytes)) }
+static NONCE_COUNTER: AtomicU64 = AtomicU64::new(0);
+fn random_nonce() -> String { let mut bytes = [0u8; 16]; rand::thread_rng().fill_bytes(&mut bytes); let random = u128::from_be_bytes(bytes); let sequence = NONCE_COUNTER.fetch_add(1, Ordering::Relaxed); format!("{random:032x}{sequence:016x}") }
 // Match Java URLEncoder used by the official Schoology Android OAuth signer.
 // Spaces become '+', '*' remains literal, and '~' is percent-encoded.
 fn enc(value: &str) -> String {
@@ -124,23 +125,53 @@ fn plaintext_header(token: &str, secret: &str, timestamp: i64) -> String {
     format!("OAuth oauth_consumer_key=\"{CONSUMER_KEY}\", oauth_nonce=\"{}\", oauth_signature_method=\"PLAINTEXT\", oauth_timestamp=\"{timestamp}\", oauth_token=\"{}\", oauth_signature=\"{CONSUMER_SECRET}%26{}\"", random_nonce(), token, secret)
 }
 async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool) -> Result<reqwest::Response, String> {
-    let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
-    let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
-    let mut builder = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "application/json");
-    if client_identity { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0"); }
-    if let Some(a) = auth {
-        let token = a.get("oauth_token").and_then(Value::as_str).unwrap_or("");
-        let secret = a.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
-        let qr_parameters = qr.map(|value| vec![("scanned_qr_data", enc(value))]).unwrap_or_default();
-        let header = if plaintext { plaintext_header(token, secret, timestamp) } else { signed_header(method, &url, token, secret, timestamp, &qr_parameters)? };
-        builder = builder.header("Authorization", header).header("Cookie", MOBILE_COOKIE);
-    }
-    if let Some(value) = body {
-        if !method.eq_ignore_ascii_case("GET") {
-            builder = builder.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value));
+    // Do not let reqwest replay the same OAuth Authorization header across redirects.
+    // Schoology's Android interceptor signs each redirected request independently.
+    let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
+    let mut current_url = url;
+    let mut current_method = method.to_uppercase();
+    let mut current_body = body;
+    for redirect_count in 0..=5 {
+        let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
+        let api_host = current_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(API_HOST));
+        let mut builder = client.request(current_method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, current_url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "application/json");
+        if client_identity && api_host { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0"); }
+        if let Some(a) = auth.filter(|_| api_host) {
+            let token = a.get("oauth_token").and_then(Value::as_str).unwrap_or("");
+            let secret = a.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
+            let qr_parameters = qr.map(|value| vec![("scanned_qr_data", enc(value))]).unwrap_or_default();
+            let header = if plaintext { plaintext_header(token, secret, timestamp) } else { signed_header(&current_method, &current_url, token, secret, timestamp, &qr_parameters)? };
+            builder = builder.header("Authorization", header).header("Cookie", MOBILE_COOKIE);
         }
+        if let Some(value) = current_body.clone() {
+            if !current_method.eq_ignore_ascii_case("GET") && !current_method.eq_ignore_ascii_case("HEAD") {
+                builder = builder.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value));
+            }
+        }
+        let response = builder.send().await.map_err(|e| format!("Schoology request failed: {e}"))?;
+        if response.status().is_redirection() && redirect_count < 5 {
+            if let Some(location) = response.headers().get("location").and_then(|value| value.to_str().ok()) {
+                if let Ok(next_url) = current_url.join(location) {
+                    // Never forward a Schoology credential to a different host or scheme.
+                    let safe_api_redirect = next_url.scheme() == "https" && next_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(API_HOST));
+                    if safe_api_redirect {
+                        let status = response.status();
+                        if status == reqwest::StatusCode::SEE_OTHER
+                            || ((status == reqwest::StatusCode::FOUND || status == reqwest::StatusCode::MOVED_PERMANENTLY || status == reqwest::StatusCode::TEMPORARY_REDIRECT) && !current_method.eq_ignore_ascii_case("GET") && !current_method.eq_ignore_ascii_case("HEAD")) {
+                            if status != reqwest::StatusCode::TEMPORARY_REDIRECT {
+                                current_method = "GET".into();
+                                current_body = None;
+                            }
+                        }
+                        current_url = next_url;
+                        continue;
+                    }
+                }
+            }
+        }
+        return Ok(response);
     }
-    builder.send().await.map_err(|e| format!("Schoology request failed: {e}"))
+    Err("Schoology request exceeded the redirect limit.".into())
 }
 async fn response_value(response: reqwest::Response) -> Result<Value, String> {
     let status = response.status();

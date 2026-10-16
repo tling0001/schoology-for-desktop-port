@@ -4,13 +4,13 @@
 
 
 /* Official Android Schoology loading screen recreated from the supplied source layout. */
-.androidSplash{height:100vh;width:100%;background:#22303e;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;}
+.androidSplash{height:100vh;width:100%;background:#44505d;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;}
 .androidSplashLogo{width:442px;max-width:72%;height:auto;display:block;margin:0 0 16px;}
 .androidSplashSpinner{width:72px;height:72px;display:block;}
 
 .qrButton{display:block;width:100%;border:1px solid #fff;background:#22303e;color:#fff;border-radius:5px;padding:13px 18px;margin-top:14px;cursor:pointer}.accountTitle{font-size:18px;margin-bottom:28px}.searchStatus{text-align:center;color:#cdd3d7;padding:12px}.fatal{font-family:Arial,sans-serif;padding:32px;color:#22303e;background:#f4f5f5;height:100vh}.qr video{aspect-ratio:4/3;object-fit:cover}.androidSplash{position:fixed;inset:0;z-index:9999}
 /* Standalone Android-style startup page. */
-html.androidSplashPage, body.androidSplashPage{background:#22303e;overflow:hidden;}
+html.androidSplashPage, body.androidSplashPage{background:#44505d;overflow:hidden;}
 body.androidSplashPage{margin:0;}
 body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height:100vh;width:100vw;}
 
@@ -2242,3 +2242,76 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 
 /* Tauri native title-bar overlay. The controls are omitted unless the saved overlay setting is on. */
 #tauriWindowControls{position:fixed;z-index:2147483000;top:0;right:0;width:138px;height:56px;display:flex;align-items:stretch;background:#002137;color:#fff;user-select:none;-webkit-user-select:none}#tauriWindowControls .tauriWindowDragArea{flex:1;min-width:0;-webkit-app-region:drag}#tauriWindowControls button{flex:0 0 46px;width:46px;height:56px;border:0;border-radius:0;background:transparent;color:inherit;font:20px/1 "Segoe UI",system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center}#tauriWindowControls button:hover{background:rgba(255,255,255,.15)}#tauriWindowControls button[data-window-action="close"]:hover{background:#c42b1c}#tauriWindowControls button:focus-visible{outline:2px solid #fff;outline-offset:-4px}html[data-window-controls-overlay="false"] #tauriWindowControls{display:none}
+
+
+/* Schoology Android 2026.06 login alignment and native-style actions. */
+.login.loginAnimated:has(#schoolLogin)>.logo{
+  margin:clamp(30px,6.4vh,56px) auto 0;
+  width:min(265px,72vw);
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter{
+  margin:clamp(24px,4vh,38px) auto 0!important;
+  gap:12px;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.loginIconButton{
+  min-height:54px;
+  border-radius:4px;
+  font-size:16px;
+  font-weight:500;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.primary{
+  background:#2e66a3;
+  border-color:#2e66a3;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.secondary{
+  background:transparent;
+  border-color:rgba(255,255,255,.88);
+  color:#fff;
+}
+.login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter>.qrButton{
+  margin:0!important;
+  background:#22303e;
+  border-color:#22303e;
+}
+.login.loginAnimated .back{
+  top:8px;
+  left:8px;
+  width:56px;
+  height:56px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px;
+  font-size:32px;
+}
+.login.loginAnimated .logo.small{
+  width:min(230px,64vw);
+  margin:8px auto 0;
+}
+.login.loginAnimated .accountLoginBody{
+  width:min(90%,420px);
+  margin:32px auto 0;
+}
+.login.loginAnimated .accountTitle{
+  margin:0 0 24px;
+  font-size:18px;
+  font-weight:400;
+}
+.login.loginAnimated .accountLoginBody .primary{
+  min-height:52px;
+  border-radius:4px;
+  font-size:18px;
+  text-transform:none;
+}
+.login.loginAnimated .accountLoginBody .linkbtn{
+  margin:12px auto;
+  padding:8px 12px;
+  font-size:14px;
+}
+.androidSplash,html.androidSplashPage,body.androidSplashPage{
+  background:#44505d;
+}
+@media(max-height:560px){
+  .login.loginAnimated:has(#schoolLogin)>.logo{margin-top:20px}
+  .login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter{margin-top:14px!important}
+}

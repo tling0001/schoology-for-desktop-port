@@ -28,6 +28,11 @@
     }
   },
   "bundle": {
-    "active": false
+    "active": false,
+    "icon": [
+      "../src-tauri/icons/icon.png",
+      "../src-tauri/icons/icon.ico",
+      "../src-tauri/icons/icon.icns"
+    ]
   }
 }

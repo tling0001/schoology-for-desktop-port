@@ -1,6 +1,14 @@
 # Schoology Desktop Port release history
 
-The source history is cumulative. GitHub release descriptions include only the version being published and sections for versions whose releases failed.
+The source history is cumulative. GitHub release descriptions include the current version and failed-build sections not yet carried into a successful release. After a successful release includes those sections, the workflow marks them as already included so they do not recur.
+
+## [2026.06.0-port.190]
+
+### Fixed
+- Registered the Tauri `HostState` with the application builder so native commands can access their shared state. This restores school search, Canadian Schoology instance switching, and initialization of the window-controls overlay and drag region.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.190.
 
 ## [2026.06.0-port.189]
 
@@ -57,7 +65,7 @@ The source history is cumulative. GitHub release descriptions include only the v
 
 ## [2026.06.0-port.185]
 
-### Failed build/release attempt
+### Failed build/release attempt (included in release 2026.06.0-port.186)
 - macOS failed because the workflow attempted to package `Schoology.app` as an `.app.zip` after the updater had moved to DMG-based installation and updating.
 - Android failed because `reqwest` default TLS features attempted to find host OpenSSL during the Android cross-compile.
 - iOS failed because desktop-only Tauri window methods were compiled into the iOS target.

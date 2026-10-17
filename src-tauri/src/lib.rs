@@ -1311,7 +1311,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
 pub fn run() {
     #[cfg(target_os = "windows")]
     std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--enable-features=OverlayScrollbar:mode/overlay");
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default().manage(HostState::default());
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder
         // Keep desktop deep-link activations in the existing process.

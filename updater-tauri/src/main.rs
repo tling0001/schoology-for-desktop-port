@@ -30,6 +30,7 @@ struct Payload {
     install_dir: Option<String>,
     parent_pid: Option<u32>,
     staged_updater_path: Option<String>,
+    staged_updater_loader_path: Option<String>,
     theme_mode: Option<String>,
     dark_theme: Option<bool>,
 }
@@ -200,12 +201,16 @@ fn wait_for_parent(pid: u32, cancelled: &AtomicBool) -> Result<(), String> {
     }
 }
 
-fn schedule_cleanup(staged_updater: &Path, run_dir: &Path) {
+fn schedule_cleanup(staged_updater: &Path, staged_loader: Option<&Path>, run_dir: &Path) {
     let pid = std::process::id();
     let quote = |value: &str| format!("'{}'", value.replace('\'', "''"));
+    let mut cleanup_paths = vec![quote(&staged_updater.to_string_lossy())];
+    if let Some(loader) = staged_loader {
+        cleanup_paths.push(quote(&loader.to_string_lossy()));
+    }
+    let cleanup = cleanup_paths.iter().map(|path| format!("Remove-Item -LiteralPath {path} -Force -ErrorAction SilentlyContinue")).collect::<Vec<_>>().join("; ");
     let script = format!(
-        "$ErrorActionPreference='SilentlyContinue'; $p={pid}; while(Get-Process -Id $p -ErrorAction SilentlyContinue){{Start-Sleep -Milliseconds 250}}; Remove-Item -LiteralPath {} -Force -ErrorAction SilentlyContinue; Remove-Item -LiteralPath {} -Recurse -Force -ErrorAction SilentlyContinue",
-        quote(&staged_updater.to_string_lossy()),
+        "$ErrorActionPreference='SilentlyContinue'; $p={pid}; while(Get-Process -Id $p -ErrorAction SilentlyContinue){{Start-Sleep -Milliseconds 250}}; {cleanup}; Remove-Item -LiteralPath {} -Recurse -Force -ErrorAction SilentlyContinue",
         quote(&run_dir.to_string_lossy())
     );
     let bytes: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
@@ -365,7 +370,8 @@ async fn run_update(
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("The update completed, but Schoology could not be relaunched: {e}"))?;
-    schedule_cleanup(&staged_updater, &run_dir);
+    let staged_loader = payload.staged_updater_loader_path.as_deref().map(PathBuf::from);
+    schedule_cleanup(&staged_updater, staged_loader.as_deref(), &run_dir);
     Ok(())
 }
 

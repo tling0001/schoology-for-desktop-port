@@ -53,7 +53,7 @@ conf.version = version;
 conf.bundle = conf.bundle || {};
 conf.bundle.resources = conf.bundle.resources || {};
 const updaterResource = '../updater-tauri/dist/SchoologyUpdater.exe';
-if (process.platform === 'win32' && fs.existsSync(path.join(root, 'updater', 'dist', 'SchoologyUpdater.exe'))) {
+if (process.platform === 'win32' && fs.existsSync(path.join(root, 'updater-tauri', 'dist', 'SchoologyUpdater.exe'))) {
   conf.bundle.resources[updaterResource] = 'SchoologyUpdater.exe';
 } else {
   delete conf.bundle.resources[updaterResource];

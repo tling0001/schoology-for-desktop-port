@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     env, fs,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
@@ -303,8 +303,15 @@ async fn run_update(
         }
     }
     if let Some(expected) = payload.digest.as_deref().and_then(|value| value.strip_prefix("sha256:")) {
-        let data = fs::read(&installer).map_err(|e| e.to_string())?;
-        let actual = format!("{:x}", Sha256::digest(data));
+        let mut input = fs::File::open(&installer).map_err(|e| e.to_string())?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0_u8; 64 * 1024];
+        loop {
+            let count = input.read(&mut buffer).map_err(|e| e.to_string())?;
+            if count == 0 { break; }
+            hasher.update(&buffer[..count]);
+        }
+        let actual = format!("{:x}", hasher.finalize());
         if !actual.eq_ignore_ascii_case(expected) {
             let _ = fs::remove_file(&installer);
             return Err("The downloaded Schoology installer failed its SHA-256 integrity check.".into());

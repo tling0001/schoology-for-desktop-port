@@ -1,6 +1,16 @@
 # Schoology Desktop Port release history
 
-Release descriptions include the current version and the previous three release-note sections so fixes from failed release attempts remain documented.
+Release descriptions include the current version and the previous four release-note sections so fixes from failed release attempts remain documented.
+
+## [2026.06.0-port.183]
+
+### Fixed
+- Fixed a cross-platform Rust compile error by passing a concrete LogicalPosition directly to Tauri's child-webview positioning API.
+- Scoped the Windows-only force-dark flag to Windows builds, removing unused-variable warnings on macOS and Linux.
+- Updated release notes to include versions 2026.06.0-port.183, .182, .181, .180, and .179 so the next release preserves the full history of failed release attempts.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.183.
 
 ## [2026.06.0-port.182]
 

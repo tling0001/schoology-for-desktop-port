@@ -62,8 +62,8 @@ jobs:
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          awk -v v1="## [$VERSION]" -v v2="## [2026.06.0-port.181]" -v v3="## [2026.06.0-port.180]" -v v4="## [2026.06.0-port.179]" '
-            /^## \[/ { keep=($0==v1 || $0==v2 || $0==v3 || $0==v4); if (keep) { if (printed++) print ""; print } next }
+          awk -v v1="## [$VERSION]" -v v2="## [2026.06.0-port.182]" -v v3="## [2026.06.0-port.181]" -v v4="## [2026.06.0-port.180]" -v v5="## [2026.06.0-port.179]" '
+            /^## \[/ { keep=($0==v1 || $0==v2 || $0==v3 || $0==v4 || $0==v5); if (keep) { if (printed++) print ""; print } next }
             keep { print }
           ' RELEASE_NOTES.md > release-notes.md
           if [ ! -s release-notes.md ]; then

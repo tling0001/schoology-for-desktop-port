@@ -405,6 +405,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).max(1.0);
     let user_agent = info.get("userAgent").and_then(Value::as_str).unwrap_or(ANDROID_UA).to_owned();
     let initialization_script = info.get("initializationScript").and_then(Value::as_str).unwrap_or("").to_owned();
+    #[cfg(target_os = "windows")]
     let force_dark_webview = info.get("forceDark").and_then(Value::as_bool).unwrap_or(false);
     let downloads_dir = app.path().download_dir().ok().filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(app.path().app_cache_dir().map_err(|e| e.to_string())?.join("downloads"));
@@ -1122,7 +1123,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let label = args.get("label").and_then(Value::as_str).unwrap_or("");
             if label.starts_with("schoology-embedded-") {
                 if let Some(view) = app.get_webview(label) {
-                    let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0).into());
+                    let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0));
                     let _ = view.set_size(LogicalSize::new(1.0, 1.0).into());
                     view.close().map_err(|e| format!("Could not close embedded webview: {e}"))?;
                 }

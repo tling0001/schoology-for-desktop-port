@@ -1044,6 +1044,21 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
             fs::create_dir_all(&updater_temp).map_err(|e| e.to_string())?;
             let staged_updater = updater_temp.join(format!("SchoologyUpdater-{}.exe", std::process::id()));
             fs::copy(&updater, &staged_updater).map_err(|e| format!("Could not stage the Schoology updater: {e}"))?;
+            // Tauri's Windows WebView uses this loader DLL beside the executable.
+            // Stage it beside the helper as well, because the helper runs from cache.
+            let loader_candidates = [
+                install_dir.join("WebView2Loader.dll"),
+                app.path().resource_dir().map_err(|e| e.to_string())?.join("WebView2Loader.dll"),
+            ];
+            let staged_loader = updater_temp.join("WebView2Loader.dll");
+            let mut loader_staged = false;
+            for candidate in loader_candidates {
+                if candidate.is_file() {
+                    fs::copy(&candidate, &staged_loader).map_err(|e| format!("Could not stage WebView2Loader.dll: {e}"))?;
+                    loader_staged = true;
+                    break;
+                }
+            }
             let theme = read_json(&app, "theme-settings.json", json!({"mode":"system"}));
             let theme_mode = theme.get("mode").and_then(Value::as_str).unwrap_or("system");
             let payload = json!({
@@ -1056,6 +1071,7 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
                 "installMode": "current-user",
                 "parentPid": std::process::id(),
                 "stagedUpdaterPath": staged_updater.to_string_lossy(),
+                "stagedUpdaterLoaderPath": if loader_staged { json!(staged_loader.to_string_lossy()) } else { Value::Null },
                 "themeMode": theme_mode,
                 "darkTheme": theme.get("forceDark").and_then(Value::as_bool).unwrap_or(false) || theme_mode == "dark"
             });
@@ -1064,6 +1080,7 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
                 .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
                 .spawn() {
                 let _ = fs::remove_file(&staged_updater);
+                if loader_staged { let _ = fs::remove_file(&staged_loader); }
                 return Err(format!("Could not launch the Schoology updater: {error}"));
             }
             let _ = app.emit("update-install-started", json!({"updater":true,"version":payload["version"]}));

@@ -2,7 +2,7 @@ name: Tauri cross-platform builds and releases
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -39,10 +39,39 @@ jobs:
           sudo apt-get install -y --no-install-recommends build-essential curl wget file libxdo-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
-      - name: Build the special Windows updater
+      - name: Build the lightweight Tauri Windows updater
         if: matrix.platform == 'windows'
         run: npm run build:updater
+      - name: Check macOS signing configuration
+        if: matrix.platform == 'macos'
+        id: macos_signing
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$MACOS_CERTIFICATE_P12_BASE64" ] && [ -n "$MACOS_CERTIFICATE_PASSWORD" ] && [ -n "$MACOS_SIGNING_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "macOS Developer ID signing/notarization secrets are incomplete; this build will not be Developer ID signed or notarized."
+          fi
+      - name: Import macOS Developer ID certificate
+        if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
       - name: Build Tauri packages
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run prepare:tauri && npx tauri build
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
@@ -72,6 +101,13 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+      - name: Pin the Android NDK for all Rust targets
+        shell: bash
+        run: |
+          NDK_PATH="$ANDROID_HOME/ndk/27.0.12077973"
+          test -d "$NDK_PATH"
+          echo "NDK_HOME=$NDK_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> "$GITHUB_ENV"
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
       - name: Prepare Tauri Android project
@@ -321,19 +357,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Read version and complete release history
+      - name: Prepare version-specific release notes
         id: release_meta
         shell: bash
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          # Keep every release section, including failed builds and unpublished versions,
-          # so the next successful release preserves the full cumulative history.
-          cp RELEASE_NOTES.md release-notes.md
-          if ! grep -Fq "## [$VERSION]" release-notes.md; then
-            echo "No RELEASE_NOTES.md section found for $VERSION" >&2
-            exit 1
-          fi
+          python3 - "$VERSION" RELEASE_NOTES.md release-notes.md <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version, source, destination = sys.argv[1:]
+          text = Path(source).read_text(encoding="utf-8")
+          sections = re.split(r"(?m)(?=^## \[)", text)
+          selected = []
+          found_current = False
+          for section in sections:
+              if not section.startswith("## ["):
+                  continue
+              match = re.match(r"## \[([^\]]+)\]", section)
+              if not match:
+                  continue
+              current = match.group(1) == version
+              failed = "### Failed build/release attempt" in section
+              if current or failed:
+                  selected.append(section.strip())
+                  found_current = found_current or current
+          if not found_current:
+              raise SystemExit(f"No release notes found for {version}")
+          Path(destination).write_text("\n\n".join(selected) + "\n", encoding="utf-8")
+          PY
       - name: Download platform packages
         uses: actions/download-artifact@v4
         with:

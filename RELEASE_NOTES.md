@@ -1,6 +1,22 @@
 # Schoology Desktop Port release history
 
-Release descriptions retain the full cumulative history, including notes from failed release attempts.
+The source history is cumulative. GitHub release descriptions include only the version being published and sections for versions whose releases failed.
+
+## [2026.06.0-port.187]
+
+### Fixed
+- Added Tauri's required mobile entry-point annotation and pinned the Android NDK version used by CI.
+- Migrated existing Electron-stored OAuth credentials into Tauri's app-data location so updating does not unnecessarily sign users out.
+- Routed school search through the shared Schoology API request path, validates the expected response shape, and reports API errors instead of silently showing an empty list.
+- Restored the previous separate Upload Submission / Create Text Submission interface.
+- Matched Window Controls Overlay button backgrounds to the login screen and made the top strip draggable while the overlay is enabled.
+- Vertically centered the login logo in the available space above the first sign-in button.
+- Replaced the Electron-based Windows updater helper with a lightweight Tauri updater that stages itself outside the installed resources folder, verifies downloads, preserves the direct installer-root layout, and relaunches Schoology after copying.
+- Added optional macOS Developer ID signing and notarization to the GitHub Actions build when all Apple signing secrets are configured.
+- Changed release descriptions to include only the released version and failed-release sections, not the notes from successful older releases.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.187.
 
 ## [2026.06.0-port.186]
 

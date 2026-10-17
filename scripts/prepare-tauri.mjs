@@ -49,11 +49,11 @@ const version = String(packageJson.version).replace(/^([0-9]+)\.0*([0-9]+)\.0*([
 const confPath = path.join(root, 'src-tauri', 'tauri.conf.json');
 const conf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
 conf.version = version;
-// The standalone Electron updater is included only in Windows Tauri packages.
+// The standalone Tauri updater is included only in Windows Tauri packages.
 conf.bundle = conf.bundle || {};
 conf.bundle.resources = conf.bundle.resources || {};
-const updaterResource = '../updater/dist/SchoologyUpdater.exe';
-if (process.platform === 'win32' && fs.existsSync(path.join(root, 'updater', 'dist', 'SchoologyUpdater.exe'))) {
+const updaterResource = '../updater-tauri/dist/SchoologyUpdater.exe';
+if (process.platform === 'win32' && fs.existsSync(path.join(root, 'updater-tauri', 'dist', 'SchoologyUpdater.exe'))) {
   conf.bundle.resources[updaterResource] = 'SchoologyUpdater.exe';
 } else {
   delete conf.bundle.resources[updaterResource];

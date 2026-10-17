@@ -70,11 +70,6 @@ fn emit_progress(
     );
 }
 
-fn fail_step(app: &AppHandle, id: &str, error: &str) {
-    emit_progress(app, id, "error", "Failed", None, "Update failed.");
-    let _ = app.emit("updater-progress", json!({"id": id, "state": "error", "text": "Failed", "error": error, "status": "Update failed."}));
-}
-
 fn check_cancelled(cancelled: &AtomicBool) -> Result<(), String> {
     if cancelled.load(Ordering::Relaxed) {
         Err("Update cancelled.".into())

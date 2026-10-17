@@ -68,9 +68,36 @@ fn write_json(app: &AppHandle, name: &str, value: &Value) -> Result<(), String> 
         fs::rename(temporary, path).map_err(|e| e.to_string())
     }
 }
+fn valid_auth(value: &Value) -> bool {
+    value.get("oauth_token").and_then(Value::as_str).is_some_and(|token| !token.is_empty())
+        && value.get("oauth_token_secret").and_then(Value::as_str).is_some_and(|secret| !secret.is_empty())
+}
 fn auth_state(app: &AppHandle) -> Option<Value> {
-    let value = read_json(app, "auth.json", Value::Null);
-    if value.get("oauth_token")?.as_str()?.is_empty() || value.get("oauth_token_secret")?.as_str()?.is_empty() { None } else { Some(value) }
+    let current_path = app_file(app, "auth.json").ok()?;
+    if let Ok(text) = fs::read_to_string(&current_path) {
+        if let Ok(value) = serde_json::from_str::<Value>(&text) {
+            if valid_auth(&value) { return Some(value); }
+        }
+    }
+
+    // Electron stored credentials in %APPDATA%/Schoology/auth.json (and in the
+    // older app-specific userData directory). Migrate them when Tauri takes over.
+    let app_data = app.path().app_data_dir().ok()?;
+    let parent = app_data.parent()?;
+    let candidates = [
+        parent.join("Schoology").join("auth.json"),
+        parent.join("schoology-desktop-port").join("auth.json"),
+        parent.join("Schoology Desktop Port").join("auth.json"),
+    ];
+    for candidate in candidates {
+        let Ok(text) = fs::read_to_string(&candidate) else { continue };
+        let Ok(value) = serde_json::from_str::<Value>(&text) else { continue };
+        if valid_auth(&value) {
+            let _ = write_json(app, "auth.json", &value);
+            return Some(value);
+        }
+    }
+    None
 }
 fn epoch() -> i64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64 }
 static NONCE_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -492,6 +519,7 @@ fn is_schoology_or_lausd_host(host: &str) -> bool {
         || host == "lms.lausd.net" || host.ends_with(".lms.lausd.net")
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn is_external_login_candidate(url: &Url, expected_domain: &str) -> bool {
     if url.scheme() != "https" { return false; }
     let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
@@ -1008,6 +1036,16 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
             }
             let current = std::env::current_exe().map_err(|e| e.to_string())?;
             let install_dir = current.parent().ok_or("Could not determine the Schoology installation folder.")?;
+            // Copy the helper out of resources before launching it. Windows cannot
+            // replace a running executable in the installed resources directory.
+            let mut updater_temp = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+            updater_temp.push("Schoology");
+            updater_temp.push("updater");
+            fs::create_dir_all(&updater_temp).map_err(|e| e.to_string())?;
+            let staged_updater = updater_temp.join(format!("SchoologyUpdater-{}.exe", std::process::id()));
+            fs::copy(&updater, &staged_updater).map_err(|e| format!("Could not stage the Schoology updater: {e}"))?;
+            let theme = read_json(&app, "theme-settings.json", json!({"mode":"system"}));
+            let theme_mode = theme.get("mode").and_then(Value::as_str).unwrap_or("system");
             let payload = json!({
                 "url": info.get("url").and_then(Value::as_str).unwrap_or(""),
                 "size": info.get("size").and_then(Value::as_u64).unwrap_or(0),
@@ -1016,12 +1054,18 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
                 "productName": "Schoology",
                 "installDir": install_dir.to_string_lossy(),
                 "installMode": "current-user",
-                "parentPid": std::process::id()
+                "parentPid": std::process::id(),
+                "stagedUpdaterPath": staged_updater.to_string_lossy(),
+                "themeMode": theme_mode,
+                "darkTheme": theme.get("forceDark").and_then(Value::as_bool).unwrap_or(false) || theme_mode == "dark"
             });
             let encoded = BASE64.encode(serde_json::to_vec(&payload).map_err(|e| e.to_string())?);
-            Command::new(&updater).arg(format!("--payload-base64={encoded}"))
+            if let Err(error) = Command::new(&staged_updater).arg(format!("--payload-base64={encoded}"))
                 .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
-                .spawn().map_err(|e| format!("Could not launch the Schoology updater: {e}"))?;
+                .spawn() {
+                let _ = fs::remove_file(&staged_updater);
+                return Err(format!("Could not launch the Schoology updater: {error}"));
+            }
             let _ = app.emit("update-install-started", json!({"updater":true,"version":payload["version"]}));
             schedule_app_exit(app.clone(), 600);
             return Ok(json!(true));
@@ -1133,7 +1177,17 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let _ = app.emit("schoology-clear-web-session", json!({}));
             Ok(json!(true))
         },
-        "school-search" => { let query=args.as_str().unwrap_or(""); let url=Url::parse_with_params(&format!("https://{}/v1/login/school_search", api_host()),&[("query",query)]).map_err(|e| e.to_string())?; let client=reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e|e.to_string())?; let response=client.get(url).header("User-Agent",ANDROID_UA).header("X-Schoology-Client","Android").header("X-Schoology-App-Version","2026.06.0").send().await.map_err(|e|e.to_string())?; let v=response_value(response).await?; Ok(v.get("school").cloned().unwrap_or(json!([]))) },
+        "school-search" => {
+            let query = args.as_str().unwrap_or("").trim();
+            if query.is_empty() { return Ok(json!([])); }
+            let url = Url::parse_with_params(&format!("https://{}/v1/login/school_search", api_host()), &[("query", query)]).map_err(|e| e.to_string())?;
+            let response = request("GET", url, None, None, &state, true, None, false).await?;
+            let value = response_value(response).await?;
+            let schools = value.get("school").and_then(Value::as_array).ok_or_else(|| {
+                format!("Schoology returned an unexpected school-search response: {}", value.to_string().chars().take(300).collect::<String>())
+            })?;
+            Ok(json!(schools))
+        },
         "api" => api_call(&app,&state,&args).await,
         "fetch-image" => fetch_image(&app,&state,args.as_str().unwrap_or("")).await,
         "submit-assignment-text" => submit_assignment_text(&app,&state,&args).await,
@@ -1232,6 +1286,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         _ => Err(format!("Unsupported native operation: {name}")),
     }
 }
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "windows")]
     std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--enable-features=OverlayScrollbar:mode/overlay");

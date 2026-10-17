@@ -1,4 +1,4 @@
-name: Tauri builds and releases
+name: Tauri cross-platform builds and releases
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
             os: windows-latest
             artifact: windows
           - platform: macos
-            os: macos-latest
+            os: macos-26
             artifact: macos
           - platform: linux
             os: ubuntu-22.04
@@ -36,7 +36,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+          sudo apt-get install -y --no-install-recommends build-essential curl wget file libxdo-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
       - name: Build the special Windows updater
@@ -44,14 +44,6 @@ jobs:
         run: npm run build:updater
       - name: Build Tauri packages
         run: npm run prepare:tauri && npx tauri build
-      - name: Package macOS app for the in-app updater
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          APP_PATH="src-tauri/target/release/bundle/macos/Schoology.app"
-          test -d "$APP_PATH"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "src-tauri/target/release/bundle/macos/Schoology-${VERSION}-macos.app.zip"
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -60,10 +52,272 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  android:
+    name: Tauri Android APK
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+      - name: Prepare Tauri Android project
+        run: npm run prepare:tauri && npx tauri android init
+      - name: Build Android APK
+        run: npx tauri android build --apk
+      - name: Upload Android APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schoology-Android-APK
+          path: src-tauri/gen/android/app/build/outputs/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    name: Tauri iOS simulator build and optional TestFlight
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+      - name: Prepare Tauri iOS project
+        run: npm run prepare:tauri && npx tauri ios init
+      - name: Build iOS simulator app
+        run: npx tauri ios build --target aarch64-sim --ci
+      - name: Package iOS simulator artifact
+        shell: bash
+        run: |
+          APP="$(find src-tauri/gen/apple -type d -name 'Schoology.app' -path '*iphonesimulator*' -print -quit)"
+          if [ -z "$APP" ]; then APP="$(find src-tauri/gen/apple -type d -name '*.app' -print -quit)"; fi
+          test -n "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "Schoology-iOS-Simulator.zip"
+      - name: Upload iOS simulator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schoology-iOS-Simulator
+          path: Schoology-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 14
+      - name: Check whether TestFlight publishing is configured
+        id: signing
+        shell: bash
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APP_STORE_CONNECT_API_KEY_BASE64" ] && [ -n "$APP_STORE_CONNECT_API_KEY_ID" ] && [ -n "$APP_STORE_CONNECT_ISSUER_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Import Apple distribution certificate
+        if: steps.signing.outputs.ready == 'true'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      - name: Install App Store provisioning profile
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        env:
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          PROFILE_TMP="$RUNNER_TEMP/schoology.mobileprovision"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_TMP"
+          PROFILE_UUID="$(security cms -D -i "$PROFILE_TMP" | plutil -extract UUID raw -o - -)"
+          cp "$PROFILE_TMP" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+      - name: Build signed iOS archive for App Store Connect
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: npx tauri ios build --target aarch64 --export-method app-store-connect --ci
+      - name: Upload IPA to TestFlight
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$KEY_DIR/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          IPA="$(find src-tauri/gen/apple -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA"
+          xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+  ios-adhoc:
+    name: Optional iPhone QR installation package
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Ad Hoc signing configuration
+        id: adhoc
+        shell: bash
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_ADHOC_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_ADHOC_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Ad Hoc signing secrets are not configured; skipping QR-installable iPhone package."
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.adhoc.outputs.ready == 'true'
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.adhoc.outputs.ready == 'true'
+        with:
+          targets: aarch64-apple-ios
+      - name: Install JavaScript dependencies
+        if: steps.adhoc.outputs.ready == 'true'
+        run: npm install --no-audit --no-fund
+      - name: Import Apple distribution certificate
+        if: steps.adhoc.outputs.ready == 'true'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      - name: Install Ad Hoc provisioning profile
+        if: steps.adhoc.outputs.ready == 'true'
+        shell: bash
+        env:
+          IOS_ADHOC_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          PROFILE_TMP="$RUNNER_TEMP/schoology-adhoc.mobileprovision"
+          echo "$IOS_ADHOC_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_TMP"
+          security cms -D -i "$PROFILE_TMP" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
+          cp "$PROFILE_TMP" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+      - name: Prepare Tauri iOS project
+        if: steps.adhoc.outputs.ready == 'true'
+        run: npm run prepare:tauri && npx tauri ios init
+      - name: Build and export Ad Hoc iPhone IPA
+        if: steps.adhoc.outputs.ready == 'true'
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_ADHOC_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PROJECT="$(find src-tauri/gen/apple -maxdepth 2 -type d -name '*.xcodeproj' -print -quit)"
+          WORKSPACE="$(find src-tauri/gen/apple -maxdepth 2 -type d -name '*.xcworkspace' -print -quit)"
+          PROFILE="$RUNNER_TEMP/schoology-adhoc.mobileprovision"
+          security cms -D -i "$PROFILE" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
+          PROFILE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/schoology-adhoc-profile.plist" | sed "s/^[^.]*\.//")"
+          test "$PROFILE_BUNDLE_ID" = "com.schoology.app" || { echo "Ad Hoc profile bundle ID must be com.schoology.app, got $PROFILE_BUNDLE_ID" >&2; exit 1; }
+          if [ -z "$WORKSPACE" ] && [ -z "$PROJECT" ]; then echo "Could not find the generated Tauri Xcode project." >&2; exit 1; fi
+          if [ -n "$WORKSPACE" ]; then PROJECT_ARGS=(-workspace "$WORKSPACE"); else PROJECT_ARGS=(-project "$PROJECT"); fi
+          ARCHIVE="$RUNNER_TEMP/Schoology-AdHoc.xcarchive"
+          EXPORT_DIR="$RUNNER_TEMP/Schoology-AdHoc-Export"
+          xcodebuild "${PROJECT_ARGS[@]}" -scheme schoology-desktop-port_iOS -configuration release -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" archive DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" PRODUCT_BUNDLE_IDENTIFIER=com.schoology.app
+          cat > "$RUNNER_TEMP/Schoology-AdHoc-ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>ad-hoc</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>com.schoology.app</key><string>${PROFILE_NAME}</string></dict>
+            <key>stripSwiftSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$RUNNER_TEMP/Schoology-AdHoc-ExportOptions.plist" -exportPath "$EXPORT_DIR"
+          IPA="$(find "$EXPORT_DIR" -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA"
+          VALIDATE_DIR="$RUNNER_TEMP/schoology-adhoc-ipa"
+          mkdir -p "$VALIDATE_DIR"
+          ditto -x -k "$IPA" "$VALIDATE_DIR"
+          EMBEDDED_PROFILE="$(find "$VALIDATE_DIR/Payload" -type f -name 'embedded.mobileprovision' -print -quit)"
+          test -n "$EMBEDDED_PROFILE"
+          security cms -D -i "$EMBEDDED_PROFILE" > "$RUNNER_TEMP/schoology-embedded-profile.plist"
+          /usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$RUNNER_TEMP/schoology-embedded-profile.plist" >/dev/null || { echo "Exported IPA is not Ad Hoc provisioned for registered devices." >&2; exit 1; }
+          APP_INFO="$(find "$VALIDATE_DIR/Payload" -maxdepth 2 -type f -name Info.plist -print -quit)"
+          APP_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")"
+          test "$APP_BUNDLE_ID" = "com.schoology.app" || { echo "Unexpected iOS bundle ID: $APP_BUNDLE_ID" >&2; exit 1; }
+      - name: Create QR installation manifest
+        if: steps.adhoc.outputs.ready == 'true'
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          IPA="$(find "$RUNNER_TEMP/Schoology-AdHoc-Export" -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA"
+          mkdir -p ios-install-assets
+          IPA_NAME="Schoology-${VERSION}-iOS-AdHoc.ipa"
+          MANIFEST_NAME="Schoology-${VERSION}-iOS-AdHoc.plist"
+          QR_NAME="Schoology-${VERSION}-iOS-Install-QR.png"
+          cp "$IPA" "ios-install-assets/$IPA_NAME"
+          IPA_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/${IPA_NAME}"
+          cat > "ios-install-assets/$MANIFEST_NAME" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>items</key><array><dict>
+              <key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${IPA_URL}</string></dict></array>
+              <key>metadata</key><dict><key>bundle-identifier</key><string>com.schoology.app</string><key>bundle-version</key><string>${TAURI_VERSION}</string><key>kind</key><string>software</string><key>title</key><string>Schoology</string></dict>
+            </dict></array>
+          </dict></plist>
+          PLIST
+          MANIFEST_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/${MANIFEST_NAME}"
+          ENCODED_MANIFEST_URL="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$MANIFEST_URL")"
+          INSTALL_URL="itms-services://?action=download-manifest&url=${ENCODED_MANIFEST_URL}"
+          npx --yes qrcode --output "ios-install-assets/$QR_NAME" "$INSTALL_URL"
+          cat > ios-install-assets/README.txt <<EOF
+          Register the iPhone UDID and include it in the Ad Hoc profile before installing.
+          Scan the QR code with the iPhone camera. The release must be public to download the IPA and manifest.
+          Apple requires Developer Mode to run apps installed from an IPA. Enable it in Settings > Privacy & Security > Developer Mode, restart, and confirm.
+          EOF
+      - name: Upload iPhone QR installation assets
+        if: steps.adhoc.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schoology-iOS-AdHoc-Install
+          path: ios-install-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: Publish versioned Tauri release
-    if: github.ref == 'refs/heads/main'
-    needs: build
+    if: always() && github.ref == 'refs/heads/main'
+    needs: [build, android, ios, ios-adhoc]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,18 +337,17 @@ jobs:
       - name: Download platform packages
         uses: actions/download-artifact@v4
         with:
-          pattern: Schoology-Tauri-*
+          pattern: Schoology-*
           path: release-assets
           merge-multiple: true
+          if-no-artifact-found: ignore
       - name: Prepare release upload files
         shell: bash
         run: |
-          mkdir -p release-upload
-          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.zip' -o -name '*.deb' -o -name '*.rpm' \) -print0 | while IFS= read -r -d '' file; do cp "$file" "release-upload/$(basename "$file")"; done
-          if [ -z "$(find release-upload -maxdepth 1 -type f -print -quit)" ]; then
-            echo "No installer packages found to upload." >&2
-            exit 1
-          fi
+          mkdir -p release-upload release-assets
+          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.apk' -o -name '*.ipa' -o -name '*iOS-AdHoc.plist' -o -name '*iOS-Install-QR.png' -o -name 'README.txt' \) -print0 | while IFS= read -r -d '' file; do cp "$file" "release-upload/$(basename "$file")"; done
+          echo "Available release assets:"
+          find release-upload -maxdepth 1 -type f -printf '%f\n' | sort || true
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -103,5 +356,5 @@ jobs:
           target_commitish: main
           body_path: release-notes.md
           files: release-upload/*
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
           generate_release_notes: false

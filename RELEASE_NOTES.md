@@ -2,7 +2,34 @@
 
 Release descriptions retain the full cumulative history, including notes from failed release attempts.
 
+## [2026.06.0-port.186]
+
+### Fixed
+- Removed the obsolete macOS .app.zip packaging step; macOS installation and in-app updates use the DMG package.
+- Switched reqwest to Rustls TLS so Android cross-compilation no longer requires a host OpenSSL installation.
+- Guarded desktop-only minimize/maximize/dragging/decorations APIs out of Android and iOS builds.
+- Consolidated assignment file/resource and text submissions into an Android-style composer with a shared action bar, submission-type tabs, file/resource selection, and draft support.
+- Made unused app-bar space draggable while Window Controls Overlay is enabled and improved Windows caption glyphs using installed system icon fonts.
+- Merged Android and iOS build jobs into the main cross-platform workflow to avoid duplicate workflow runs.
+- Changed release publishing to run even when platform builds fail, publish cumulative release notes, and attach only artifacts that were successfully produced.
+- Added optional Ad Hoc iPhone IPA, OTA manifest, and QR installation assets when Apple signing and a device-registered Ad Hoc provisioning profile are configured.
+- Pinned macOS/iOS CI to the stable macos-26 runner instead of the Xcode 27 preview image.
+
+### Investigated
+- Commit b2df9ef added the standalone Electron updater executable to the Windows Tauri bundle. That is the direct reason for the Windows size increase; it is retained because the current update flow uses its separate progress UI and installer handoff.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.186.
+
 ## [2026.06.0-port.185]
+
+### Failed build/release attempt
+- macOS failed because the workflow attempted to package `Schoology.app` as an `.app.zip` after the updater had moved to DMG-based installation and updating.
+- Android failed because `reqwest` default TLS features attempted to find host OpenSSL during the Android cross-compile.
+- iOS failed because desktop-only Tauri window methods were compiled into the iOS target.
+- The Windows application bundle grew after the standalone Electron-based `SchoologyUpdater.exe` was added as a bundled resource in commit `b2df9ef`.
+
+### Changes included in the attempted release
 
 ### Fixed
 - Changed the internal Tauri version to numeric components so Windows packaging no longer warns about nonnumeric port build metadata.

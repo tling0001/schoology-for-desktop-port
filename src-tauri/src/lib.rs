@@ -1200,10 +1200,23 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             schedule_app_exit(app.clone(), 150);
             Ok(json!(true))
         },
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "window-minimize" => { if let Some(window)=app.get_webview_window("main") { window.minimize().map_err(|e|e.to_string())?; } Ok(json!(true)) },
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        "window-minimize" => Ok(json!(false)),
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "window-toggle-maximize" => { if let Some(window)=app.get_webview_window("main") { if window.is_maximized().unwrap_or(false) { window.unmaximize().map_err(|e|e.to_string())?; } else { window.maximize().map_err(|e|e.to_string())?; } } Ok(json!(true)) },
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        "window-toggle-maximize" => Ok(json!(false)),
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        "window-start-dragging" => { if let Some(window)=app.get_webview_window("main") { window.start_dragging().map_err(|e|e.to_string())?; } Ok(json!(true)) },
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        "window-start-dragging" => Ok(json!(false)),
         "window-close" => { if let Some(window)=app.get_webview_window("main") { window.close().map_err(|e|e.to_string())?; } Ok(json!(true)) },
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "window-is-maximized" => Ok(json!(app.get_webview_window("main").and_then(|window|window.is_maximized().ok()).unwrap_or(false))),
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        "window-is-maximized" => Ok(json!(false)),
         "check-for-updates" => check_for_updates().await,
         "download-liquid-glass" => latest_alternate_release("tling0001/SchoologyDesktopLiquidGlass", "Schoology Liquid Glass").await,
         "download-expressive" => latest_alternate_release("tling0001/SchoologyDesktopM3E", "Schoology Expressive").await,
@@ -1258,10 +1271,13 @@ pub fn run() {
         });
     builder
         .setup(|app| {
-            let overlay = read_json(app.handle(), "window-chrome.json", json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false);
-            if overlay {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.set_decorations(false).map_err(|e| std::io::Error::other(format!("Could not enable window-controls overlay: {e}")))?;
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let overlay = read_json(app.handle(), "window-chrome.json", json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false);
+                if overlay {
+                    if let Some(window) = app.get_webview_window("main") {
+                        window.set_decorations(false).map_err(|e| std::io::Error::other(format!("Could not enable window-controls overlay: {e}")))?;
+                    }
                 }
             }
             let handle = app.handle().clone();

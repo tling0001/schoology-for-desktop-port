@@ -2403,3 +2403,27 @@ html[data-electron-platform=darwin][data-window-controls-overlay="true"] .shell>
 html[data-electron-platform=darwin][data-window-controls-overlay="false"] .shell>.toolbar{padding-left:4px!important}
 html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
 html[data-electron-platform=darwin] #drawer{z-index:40!important}
+
+
+/* v186: Android-style assignment submission composer with a shared action bar and mode tabs. */
+.assignmentSubmissionComposer{width:min(620px,calc(100vw - 32px));background:var(--theme-surface,#fff);color:var(--theme-text,#263238);border-radius:2px}
+.assignmentSubmissionComposer .assignmentSubmissionBar{display:flex;align-items:center;min-height:56px;background:#002137;color:#fff;padding:0 8px;gap:8px}
+.assignmentSubmissionComposer .androidDialogTitle{flex:1;text-align:left;font-size:18px;font-weight:400}
+.assignmentSubmissionComposer .androidDialogIcon{width:44px;height:48px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;cursor:pointer}
+.assignmentSubmissionComposer .androidDialogIcon img{width:24px;height:24px;object-fit:contain}
+.assignmentSubmissionComposer .assignmentSubmissionBody{padding:16px;max-height:calc(100vh - 112px);overflow:auto}
+.submissionModeTabs{display:flex;border-bottom:1px solid var(--theme-border,#d7dce0);margin:-2px 0 18px;gap:0}
+.submissionModeTabs button{flex:1;min-height:44px;padding:10px 8px;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--theme-muted,#68737d);font:inherit;cursor:pointer}
+.submissionModeTabs button.active{border-bottom-color:#2e66a3;color:#2e66a3;font-weight:600}
+.submissionComposerHint{margin:0 0 14px;color:var(--theme-muted,#68737d);font-size:14px;line-height:1.45}
+.submissionTextLabel{display:block;margin:0 0 8px;font-size:14px;color:var(--theme-muted,#68737d)}
+.submissionTextArea{display:block;width:100%;min-height:170px;resize:vertical;box-sizing:border-box;padding:12px;border:1px solid var(--theme-border,#c8cdd2);border-radius:2px;background:var(--theme-input,#fff);color:var(--theme-text,#263238);font:inherit;line-height:1.5}
+.submissionDraftLabel{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px}
+.submissionDraftLabel input{width:18px;height:18px;accent-color:#2e66a3}
+.assignmentSubmissionComposer [hidden]{display:none!important}
+:root[data-theme="dark"] .submissionModeTabs{border-color:var(--theme-border)}
+:root[data-theme="dark"] .submissionModeTabs button.active{color:#8abfff;border-bottom-color:#8abfff}
+:root[data-theme="dark"] .submissionTextArea{border-color:var(--theme-border);background:var(--theme-input);color:var(--theme-text)}
+html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe Fluent Icons","Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
+html[data-electron-platform=win32] #tauriWindowControls button:hover{background:rgba(255,255,255,.12)!important}
+html[data-electron-platform=win32] #tauriWindowControls [data-window-action=close]:hover{background:#c42b1c!important}

@@ -164,6 +164,7 @@
     setWindowChrome: value => invoke('set-window-chrome', value),
     getWindowChromeMode: () => invoke('get-window-chrome-mode'),
     setWindowChromeMode: value => invoke('set-window-chrome-mode', value),
+    startWindowDragging: () => invoke('window-start-dragging'),
     downloadFile: value => invoke('download-file', value),
     onFileDownloadProgress: callback => subscribe('file-download-progress', callback),
     onEmbeddedDownloadFinished: callback => subscribe('embedded-download-finished', callback),
@@ -217,6 +218,14 @@
     });
     document.body.appendChild(controls);
   };
+  // With overlay enabled, unused app-bar space starts a native drag. Controls stay clickable.
+  document.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.isPrimary === false) return;
+    const toolbar = event.target?.closest?.('.shell > .toolbar');
+    if (!toolbar || document.documentElement.dataset.windowControlsOverlay !== 'true') return;
+    if (event.target?.closest?.('button,a,input,textarea,select,[role="button"],.toolbarActionSlot,#tauriWindowControls')) return;
+    invoke('window-start-dragging').catch(() => {});
+  }, true);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWindowControls, { once: true });
   else installWindowControls();
 

@@ -2,7 +2,7 @@ name: Tauri cross-platform builds and releases
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
   workflow_dispatch:
 
 permissions:

@@ -221,9 +221,12 @@
   // With overlay enabled, unused app-bar space starts a native drag. Controls stay clickable.
   document.addEventListener('pointerdown', event => {
     if (event.button !== 0 || event.isPrimary === false) return;
-    const toolbar = event.target?.closest?.('.shell > .toolbar');
-    if (!toolbar || document.documentElement.dataset.windowControlsOverlay !== 'true') return;
-    if (event.target?.closest?.('button,a,input,textarea,select,[role="button"],.toolbarActionSlot,#tauriWindowControls')) return;
+    if (document.documentElement.dataset.windowControlsOverlay !== 'true') return;
+    const target = event.target;
+    const toolbar = target?.closest?.('.shell > .toolbar');
+    const topStrip = event.clientY >= 0 && event.clientY <= 56 && event.clientX < Math.max(0, window.innerWidth - 138);
+    if (!toolbar && !topStrip) return;
+    if (target?.closest?.('button,a,input,textarea,select,[role="button"],.toolbarActionSlot,#tauriWindowControls,img')) return;
     invoke('window-start-dragging').catch(() => {});
   }, true);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWindowControls, { once: true });

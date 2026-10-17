@@ -392,8 +392,11 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     if app.get_webview(&label).is_some() { return Err("An embedded webview with this label already exists.".into()); }
     let raw_url = info.get("url").and_then(Value::as_str).ok_or("Embedded webview URL is missing.")?;
     let url = Url::parse(raw_url).map_err(|_| "Embedded webview URL is invalid.")?;
-    if !matches!(url.scheme(), "http" | "https") || !is_schoology_or_lausd_host(url.host_str().unwrap_or_default()) {
-        return Err("Only Schoology and LAUSD pages can be embedded in the native Schoology webview.".into());
+    let allow_lti_external = info.get("lti").and_then(Value::as_bool).unwrap_or(false);
+    let trusted_host = is_schoology_or_lausd_host(url.host_str().unwrap_or_default());
+    let allowed_lti_url = allow_lti_external && url.scheme() == "https";
+    if !matches!(url.scheme(), "http" | "https") || !(trusted_host || allowed_lti_url) {
+        return Err("Only Schoology/LAUSD pages and HTTPS destinations inside an LTI assignment can be embedded.".into());
     }
     let parent = app.get_window("main").ok_or("The main Schoology window is unavailable.")?;
     let x = info.get("x").and_then(Value::as_f64).unwrap_or(0.0).max(0.0);
@@ -409,6 +412,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
 
     let popup_app = app.clone();
     let popup_label = label.clone();
+    let popup_allow_lti_external = allow_lti_external;
     let download_app = app.clone();
     let view_label_for_download = label.clone();
     // Start on about:blank so the JS compatibility adapter can subscribe to native
@@ -428,7 +432,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
             next.as_str() == "about:blank" || next.scheme() == "schoology-download" || matches!(next.scheme(), "http" | "https")
         })
         .on_new_window(move |next, _features| {
-            if matches!(next.scheme(), "http" | "https") && is_schoology_or_lausd_host(next.host_str().unwrap_or_default()) {
+            if matches!(next.scheme(), "http" | "https") && (is_schoology_or_lausd_host(next.host_str().unwrap_or_default()) || (popup_allow_lti_external && next.scheme() == "https")) {
                 if let Some(view) = popup_app.get_webview(&popup_label) { let _ = view.navigate(next); }
             } else if matches!(next.scheme(), "http" | "https") {
                 let _ = popup_app.opener().open_url(next.as_str(), None::<&str>);
@@ -816,7 +820,7 @@ fn local_release_number() -> u64 {
 fn update_asset_suffixes() -> Vec<&'static str> {
     match std::env::consts::OS {
         "windows" => vec!["_x64-setup.exe", "-x64-setup.exe", "Setup-x64.exe"],
-        "macos" => vec![".app.zip"],
+        "macos" => if std::env::consts::ARCH == "aarch64" { vec!["aarch64.dmg", "arm64.dmg"] } else { vec!["x64.dmg"] },
         "linux" => vec!["amd64.deb", "x86_64.rpm"],
         _ => vec![],
     }
@@ -927,8 +931,9 @@ fn launch_macos_replacement(app: &AppHandle, installer: &Path) -> Result<(), Str
     let temp = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("Schoology").join("updates");
     fs::create_dir_all(&temp).map_err(|e| e.to_string())?;
     let script_path = temp.join(format!("replace-schoology-{}.sh", std::process::id()));
-    let mount_path = temp.join(format!("mount-{}", std::process::id()));
+    let mount_path = temp.join(format!("mount-{}-{}", std::process::id(), epoch()));
     let staged_path = target_app.with_file_name(format!(".Schoology-update-{}-{}.app", std::process::id(), epoch()));
+    let backup_path = target_app.with_file_name(format!(".Schoology-backup-{}-{}.app", std::process::id(), epoch()));
     let log_path = temp.join("update-install.log");
     let q = |value: &str| format!("'{}'", value.replace('\'', "'\"'\"'"));
     let script = format!(r#"#!/bin/bash
@@ -939,22 +944,35 @@ TARGET={target}
 STAGED={staged}
 MOUNT={mount}
 PID={pid}
-cleanup() {{ rm -rf "$MOUNT"; rm -f "$INSTALLER" "$0"; }}
+MOUNTED=0
+cleanup() {{
+  if [ "$MOUNTED" -eq 1 ]; then hdiutil detach "$MOUNT" -force >/dev/null 2>&1 || true; fi
+  rm -rf "$MOUNT"
+  rm -f "$INSTALLER" "$0"
+}}
 trap cleanup EXIT
 mkdir -p "$MOUNT"
 for i in {{1..300}}; do kill -0 "$PID" 2>/dev/null || break; sleep .2; done
-ditto -x -k "$INSTALLER" "$MOUNT"
+hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$INSTALLER"
+MOUNTED=1
 APP=$(find "$MOUNT" -maxdepth 5 -name '*.app' -type d -print -quit)
-if [ -z "$APP" ]; then echo 'No .app bundle found in downloaded update'; exit 1; fi
+if [ -z "$APP" ]; then echo 'No .app bundle found in the downloaded DMG'; exit 1; fi
 rm -rf "$STAGED"
-ditto --rsrc --extattr --qtn "$APP" "$STAGED"
-xattr -dr com.apple.quarantine "$STAGED" 2>/dev/null || true
-codesign --force --deep --sign - "$STAGED" >/dev/null 2>&1 || true
-BACKUP="${{TARGET}}.schoology-backup-$$"
+ditto --rsrc --extattr "$APP" "$STAGED"
+hdiutil detach "$MOUNT" -force
+MOUNTED=0
+BACKUP={backup}
 if [ -e "$TARGET" ]; then mv "$TARGET" "$BACKUP"; fi
 if mv "$STAGED" "$TARGET"; then rm -rf "$BACKUP"; else [ ! -e "$BACKUP" ] || mv "$BACKUP" "$TARGET"; exit 1; fi
 open "$TARGET"
-"#, log=q(log_path.to_string_lossy().as_ref()), installer=q(installer.to_string_lossy().as_ref()), target=q(target_app.to_string_lossy().as_ref()), staged=q(staged_path.to_string_lossy().as_ref()), mount=q(mount_path.to_string_lossy().as_ref()), pid=std::process::id());
+"#,
+        log=q(log_path.to_string_lossy().as_ref()),
+        installer=q(installer.to_string_lossy().as_ref()),
+        target=q(target_app.to_string_lossy().as_ref()),
+        staged=q(staged_path.to_string_lossy().as_ref()),
+        backup=q(backup_path.to_string_lossy().as_ref()),
+        mount=q(mount_path.to_string_lossy().as_ref()),
+        pid=std::process::id());
     fs::write(&script_path, script).map_err(|e| e.to_string())?;
     #[cfg(unix)] {
         use std::os::unix::fs::PermissionsExt;
@@ -1100,6 +1118,17 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         },
         "open-external" => { let url=args.as_str().ok_or("Missing URL")?; if !(url.starts_with("https://")||url.starts_with("http://")) { return Err("Only HTTP(S) URLs may be opened externally.".into()); } app.opener().open_url(url,None::<&str>).map_err(|e|e.to_string())?; Ok(json!(true)) },
         "create-embedded-webview" => create_embedded_webview(&app, &args).await,
+        "close-embedded-webview" => {
+            let label = args.get("label").and_then(Value::as_str).unwrap_or("");
+            if label.starts_with("schoology-embedded-") {
+                if let Some(view) = app.get_webview(label) {
+                    let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0).into());
+                    let _ = view.set_size(LogicalSize::new(1.0, 1.0).into());
+                    view.close().map_err(|e| format!("Could not close embedded webview: {e}"))?;
+                }
+            }
+            Ok(json!(true))
+        },
         "prepare-web-session" => prepare_web_session(&app, &state).await,
         "login-external-school" => login_external_school(&app, &state, &args).await,
         "set-window-chrome" => Ok(json!(true)),
@@ -1112,9 +1141,10 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             // immediate child would be forwarded to this process and then lost.
             #[cfg(target_os = "windows")]
             {
-                let executable = current.to_string_lossy().replace('"', "");
-                let command = format!("ping 127.0.0.1 -n 2 >NUL & start \"\" \"{executable}\"");
-                Command::new("cmd").arg("/C").arg(command).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+                let executable = current.to_string_lossy().replace('\'', "''");
+                let command = format!("Start-Sleep -Milliseconds 900; Start-Process -FilePath '{executable}'");
+                Command::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command"]).arg(&command)
+                    .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
                     .spawn().map_err(|e| format!("Could not schedule Schoology restart: {e}"))?;
             }
             #[cfg(not(target_os = "windows"))]

@@ -41,14 +41,6 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build Tauri packages
         run: npm run prepare:tauri && npx tauri build
-      - name: Package macOS app for in-app updates
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          APP_PATH="src-tauri/target/release/bundle/macos/Schoology.app"
-          test -d "$APP_PATH"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "src-tauri/target/release/bundle/macos/Schoology-${VERSION}-macos.app.zip"
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -70,8 +62,8 @@ jobs:
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          awk -v v1="## [$VERSION]" -v v2="## [2026.06.0-port.180]" -v v3="## [2026.06.0-port.179]" '
-            /^## \[/ { keep=($0==v1 || $0==v2 || $0==v3); if (keep) { if (printed++) print ""; print } next }
+          awk -v v1="## [$VERSION]" -v v2="## [2026.06.0-port.181]" -v v3="## [2026.06.0-port.180]" -v v4="## [2026.06.0-port.179]" '
+            /^## \[/ { keep=($0==v1 || $0==v2 || $0==v3 || $0==v4); if (keep) { if (printed++) print ""; print } next }
             keep { print }
           ' RELEASE_NOTES.md > release-notes.md
           if [ ! -s release-notes.md ]; then
@@ -84,6 +76,15 @@ jobs:
           pattern: Schoology-Tauri-*
           path: release-assets
           merge-multiple: true
+      - name: Prepare release upload files
+        shell: bash
+        run: |
+          mkdir -p release-upload
+          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' \) -print0 | while IFS= read -r -d '' file; do cp "$file" "release-upload/$(basename "$file")"; done
+          if [ -z "$(find release-upload -maxdepth 1 -type f -print -quit)" ]; then
+            echo "No installer packages found to upload." >&2
+            exit 1
+          fi
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -91,11 +92,6 @@ jobs:
           name: ${{ steps.release_meta.outputs.version }}
           target_commitish: main
           body_path: release-notes.md
-          files: |
-            release-assets/**/*-setup.exe
-            release-assets/**/*.dmg
-            release-assets/**/*.app.zip
-            release-assets/**/*.deb
-            release-assets/**/*.rpm
+          files: release-upload/*
           fail_on_unmatched_files: true
           generate_release_notes: false

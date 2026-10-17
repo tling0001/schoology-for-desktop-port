@@ -348,6 +348,7 @@
         window.removeEventListener('schoology-tauri-theme-changed', this._themeHandler);
         embeddedViews.delete(this);
         this._unlistenPageLoad?.();
+        if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {});
         if (this.nativeView) {
           const view = this.nativeView;
           this.nativeView = null;
@@ -398,10 +399,16 @@
             userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
             initializationScript: makeEmbeddedThemeBootstrap(dark, session),
             forceDark: dark,
+            lti: this._ltiNavigation,
             deferNavigation: true
           });
           this.nativeView = await tauri.webview.Webview.getByLabel(label);
           if (!this.nativeView) throw new Error('The native embedded Schoology webview could not be retrieved.');
+          if (!this.isConnected) {
+            await invoke('close-embedded-webview', { label }).catch(() => {});
+            this.nativeView = null;
+            return;
+          }
           await this.nativeView.hide().catch(() => {});
           this.dispatchEvent(new Event('dom-ready'));
           this.nativeView.once('tauri://error', event => { dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true }); this.nativeView?.show().catch(() => {}); }).catch(() => {});
@@ -431,8 +438,9 @@
             }
             const allowed = dispatchCompatEvent(this, 'will-navigate', { url: nextUrl, isMainFrame: true }, true);
             if (!allowed) return false;
-            // Native child surfaces otherwise cover the parent DOM's loading overlay.
-            this.nativeView.hide().catch(() => {});
+            // Keep the child surface visible during navigation. Hiding it here left
+            // redirected account/assessment pages blank when Finished was not emitted.
+            this.nativeView.show().catch(() => {});
             this.loading = true;
             this._url = nextUrl;
             dispatchCompatEvent(this, 'did-start-navigation', { url: nextUrl, isMainFrame: true });
@@ -441,13 +449,15 @@
           }).catch(() => {});
           this._unlistenPageLoad = await this.nativeView.onPageLoad(async event => {
             const payload = event?.payload || event || {};
-            const eventName = String(payload.event || payload.type || event?.event || '').toLowerCase();
-            if (eventName === 'started' || eventName === 'start') {
+            let rawEvent = payload.event ?? payload.type ?? event?.event ?? '';
+            if (rawEvent && typeof rawEvent === 'object') rawEvent = Object.keys(rawEvent)[0] || '';
+            const eventName = String(rawEvent).toLowerCase().replace(/[^a-z]/g, '');
+            if (eventName.includes('started') || eventName === 'start') {
               this.loading = true;
               this.dispatchEvent(new Event('did-start-loading'));
               return;
             }
-            if (eventName === 'finished' || eventName === 'finish') {
+            if (eventName.includes('finished') || eventName === 'finish') {
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
@@ -463,10 +473,18 @@
           // Navigation starts only after event listeners are attached, so the
           // renderer receives the initial loading and completion events too.
           await this.nativeView.navigate(this._url);
-          const firstUrl = this._url;
-          // A provider may omit the normal top-level Finished event. Avoid a
-          // permanently hidden native surface in that case.
-          setTimeout(() => { if (this.nativeView && this._url === firstUrl) this.nativeView.show().catch(() => {}); }, 8000);
+          await this.nativeView.show().catch(() => {});
+          const firstView = this.nativeView;
+          // Redirects can change this._url before the page-load event arrives.
+          // Recover from a missing/variant Finished event without leaving a blank view.
+          setTimeout(() => {
+            if (this.nativeView === firstView && this.isConnected) {
+              firstView.show().catch(() => {});
+              this.loading = false;
+              this.dispatchEvent(new Event('did-stop-loading'));
+              this.dispatchEvent(new Event('did-finish-load'));
+            }
+          }, 2500);
         } else {
           await this.nativeView.navigate(this._url);
         }

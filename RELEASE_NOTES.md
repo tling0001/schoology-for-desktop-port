@@ -1,6 +1,23 @@
 # Schoology Desktop Port release history
 
-GitHub Actions includes the current release notes plus the previous two failed release sections in each release description.
+Release descriptions include the current version and the previous three release-note sections so fixes from failed release attempts remain documented.
+
+## [2026.06.0-port.182]
+
+### Fixed
+- Switched the macOS in-app updater to the standard Tauri DMG: mount it with hdiutil, replace the installed Schoology.app while Schoology is closed, and relaunch without a custom ZIP packaging step.
+- Kept shared native webviews visible through redirects and added a fallback for missing or variant page-load events so Account Info and assessment pages do not remain blank.
+- Allowed HTTPS provider navigation inside LTI assignment webviews while keeping ordinary external links in the system browser.
+- Closed child webviews that finish creating after their host page is removed, preventing native views from covering the app and intercepting clicks.
+- Fixed Windows window-controls-overlay relaunch so it uses a hidden PowerShell process instead of a fragile cmd command.
+- Fixed toolbar action spacing beside the Windows window controls by sizing the action group to its actual number of buttons.
+- Restored API-driven course tab permissions when multioptions response bodies are JSON objects.
+- Corrected the Windows updater delete wildcard so it targets the installed application's root files with a single backslash.
+- Changed release asset staging to upload only installer packages through one guaranteed-matching glob, preventing failures caused by optional file patterns.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.182.
+- Release descriptions include notes for versions 2026.06.0-port.182, .181, .180, and .179, including the previous failed releases.
 
 ## [2026.06.0-port.181]
 

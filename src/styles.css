@@ -2345,10 +2345,10 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .embeddedPage webview{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
 .embeddedPage .webviewLoading{z-index:20!important;background:rgba(34,48,62,.88)!important;backdrop-filter:blur(4px)!important;transition:opacity .12s ease,visibility .12s ease}
 #tauriWindowControls{width:138px!important}
-html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) 48px 138px!important;column-gap:0!important;padding:0!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto 138px!important;column-gap:0!important;padding:0!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
 html[data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!important;grid-row:1!important}
 html[data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important;margin:0!important;padding:0 12px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
-html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:48px!important;min-width:48px!important;max-width:48px!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;z-index:2!important}
+html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:auto!important;min-width:0!important;max-width:none!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;flex:0 0 auto!important;align-items:center!important;justify-content:flex-end!important;gap:0!important;overflow:visible!important;z-index:2!important}html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot>.iconButton{flex:0 0 48px!important;width:48px!important;min-width:48px!important;height:56px!important;margin:0!important;padding:0!important;border-radius:0!important}
 html[data-window-controls-overlay="true"] .toolbar::after{content:""!important;grid-column:4!important;grid-row:1!important;width:138px!important;height:56px!important;display:block!important;pointer-events:none!important}
 
 /* v181: native Windows caption glyph font and macOS left-side overlay layout. */
@@ -2357,5 +2357,10 @@ html[data-electron-platform=darwin] #tauriWindowControls{top:28px!important;left
 html[data-electron-platform=darwin] .shell>.toolbar{padding-left:138px!important}
 html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
 html[data-electron-platform=darwin] #drawer{z-index:40!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar{grid-template-columns:138px 44px minmax(0,1fr) auto!important;padding:0!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:2!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:3!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:4!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important;content:none!important}
 
 html[data-electron-platform=darwin] .login .back,html[data-electron-platform=darwin] .qr .back{left:138px!important}

@@ -619,7 +619,7 @@ async function getCourseNavigationPermissions(sectionId,userId){
  const x=await A.api({path:'multioptions',method:'POST',params:{request}});
  const list=Array.isArray(x?.response)?x.response:(Array.isArray(x?.responses)?x.responses:[]);
  const by={};
- for(const r of list){if(r?.location)by[String(r.location)]=String(r.body||'').toLowerCase()}
+ for(const r of list){if(r?.location){const body=r.body??'';by[String(r.location)]=(typeof body==='string'?body:JSON.stringify(body)).toLowerCase()}}
  const sectionGradeBody=by[`/v1/sections/${sectionId}/grades`]||'';
  const userGradeBody=by[`/v1/users/${userId}/grades`]||'';
  const attendanceBody=by[`/v1/sections/${sectionId}/attendance`]||'';

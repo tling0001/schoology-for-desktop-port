@@ -242,7 +242,7 @@ async fn run_update(
         .as_deref()
         .map(PathBuf::from)
         .unwrap_or(fallback);
-    let schoology_exe = install_dir.join("Schoology.exe");
+    let schoology_exe = install_dir.join("schoology-desktop-port.exe");
     let temp_root = env::temp_dir().join("schoology-updater");
     fs::create_dir_all(&temp_root).map_err(|e| e.to_string())?;
     let run_dir = temp_root.join(format!(
@@ -333,8 +333,8 @@ async fn run_update(
         "Schoology installer extraction",
     )?;
     check_cancelled(cancelled)?;
-    if !extracted.join("Schoology.exe").is_file() {
-        return Err("The installer did not contain Schoology.exe at its root. The installed app was left unchanged.".into());
+    if !extracted.join("schoology-desktop-port.exe").is_file() {
+        return Err("The installer did not contain schoology-desktop-port.exe at its root. The installed app was left unchanged.".into());
     }
 
     fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
@@ -360,7 +360,7 @@ async fn run_update(
         return Err(format!("Copying updated application files failed (robocopy exit code {code})."));
     }
     if !schoology_exe.is_file() {
-        return Err("The update copy finished, but Schoology.exe is missing. Schoology was not relaunched.".into());
+        return Err("The update copy finished, but schoology-desktop-port.exe is missing. Schoology was not relaunched.".into());
     }
     emit_progress(app, "install", "done", "Complete", Some(100), "Update complete. Restarting Schoology…");
     let _ = fs::remove_file(&installer);

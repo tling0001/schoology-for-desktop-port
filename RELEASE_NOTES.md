@@ -2,6 +2,16 @@
 
 The source history is cumulative. GitHub release descriptions include only the version being published and sections for versions whose releases failed.
 
+## [2026.06.0-port.188]
+
+### Fixed
+- Made macOS signing conditional: CI uses Developer ID signing/notarization only when all required secrets are configured, and explicitly unsets Apple signing variables for unsigned builds.
+- Reused the main application's existing icons in the Tauri updater configuration so Windows Rust resource generation no longer looks for a missing updater-specific `icons/icon.ico`.
+- Updated the Windows updater to validate, copy, and relaunch `schoology-desktop-port.exe`, the executable actually produced by the Tauri application bundle.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.188.
+
 ## [2026.06.0-port.187]
 
 ### Fixed

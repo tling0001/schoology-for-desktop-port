@@ -58,7 +58,7 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "macOS Developer ID signing/notarization secrets are incomplete; this build will be unsigned."
+            echo "macOS Developer ID signing/notarization secrets are incomplete; this build will not be Developer ID signed or notarized."
           fi
       - name: Import macOS Developer ID certificate
         if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'

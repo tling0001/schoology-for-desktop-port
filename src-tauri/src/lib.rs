@@ -1124,7 +1124,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             if label.starts_with("schoology-embedded-") {
                 if let Some(view) = app.get_webview(label) {
                     let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0));
-                    let _ = view.set_size(LogicalSize::new(1.0, 1.0).into());
+                    let _ = view.set_size(LogicalSize::new(1.0, 1.0));
                     view.close().map_err(|e| format!("Could not close embedded webview: {e}"))?;
                 }
             }

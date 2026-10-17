@@ -2,10 +2,19 @@
 
 Release descriptions include the current version and the previous four release-note sections so fixes from failed release attempts remain documented.
 
+## [2026.06.0-port.184]
+
+### Fixed
+- Fixed the Windows, macOS, and Linux Rust build failure by passing LogicalSize::new(1.0, 1.0) directly to Tauri's set_size, avoiding ambiguous type inference.
+- Preserved the previous failed-build/release notes in the release history and included the complete history in future GitHub release descriptions.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.184.
+
 ## [2026.06.0-port.183]
 
 ### Fixed
-- Fixed a cross-platform Rust compile error by passing a concrete LogicalPosition directly to Tauri's child-webview positioning API.
+- Attempted to fix a cross-platform Rust type inference error in child-webview cleanup, but the release build still failed because set_size used an unnecessary .into() with an ambiguous target type. The correction is included in 2026.06.0-port.184.
 - Scoped the Windows-only force-dark flag to Windows builds, removing unused-variable warnings on macOS and Linux.
 - Updated release notes to include versions 2026.06.0-port.183, .182, .181, .180, and .179 so the next release preserves the full history of failed release attempts.
 

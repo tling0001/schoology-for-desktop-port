@@ -1059,6 +1059,10 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
                     break;
                 }
             }
+            if !loader_staged {
+                let _ = fs::remove_file(&staged_updater);
+                return Err("Could not find WebView2Loader.dll to launch the standalone Tauri updater.".into());
+            }
             let theme = read_json(&app, "theme-settings.json", json!({"mode":"system"}));
             let theme_mode = theme.get("mode").and_then(Value::as_str).unwrap_or("system");
             let payload = json!({

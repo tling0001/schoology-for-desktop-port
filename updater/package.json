@@ -1,6 +1,0 @@
-{
-  "name": "schoology-updater",
-  "version": "1.0.0",
-  "description": "Schoology Desktop Windows updater",
-  "main": "main.js"
-}

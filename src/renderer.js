@@ -650,7 +650,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const landscape=window.matchMedia('(min-width: 1000px)').matches;
- const baseTabs=[['materials','Materials'],['updates','Updates'],['upcoming','Upcoming'],['grades','Grades'],['attendance','Attendance'],['courseapp','Course App']];
+ const baseTabs=[['materials','Materials'],['updates','Updates']];
  let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
@@ -2173,11 +2173,41 @@ async function loadTab(){
     const pager=document.getElementById('calendarPagerContent');
     const renderCalendarRows=events=>events.map(e=>{const type=String(e.type||'').toLowerCase();const icon=type==='assignment'?'ic_assignment.png':type==='assessment'?'ic_test_quiz.png':['assessment_v2','managed_assessment','quiz'].includes(type)?'ic_assessment_48dp.png':type==='discussion'?'ic_discussion.png':type==='external_tool'?'ic_external_tool.png':'home_dash_upcoming.png';const allDay=String(e.all_day??e.allDay??'')==='1'||e.allDay===1;const start=e.start||e.start_date||e.startDate||'';let time='';if(!allDay&&start){const dt=new Date(String(start).replace(' ','T'));if(!Number.isNaN(dt.getTime()))time=dt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}return `<button class="calendarEventRow" data-calendar-event="${esc(e.id||'')}"><span class="calendarEventIcon">${officialOrAssetIcon(icon,'')}</span><span class="calendarEventText"><b>${esc(e.title||'Event')}</b>${time?`<small>${esc(time)}</small>`:''}</span></button>`}).join('');
     const bindEventRows=(events)=>document.querySelectorAll('[data-calendar-event]').forEach(btn=>{if(btn.dataset.boundCalendar)return;btn.dataset.boundCalendar='1';btn.addEventListener('click',()=>{const e=events.find(v=>String(v.id||'')===String(btn.dataset.calendarEvent));if(!e)return;const type=String(e.type||'').toLowerCase();const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const sid=e.section_id??e.sectionId;if(type==='assignment'&&aid){showAssignment(sid,aid);return}if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){const id=aid??e.id;if(id){A.prepareWebSession().then(()=>showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true}));return}}if(type==='discussion'&&e.id){showDiscussionNative(sid?'sections':'users',sid||state.auth?.userId,e.discussion_id??e.id,e.title||'Discussion');return}if(type==='event'&&e.id){showEventNative(sid?'sections':'users',sid||state.auth?.userId,e.id,e.title||'Event');return}if(e.web_url||e.webUrl){showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming');return}})});
+    const normalizeCalendarEvents=value=>Array.isArray(value)?value:(value&&typeof value==='object'?[value]:[]);
     const loadCalendarUpcomingData=async()=>{
-      if(!Array.isArray(state.calendarUpcomingEvents)){const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),limit:100}});state.calendarUpcomingEvents=x.event||x.events||[];}
-      return Array.isArray(state.calendarUpcomingEvents)?state.calendarUpcomingEvents:[];
+      if(!Array.isArray(state.calendarUpcomingEvents)){
+        const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),limit:100}});
+        state.calendarUpcomingEvents=normalizeCalendarEvents(x?.event??x?.events??x?.data?.event??x?.data?.events??[]);
+      }
+      return normalizeCalendarEvents(state.calendarUpcomingEvents);
     };
-    const upcomingNow=(forMonth=null)=>{const now=new Date();return (Array.isArray(state.calendarUpcomingEvents)?state.calendarUpcomingEvents:[]).filter(e=>{const d=new Date(String(e.start||e.start_date||e.startDate||'').replace(' ','T'));if(!Number.isNaN(d.getTime())&&d<now)return false;if(forMonth&&Number.isNaN(d.getTime()))return false;if(forMonth&&(d.getFullYear()!==forMonth.getFullYear()||d.getMonth()!==forMonth.getMonth()))return false;return true}).sort((a,b)=>new Date(String(a.start||a.start_date||a.startDate||'').replace(' ','T'))-new Date(String(b.start||b.start_date||b.startDate||'').replace(' ','T')))};
+    const calendarEventDate=e=>{
+      const raw=String(e?.start||e?.start_date||e?.startDate||e?.date||e?.due_date||e?.dueDate||'').trim();
+      if(!raw)return null;
+      const day=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)||raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T]/);
+      if(day){const d=new Date(Number(day[1]),Number(day[2])-1,Number(day[3]),12,0,0);if(!Number.isNaN(d.getTime()))return d;}
+      const parsed=new Date(raw.replace(' ','T'));
+      return Number.isNaN(parsed.getTime())?null:parsed;
+    };
+    const upcomingNow=(forMonth=null)=>{
+      const now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0);
+      const merged=new Map();
+      for(const e of [...normalizeCalendarEvents(state.calendarUpcomingEvents),...normalizeCalendarEvents(state.calendarEvents)]){
+        const id=String(e?.id??e?.event_id??e?.eventId??'');
+        const key=id||[e?.title||e?.name||'',e?.start||e?.start_date||e?.startDate||e?.date||''].join('|');
+        if(!merged.has(key))merged.set(key,e);
+      }
+      return [...merged.values()].filter(e=>{
+        const d=calendarEventDate(e);
+        if(d){const day=new Date(d.getFullYear(),d.getMonth(),d.getDate());if(day<today)return false;if(forMonth&&(d.getFullYear()!==forMonth.getFullYear()||d.getMonth()!==forMonth.getMonth()))return false;}
+        else if(forMonth)return false;
+        return true;
+      }).sort((a,b)=>{
+        const da=calendarEventDate(a),db=calendarEventDate(b);
+        if(!da&&!db)return String(a?.title||'').localeCompare(String(b?.title||''));
+        if(!da)return 1;if(!db)return -1;return da-db;
+      });
+    };
     const loadCalendarMonth=async()=>{
       await loadCalendarUpcomingData();
       const month=state.calendarDate?new Date(state.calendarDate):new Date(); state.calendarDate=new Date(month.getFullYear(),month.getMonth(),1);

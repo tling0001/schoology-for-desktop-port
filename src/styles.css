@@ -2364,3 +2364,42 @@ html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolba
 html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important;content:none!important}
 
 html[data-electron-platform=darwin] .login .back,html[data-electron-platform=darwin] .qr .back{left:138px!important}
+
+
+/* v185: compact platform-native titlebar controls and no artificial toolbar gap. */
+#tauriWindowControls{width:138px!important;min-width:138px!important;gap:0!important;justify-content:stretch!important;overflow:hidden!important}
+#tauriWindowControls .tauriWindowDragArea{flex:1 1 auto!important;min-width:0!important}
+#tauriWindowControls button{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 46px!important;width:46px!important;height:56px!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;font:inherit!important}
+#tauriWindowControls button::before{display:block;line-height:1;pointer-events:none}
+html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important}
+html[data-electron-platform=win32] #tauriWindowControls [data-window-action=minimize]::before{content:"\e921"}
+html[data-electron-platform=win32] #tauriWindowControls [data-window-action=maximize]::before{content:"\e922"}
+html[data-electron-platform=win32] #tauriWindowControls [data-window-action=maximize][data-maximized=true]::before{content:"\e923"}
+html[data-electron-platform=win32] #tauriWindowControls [data-window-action=close]::before{content:"\e8bb"}
+html[data-electron-platform=linux] #tauriWindowControls button{font-family:system-ui,"Noto Sans Symbols 2",sans-serif!important;font-size:18px!important}
+html[data-electron-platform=linux] #tauriWindowControls [data-window-action=minimize]::before{content:"−"}
+html[data-electron-platform=linux] #tauriWindowControls [data-window-action=maximize]::before{content:"□"}
+html[data-electron-platform=linux] #tauriWindowControls [data-window-action=maximize][data-maximized=true]::before{content:"❐"}
+html[data-electron-platform=linux] #tauriWindowControls [data-window-action=close]::before{content:"×"}
+html[data-electron-platform=darwin] #tauriWindowControls{top:28px!important;left:0!important;right:auto!important;z-index:20!important;width:80px!important;min-width:80px!important;height:56px!important;padding:0 10px!important;box-sizing:border-box!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important}
+html[data-electron-platform=darwin] #tauriWindowControls .tauriWindowDragArea{order:4!important;flex:1 1 auto!important}
+html[data-electron-platform=darwin] #tauriWindowControls button{flex:0 0 12px!important;width:12px!important;min-width:12px!important;height:12px!important;min-height:12px!important;border-radius:50%!important;border:1px solid rgba(0,0,0,.14)!important}
+html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=minimize]{background:#ffbd2e!important}
+html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=maximize]{background:#28c840!important}
+html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=close]{background:#ff5f57!important}
+html[data-electron-platform=darwin] #tauriWindowControls button::before{font-family:system-ui,sans-serif!important;font-size:8px!important;font-weight:700!important;color:rgba(0,0,0,.72)!important;opacity:0;content:""}
+html[data-electron-platform=darwin] #tauriWindowControls:hover button::before{opacity:1}
+html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=close]::before{content:"×"}
+html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=minimize]::before{content:"−"}
+html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=maximize]::before{content:"+"}
+html[data-window-controls-overlay="true"] .shell>.toolbar{display:flex!important;grid-template-columns:none!important;column-gap:0!important;box-sizing:border-box!important;overflow:hidden!important;min-width:0!important}
+html[data-window-controls-overlay="true"] .toolbar>.iconButton{flex:0 0 48px!important;width:48px!important;min-width:48px!important}
+html[data-window-controls-overlay="true"] .toolbar>.toolbarTitle{flex:1 1 auto!important;min-width:0!important;padding:0 8px!important;margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{display:flex!important;flex:0 0 auto!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important;gap:0!important;overflow:visible!important;justify-content:flex-end!important}
+html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot>.iconButton{flex:0 0 48px!important;width:48px!important;min-width:48px!important;margin:0!important}
+html[data-window-controls-overlay="true"] .toolbar::after{display:none!important;content:none!important}
+html[data-electron-platform=win32][data-window-controls-overlay="true"] .shell>.toolbar,html[data-electron-platform=linux][data-window-controls-overlay="true"] .shell>.toolbar{padding-right:138px!important;padding-left:4px!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .shell>.toolbar{padding-left:80px!important;padding-right:4px!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="false"] .shell>.toolbar{padding-left:4px!important}
+html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
+html[data-electron-platform=darwin] #drawer{z-index:40!important}

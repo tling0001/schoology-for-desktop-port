@@ -1,5 +1,24 @@
 # Schoology Desktop Port release history
 
+Release descriptions retain the full cumulative history, including notes from failed release attempts.
+
+## [2026.06.0-port.185]
+
+### Fixed
+- Changed the internal Tauri version to numeric components so Windows packaging no longer warns about nonnumeric port build metadata.
+- Restored the standalone Schoology Windows updater helper in Windows Tauri bundles and routed in-app Windows updates through its progress UI.
+- Simplified shared child-webview startup to load the destination URL directly and reduced duplicate close paths that could leave native surfaces intercepting clicks.
+- Changed course navigation to start with only Materials and Updates, then reveal API-permitted tabs after permission discovery finishes.
+- Improved portrait Calendar Upcoming event normalization and merged cached event data to avoid falsely showing an empty list.
+- Reduced the minimum desktop window width and corrected overlay toolbar spacing; added platform-native-style window control glyphs for Windows, macOS, and Linux.
+- Added Android and iOS GitHub Actions builds and optional TestFlight upload when Apple signing and App Store Connect secrets are configured.
+- Added the macOS .app.zip updater asset to releases.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.185.
+
+
+
 Release descriptions include the current version and the previous four release-note sections so fixes from failed release attempts remain documented.
 
 ## [2026.06.0-port.184]

@@ -8,7 +8,9 @@ use sha2::{Digest, Sha256};
 use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -384,6 +386,7 @@ async fn launch_course_app(app: &AppHandle, state: &HostState, info: &Value) -> 
     else { return Err("The course app did not provide a valid launch link.".into()); };
     api_json(app, state, "GET", url, None, false).await.map_err(|e| if resource { format!("Resource app launch failed: {e}") } else { format!("Course app launch failed: {e}") })
 }
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value, String> {
     let label = info.get("label").and_then(Value::as_str).ok_or("Embedded webview label is missing.")?.to_owned();
     if !label.starts_with("schoology-embedded-") || !label.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '/')) {
@@ -419,9 +422,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     // Start on about:blank so the JS compatibility adapter can subscribe to native
     // navigation/load events before the first Schoology request begins. This avoids
     // losing the initial did-finish-load event on fast pages.
-    let initial_url = if info.get("deferNavigation").and_then(Value::as_bool).unwrap_or(false) {
-        Url::parse("about:blank").map_err(|e| e.to_string())?
-    } else { url };
+    let initial_url = url;
     let builder = WebviewBuilder::new(label.clone(), WebviewUrl::External(initial_url))
         .user_agent(&user_agent)
         .initialization_script(initialization_script)
@@ -479,6 +480,11 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     Ok(json!({"label":label,"created":true}))
 }
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
+async fn create_embedded_webview(_app: &AppHandle, _info: &Value) -> Result<Value, String> {
+    Err("Inline remote webviews are not supported by the mobile build yet.".into())
+}
+
 fn is_schoology_or_lausd_host(host: &str) -> bool {
     let host = host.trim_end_matches('.').to_ascii_lowercase();
     host == "schoology.com" || host.ends_with(".schoology.com")
@@ -496,6 +502,12 @@ fn is_external_login_candidate(url: &Url, expected_domain: &str) -> bool {
     !expected.is_empty() && (host == expected || host.ends_with(&format!(".{expected}")))
 }
 
+#[cfg(any(target_os = "android", target_os = "ios"))]
+async fn login_external_school(_app: &AppHandle, _state: &HostState, _info: &Value) -> Result<Value, String> {
+    Err("External district login windows are not supported by the mobile build yet.".into())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 async fn login_external_school(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
     let label = info.get("label").and_then(Value::as_str).ok_or("The district sign-in window is unavailable.")?;
     if !label.starts_with("schoology-sso-") { return Err("The district sign-in window is not trusted.".into()); }
@@ -821,7 +833,7 @@ fn local_release_number() -> u64 {
 fn update_asset_suffixes() -> Vec<&'static str> {
     match std::env::consts::OS {
         "windows" => vec!["_x64-setup.exe", "-x64-setup.exe", "Setup-x64.exe"],
-        "macos" => if std::env::consts::ARCH == "aarch64" { vec!["aarch64.dmg", "arm64.dmg"] } else { vec!["x64.dmg"] },
+        "macos" => vec![".app.zip"],
         "linux" => vec!["amd64.deb", "x86_64.rpm"],
         _ => vec![],
     }
@@ -858,7 +870,7 @@ fn release_asset_info(release: &Value, asset: &Value, repo: &str, product_name: 
         "digest": asset.get("digest").cloned().unwrap_or(Value::Null),
         "repository": repo,
         "productName": product_name,
-        "useWindowsUpdater": false
+        "useWindowsUpdater": cfg!(target_os = "windows") && product_name == "Schoology"
     })
 }
 
@@ -987,12 +999,40 @@ open "$TARGET"
 }
 
 async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> {
+    #[cfg(target_os = "windows")]
+    {
+        if info.get("useWindowsUpdater").and_then(Value::as_bool).unwrap_or(false) {
+            let updater = app.path().resource_dir().map_err(|e| e.to_string())?.join("SchoologyUpdater.exe");
+            if !updater.is_file() {
+                return Err("The Schoology Windows updater is missing from this installation. Reinstall the current version and try again.".into());
+            }
+            let current = std::env::current_exe().map_err(|e| e.to_string())?;
+            let install_dir = current.parent().ok_or("Could not determine the Schoology installation folder.")?;
+            let payload = json!({
+                "url": info.get("url").and_then(Value::as_str).unwrap_or(""),
+                "size": info.get("size").and_then(Value::as_u64).unwrap_or(0),
+                "digest": info.get("digest").cloned().unwrap_or(Value::Null),
+                "version": info.get("version").and_then(Value::as_str).unwrap_or(""),
+                "productName": "Schoology",
+                "installDir": install_dir.to_string_lossy(),
+                "installMode": "current-user",
+                "parentPid": std::process::id()
+            });
+            let encoded = BASE64.encode(serde_json::to_vec(&payload).map_err(|e| e.to_string())?);
+            Command::new(&updater).arg(format!("--payload-base64={encoded}"))
+                .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+                .spawn().map_err(|e| format!("Could not launch the Schoology updater: {e}"))?;
+            let _ = app.emit("update-install-started", json!({"updater":true,"version":payload["version"]}));
+            schedule_app_exit(app.clone(), 600);
+            return Ok(json!(true));
+        }
+    }
     let path = if let Some(path) = info.as_str() { PathBuf::from(path) } else { download_update(app, info).await? };
     if !path.is_file() { return Err("The update installer could not be found.".into()); }
     let _ = app.emit("update-install-started", json!({"path":path.to_string_lossy()}));
     #[cfg(target_os = "windows")]
     {
-        // Keep the standard interactive NSIS installer flow (never pass /S).
+        // Fallback for explicit local installer paths; normal releases use the progress updater.
         Command::new(&path).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
             .spawn().map_err(|e| format!("Could not launch the Schoology installer: {e}"))?;
         schedule_app_exit(app.clone(), 900);
@@ -1119,6 +1159,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         },
         "open-external" => { let url=args.as_str().ok_or("Missing URL")?; if !(url.starts_with("https://")||url.starts_with("http://")) { return Err("Only HTTP(S) URLs may be opened externally.".into()); } app.opener().open_url(url,None::<&str>).map_err(|e|e.to_string())?; Ok(json!(true)) },
         "create-embedded-webview" => create_embedded_webview(&app, &args).await,
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "close-embedded-webview" => {
             let label = args.get("label").and_then(Value::as_str).unwrap_or("");
             if label.starts_with("schoology-embedded-") {
@@ -1130,6 +1171,8 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             }
             Ok(json!(true))
         },
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        "close-embedded-webview" => Ok(json!(true)),
         "prepare-web-session" => prepare_web_session(&app, &state).await,
         "login-external-school" => login_external_school(&app, &state, &args).await,
         "set-window-chrome" => Ok(json!(true)),
@@ -1179,9 +1222,10 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
 pub fn run() {
     #[cfg(target_os = "windows")]
     std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--enable-features=OverlayScrollbar:mode/overlay");
-    tauri::Builder::default()
-        // Register first so protocol activations are forwarded before any other
-        // plugin can initialize a second application instance.
+    let builder = tauri::Builder::default();
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder
+        // Keep desktop deep-link activations in the existing process.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -1204,18 +1248,15 @@ pub fn run() {
                 }
             }
         }))
-        // Match the existing Electron media-permission behavior for the app shell.
-        // Embedded remote webviews apply a stricter Schoology/LAUSD origin check.
+        // Desktop WebView permission callback; mobile uses platform permissions.
         .on_permission_request(|_webview, kind| {
-            // Keep the existing Electron behavior for the app shell/QR scanner.
-            // The embedded remote-view builder below applies a stricter origin check.
             if matches!(kind, PermissionKind::Camera | PermissionKind::Microphone) {
                 PermissionResponse::Allow
             } else {
                 PermissionResponse::Deny
             }
-        })
-        .manage(HostState::default())
+        });
+    builder
         .setup(|app| {
             let overlay = read_json(app.handle(), "window-chrome.json", json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false);
             if overlay {

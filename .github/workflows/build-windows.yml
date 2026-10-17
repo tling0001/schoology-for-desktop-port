@@ -39,8 +39,19 @@ jobs:
           sudo apt-get install -y --no-install-recommends build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
+      - name: Build the special Windows updater
+        if: matrix.platform == 'windows'
+        run: npm run build:updater
       - name: Build Tauri packages
         run: npm run prepare:tauri && npx tauri build
+      - name: Package macOS app for the in-app updater
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          APP_PATH="src-tauri/target/release/bundle/macos/Schoology.app"
+          test -d "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "src-tauri/target/release/bundle/macos/Schoology-${VERSION}-macos.app.zip"
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -79,7 +90,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-upload
-          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' \) -print0 | while IFS= read -r -d '' file; do cp "$file" "release-upload/$(basename "$file")"; done
+          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.zip' -o -name '*.deb' -o -name '*.rpm' \) -print0 | while IFS= read -r -d '' file; do cp "$file" "release-upload/$(basename "$file")"; done
           if [ -z "$(find release-upload -maxdepth 1 -type f -print -quit)" ]; then
             echo "No installer packages found to upload." >&2
             exit 1

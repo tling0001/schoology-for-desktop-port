@@ -1,6 +1,6 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.06.0-port.184",
+  "version": "2026.06.0-port.185",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
@@ -12,7 +12,8 @@
     "build:updater": "electron-builder --config updater/electron-builder.yml --publish never",
     "prepare:tauri": "node scripts/prepare-tauri.mjs",
     "tauri:dev": "npm run prepare:tauri && tauri dev",
-    "tauri:build": "npm run prepare:tauri && tauri build"
+    "tauri:build": "npm run prepare:tauri && tauri build",
+    "tauri": "tauri"
   },
   "devDependencies": {
     "electron": "^39.1.0",

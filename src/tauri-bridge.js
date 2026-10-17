@@ -192,7 +192,10 @@
     controls.setAttribute('data-tauri-drag-region', '');
     controls.setAttribute('role', 'toolbar');
     controls.setAttribute('aria-label', 'Window controls');
-    controls.innerHTML = '<div class="tauriWindowDragArea" data-tauri-drag-region></div><button type="button" data-window-action="minimize" aria-label="Minimize" title="Minimize">'+(platform === 'win32'?'&#xE921;':'−')+'</button><button type="button" data-window-action="maximize" aria-label="Maximize" title="Maximize">'+(platform === 'win32'?'&#xE922;':'□')+'</button><button type="button" data-window-action="close" aria-label="Close" title="Close">'+(platform === 'win32'?'&#xE8BB;':'×')+'</button>';
+    const dragArea = '<div class="tauriWindowDragArea" data-tauri-drag-region></div>';
+    const controlButtons = '<button type="button" data-window-action="minimize" aria-label="Minimize" title="Minimize"></button><button type="button" data-window-action="maximize" aria-label="Maximize" title="Maximize"></button><button type="button" data-window-action="close" aria-label="Close" title="Close"></button>';
+    const macControlButtons = '<button type="button" data-window-action="close" aria-label="Close" title="Close"></button><button type="button" data-window-action="minimize" aria-label="Minimize" title="Minimize"></button><button type="button" data-window-action="maximize" aria-label="Maximize" title="Maximize"></button>';
+    controls.innerHTML = platform === 'darwin' ? macControlButtons + dragArea : dragArea + controlButtons;
     controls.addEventListener('click', async event => {
       const button = event.target.closest('button[data-window-action]');
       if (!button) return;
@@ -202,7 +205,7 @@
       if (action === 'maximize') {
         await invoke('window-toggle-maximize');
         const maximized = await invoke('window-is-maximized').catch(() => false);
-        button.textContent = platform === 'win32' ? (maximized ? '\uE923' : '\uE922') : (maximized ? '❐' : '□');
+        button.dataset.maximized = String(maximized);
         button.setAttribute('aria-label', maximized ? 'Restore' : 'Maximize');
         button.title = maximized ? 'Restore' : 'Maximize';
       }
@@ -348,16 +351,17 @@
         window.removeEventListener('schoology-tauri-theme-changed', this._themeHandler);
         embeddedViews.delete(this);
         this._unlistenPageLoad?.();
-        if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {});
         if (this.nativeView) {
           const view = this.nativeView;
           this.nativeView = null;
-          // Move the native surface away before destroying it: otherwise it can
-          // briefly remain above the app and swallow clicks after navigation.
+          // Close one native child surface exactly once and move it away first,
+          // so a slow close cannot intercept clicks in the app shell.
           try { view.hide().catch(() => {}); } catch (_) {}
           try { view.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)).catch(() => {}); } catch (_) {}
           try { view.setSize(new tauri.dpi.LogicalSize(1, 1)).catch(() => {}); } catch (_) {}
-          try { view.close().catch(() => {}); } catch (_) {}
+          try { view.close().catch(() => { if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {}); }); } catch (_) {
+            if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {});
+          }
         }
       }
       async _syncBounds() {
@@ -400,7 +404,7 @@
             initializationScript: makeEmbeddedThemeBootstrap(dark, session),
             forceDark: dark,
             lti: this._ltiNavigation,
-            deferNavigation: true
+            deferNavigation: false
           });
           this.nativeView = await tauri.webview.Webview.getByLabel(label);
           if (!this.nativeView) throw new Error('The native embedded Schoology webview could not be retrieved.');
@@ -409,7 +413,6 @@
             this.nativeView = null;
             return;
           }
-          await this.nativeView.hide().catch(() => {});
           this.dispatchEvent(new Event('dom-ready'));
           this.nativeView.once('tauri://error', event => { dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true }); this.nativeView?.show().catch(() => {}); }).catch(() => {});
           this.nativeView.onNavigation(url => {
@@ -470,9 +473,8 @@
             }
           });
           await this._syncBounds();
-          // Navigation starts only after event listeners are attached, so the
-          // renderer receives the initial loading and completion events too.
-          await this.nativeView.navigate(this._url);
+          // Start directly at the requested URL instead of creating a blank
+          // native view, hiding it, and then navigating it in a second step.
           await this.nativeView.show().catch(() => {});
           const firstView = this.nativeView;
           // Redirects can change this._url before the page-load event arrives.

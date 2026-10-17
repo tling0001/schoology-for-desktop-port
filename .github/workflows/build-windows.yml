@@ -66,13 +66,23 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
           p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-      - name: Build Tauri packages
+      - name: Build Tauri packages (Windows/Linux)
+        if: matrix.platform != 'macos'
+        run: npm run prepare:tauri && npx tauri build
+      - name: Build macOS package with Developer ID signing
+        if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run prepare:tauri && npx tauri build
+      - name: Build macOS package without signing
+        if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready != 'true'
+        shell: bash
+        run: |
+          npm run prepare:tauri
+          env -u APPLE_SIGNING_IDENTITY -u APPLE_ID -u APPLE_PASSWORD -u APPLE_TEAM_ID npx tauri build
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -2,6 +2,14 @@
 
 The source history is cumulative. GitHub release descriptions include only the version being published and sections for versions whose releases failed.
 
+## [2026.06.0-port.189]
+
+### Fixed
+- Corrected the Windows updater's crate-level `cfg_attr` syntax so Rust can compile the updater executable.
+
+### Changed
+- Bumped the port version to 2026.06.0-port.189.
+
 ## [2026.06.0-port.188]
 
 ### Fixed

@@ -4,6 +4,8 @@ The source history is cumulative. GitHub release descriptions include the curren
 
 ## [2026.06.0-port.191]
 
+### Failed build/release attempt
+
 ### Fixed
 - Corrected assignment comment like requests to send the documented string value and update the visible like state/count from the API response; errors now display the actual failure instead of `undefined`.
 

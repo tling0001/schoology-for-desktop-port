@@ -60,6 +60,15 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "macOS Developer ID signing/notarization secrets are incomplete; this build will not be Developer ID signed or notarized."
           fi
+      - name: Download Apple Provisioning Profiles
+        if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
+        uses: Apple-Actions/download-provisioning-profiles@v7.0.0
+        with:
+          bundle-id: com.schoology.app
+          profile-type: MAC_APP_DIRECT
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       - name: Import macOS Developer ID certificate
         if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
         uses: apple-actions/import-codesign-certs@v3
@@ -145,6 +154,14 @@ jobs:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
+      - name: Download Apple Provisioning Profiles
+        uses: Apple-Actions/download-provisioning-profiles@v7.0.0
+        with:
+          bundle-id: com.schoology.app
+          profile-type: IOS_APP_STORE
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       - name: Prepare Tauri iOS project
         run: npm run prepare:tauri && npx tauri ios init
       - name: Build iOS simulator app
@@ -171,11 +188,11 @@ jobs:
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
         run: |
-          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APP_STORE_CONNECT_API_KEY_BASE64" ] && [ -n "$APP_STORE_CONNECT_API_KEY_ID" ] && [ -n "$APP_STORE_CONNECT_ISSUER_ID" ]; then
+          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPSTORE_API_PRIVATE_KEY" ] && [ -n "$APPSTORE_API_KEY_ID" ] && [ -n "$APPSTORE_ISSUER_ID" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -210,16 +227,16 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         shell: bash
         env:
-          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
         run: |
           KEY_DIR="$HOME/.appstoreconnect/private_keys"
           mkdir -p "$KEY_DIR"
-          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$KEY_DIR/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          printf '%s' "$APPSTORE_API_PRIVATE_KEY" > "$KEY_DIR/AuthKey_${APPSTORE_API_KEY_ID}.p8"
           IPA="$(find src-tauri/gen/apple -type f -name '*.ipa' -print -quit)"
           test -n "$IPA"
-          xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$APPSTORE_API_KEY_ID" --apiIssuer "$APPSTORE_ISSUER_ID"
 
   ios-adhoc:
     name: Optional iPhone QR installation package
@@ -232,10 +249,12 @@ jobs:
         env:
           IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_ADHOC_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROVISIONING_PROFILE_BASE64 }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_ADHOC_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ]; then
+          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$APPSTORE_API_PRIVATE_KEY" ] && [ -n "$APPSTORE_API_KEY_ID" ] && [ -n "$APPSTORE_ISSUER_ID" ] && [ -n "$APPLE_TEAM_ID" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -252,25 +271,39 @@ jobs:
       - name: Install JavaScript dependencies
         if: steps.adhoc.outputs.ready == 'true'
         run: npm install --no-audit --no-fund
+      - name: Download Apple Ad Hoc Provisioning Profile
+        if: steps.adhoc.outputs.ready == 'true'
+        uses: Apple-Actions/download-provisioning-profiles@v7.0.0
+        with:
+          bundle-id: com.schoology.app
+          profile-type: IOS_APP_ADHOC
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       - name: Import Apple distribution certificate
         if: steps.adhoc.outputs.ready == 'true'
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-      - name: Install Ad Hoc provisioning profile
+      - name: Select downloaded Ad Hoc provisioning profile
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash
-        env:
-          IOS_ADHOC_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROVISIONING_PROFILE_BASE64 }}
         run: |
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          PROFILE_TMP="$RUNNER_TEMP/schoology-adhoc.mobileprovision"
-          echo "$IOS_ADHOC_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_TMP"
-          security cms -D -i "$PROFILE_TMP" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
-          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
-          cp "$PROFILE_TMP" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+          PROFILE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$RUNNER_TEMP/adhoc-profile-checks"
+          SELECTED=""
+          for candidate in "$PROFILE_DIR"/*.mobileprovision; do
+            [ -f "$candidate" ] || continue
+            plist="$RUNNER_TEMP/adhoc-profile-checks/profile.plist"
+            security cms -D -i "$candidate" > "$plist" 2>/dev/null || continue
+            app_id="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$plist" 2>/dev/null | sed 's/^[^.]*\.//')"
+            devices="$(/usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$plist" 2>/dev/null || true)"
+            if [ "$app_id" = "com.schoology.app" ] && [ -n "$devices" ]; then SELECTED="$candidate"; break; fi
+          done
+          test -n "$SELECTED" || { echo "No active Ad Hoc profile for com.schoology.app with registered devices was downloaded." >&2; exit 1; }
+          cp "$SELECTED" "$RUNNER_TEMP/schoology-adhoc.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/schoology-adhoc.mobileprovision" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
       - name: Prepare Tauri iOS project
         if: steps.adhoc.outputs.ready == 'true'
         run: npm run prepare:tauri && npx tauri ios init
@@ -279,7 +312,6 @@ jobs:
         shell: bash
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          IOS_ADHOC_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROVISIONING_PROFILE_BASE64 }}
         run: |
           PROJECT="$(find src-tauri/gen/apple -maxdepth 2 -type d -name '*.xcodeproj' -print -quit)"
           WORKSPACE="$(find src-tauri/gen/apple -maxdepth 2 -type d -name '*.xcworkspace' -print -quit)"

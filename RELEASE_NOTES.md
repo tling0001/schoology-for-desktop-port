@@ -2,6 +2,15 @@
 
 The source history is cumulative. GitHub release descriptions include the current version and failed-build sections not yet carried into a successful release. After a successful release includes those sections, the workflow marks them as already included so they do not recur.
 
+## [2026.06.0-port.191]
+
+### Fixed
+- Corrected assignment comment like requests to send the documented string value and update the visible like state/count from the API response; errors now display the actual failure instead of `undefined`.
+
+### Changed
+- Added Apple provisioning-profile downloads for iOS App Store, iOS Ad Hoc, and macOS Developer ID builds using the configured App Store Connect API credentials.
+- Bumped the port version to 2026.06.0-port.191.
+
 ## [2026.06.0-port.190]
 
 ### Fixed

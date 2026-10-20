@@ -2413,3 +2413,13 @@ html[data-electron-platform=win32] #tauriWindowControls [data-window-action=clos
 /* Match overlay caption controls to the active login/app bar color. */
 #tauriWindowControls{background:var(--tauri-window-controls-bg,#002137)!important}
 html[data-window-controls-overlay="true"] #tauriWindowControls{display:flex!important}
+
+
+/* v192: animated dialogs with a persistent, opt-in reduced-motion override. */
+.appDialogOverlay.open .appDialog{animation:schoologyDialogEnter .18s cubic-bezier(.2,.8,.2,1) both;transform-origin:center}
+@keyframes schoologyDialogEnter{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+html[data-reduced-motion="true"] *,html[data-reduced-motion="true"] *::before,html[data-reduced-motion="true"] *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
+html,body,#app,.shell{box-shadow:none!important}
+
+.materialRowText{display:flex;flex-direction:column;align-items:flex-start;min-width:0;gap:3px}.materialRowText small{font-size:12px;line-height:1.35;color:var(--text-secondary,#66717b);white-space:normal;text-align:left}
+.assignmentInfoPoints{font-size:14px;font-weight:500;margin-top:4px;color:var(--text-secondary,#66717b)}

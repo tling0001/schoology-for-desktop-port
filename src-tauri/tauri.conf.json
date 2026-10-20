@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Schoology",
-  "version": "2026.6.190",
-  "identifier": "com.schoology.app",
+  "version": "2026.6.192",
+  "identifier": "com.schoologytauri.app",
   "build": {
     "beforeDevCommand": "npm run prepare:tauri",
     "beforeBuildCommand": "npm run prepare:tauri",

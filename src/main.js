@@ -72,11 +72,12 @@ const windowChromeSettingsFile=path.join(stableUserData,'window-chrome.json');
 const themeSettingsFile=path.join(stableUserData,'theme-settings.json');
 const appSettingsFile=path.join(stableUserData,'app-settings.json');
 const notificationSeenFile=path.join(stableUserData,'notification-seen.json');
-function readAppSettings(){try{const value=JSON.parse(fs.readFileSync(appSettingsFile,'utf8'))||{};return {openSchoologyLinks:value.openSchoologyLinks!==false,desktopNotifications:value.desktopNotifications!==false,notificationSound:value.notificationSound===true}}catch{return {openSchoologyLinks:true,desktopNotifications:true,notificationSound:false}}}
+function readAppSettings(){try{const value=JSON.parse(fs.readFileSync(appSettingsFile,'utf8'))||{};return {openSchoologyLinks:value.openSchoologyLinks!==false,desktopNotifications:value.desktopNotifications!==false,notificationSound:value.notificationSound===true,reducedMotion:value.reducedMotion===true}}catch{return {openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,reducedMotion:false}}}
 function saveAppSettings(patch){const settings={...readAppSettings(),...(patch||{})};fs.mkdirSync(path.dirname(appSettingsFile),{recursive:true});fs.writeFileSync(appSettingsFile,JSON.stringify(settings,null,2),'utf8');return settings}
 function saveOpenSchoologyLinks(enabled){return saveAppSettings({openSchoologyLinks:!!enabled}).openSchoologyLinks}
 function saveDesktopNotifications(enabled){return saveAppSettings({desktopNotifications:!!enabled}).desktopNotifications}
 function saveNotificationSound(enabled){return saveAppSettings({notificationSound:!!enabled}).notificationSound}
+function saveReducedMotion(enabled){return saveAppSettings({reducedMotion:!!enabled}).reducedMotion}
 function defaultExperimentalForceDark(mode='system'){return isDarkAppearance(mode)}
 function readThemeSettings(){try{const v=JSON.parse(fs.readFileSync(themeSettingsFile,'utf8'))||{};const mode=['light','dark','system'].includes(v.mode)?v.mode:'system';return {mode,experimentalForceDark:v.experimentalForceDarkConfigured===true&&typeof v.experimentalForceDark==='boolean'?v.experimentalForceDark:defaultExperimentalForceDark(mode)}}catch{return {mode:'system',experimentalForceDark:defaultExperimentalForceDark('system')}}}
 function readThemeMode(){return readThemeSettings().mode}
@@ -855,6 +856,8 @@ app.whenReady().then(()=>{
   ipcMain.handle('set-desktop-notifications',(_,enabled)=>saveDesktopNotifications(enabled));
   ipcMain.handle('get-notification-sound',()=>readAppSettings().notificationSound);
   ipcMain.handle('set-notification-sound',(_,enabled)=>saveNotificationSound(enabled));
+  ipcMain.handle('get-reduced-motion',()=>readAppSettings().reducedMotion);
+  ipcMain.handle('set-reduced-motion',(_,enabled)=>saveReducedMotion(enabled));
   ipcMain.handle('set-theme-mode',(_,mode)=>{const safe=saveThemeMode(mode);syncElectronTheme(safe);for(const guest of attachedGuestWebContents)styleAttachedGuest(guest);return safe});
   ipcMain.handle('get-experimental-force-dark',()=>isDarkAppearance());
   ipcMain.handle('set-experimental-force-dark',(_,enabled)=>{saveExperimentalForceDark(!!enabled);return isDarkAppearance()});

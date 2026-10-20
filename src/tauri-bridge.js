@@ -137,6 +137,8 @@
     setDesktopNotifications: enabled => invoke('set-desktop-notifications', enabled),
     getNotificationSound: () => invoke('get-notification-sound'),
     setNotificationSound: enabled => invoke('set-notification-sound', enabled),
+    getReducedMotion: () => invoke('get-reduced-motion'),
+    setReducedMotion: enabled => invoke('set-reduced-motion', enabled),
     setThemeMode: async mode => { const result = await invoke('set-theme-mode', mode); currentThemeMode = String(mode || 'system'); window.dispatchEvent(new CustomEvent('schoology-tauri-theme-changed')); return result; },
     getExperimentalForceDark: () => invoke('get-experimental-force-dark'),
     setExperimentalForceDark: async enabled => { const result = await invoke('set-experimental-force-dark', enabled); forceDarkMode = !!enabled; window.dispatchEvent(new CustomEvent('schoology-tauri-theme-changed')); return result; },

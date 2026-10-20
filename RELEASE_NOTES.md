@@ -1,5 +1,18 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.192]
+
+### Fixed
+- Use the consistent `com.schoologytauri.app` bundle identifier in desktop package metadata, Tauri configuration, and the iPhone QR installation workflow.
+- Make opening a message thread request attachments without explicitly preserving its unread state, matching the official Android request behavior.
+- Handle Schoology's duplicate-like-action response as an already-applied state and avoid displaying `undefined` when message sending fails.
+- Add a persistent, opt-in Reduced motion setting and dialog entry animation; reduced motion is disabled by default.
+
+### Changed
+- Remove the iOS simulator and TestFlight build/upload job. The workflow now produces only the optional Ad Hoc iPhone QR installation package for iOS.
+- Bump the port version to 2026.06.0-port.192.
+
+
 The source history is cumulative. GitHub release descriptions include the current version and failed-build sections not yet carried into a successful release. After a successful release includes those sections, the workflow marks them as already included so they do not recur.
 
 ## [2026.06.0-port.191]

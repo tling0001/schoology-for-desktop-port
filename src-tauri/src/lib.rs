@@ -1175,6 +1175,8 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "set-desktop-notifications" => { let mut v=read_json(&app,"app-settings.json",json!({})); if !v.is_object(){v=json!({});} v["desktopNotifications"]=args; write_json(&app,"app-settings.json",&v)?; Ok(v["desktopNotifications"].clone()) },
         "get-notification-sound" => Ok(json!(read_json(&app,"app-settings.json",json!({})).get("notificationSound").and_then(Value::as_bool).unwrap_or(false))),
         "set-notification-sound" => { let mut v=read_json(&app,"app-settings.json",json!({})); if !v.is_object(){v=json!({});} v["notificationSound"]=args; write_json(&app,"app-settings.json",&v)?; Ok(v["notificationSound"].clone()) },
+        "get-reduced-motion" => Ok(json!(read_json(&app,"app-settings.json",json!({})).get("reducedMotion").and_then(Value::as_bool).unwrap_or(false))),
+        "set-reduced-motion" => { let mut v=read_json(&app,"app-settings.json",json!({})); if !v.is_object(){v=json!({});} v["reducedMotion"]=json!(args.as_bool().unwrap_or(false)); write_json(&app,"app-settings.json",&v)?; Ok(v["reducedMotion"].clone()) },
         "get-server-instance" => { let enabled=read_json(&app,"server-instance.json",json!({"canadian":false})).get("canadian").and_then(Value::as_bool).unwrap_or(false); CANADIAN_INSTANCE.store(enabled,Ordering::Relaxed); Ok(json!(enabled)) },
         "set-server-instance" => { let enabled=args.as_bool().unwrap_or(false); CANADIAN_INSTANCE.store(enabled,Ordering::Relaxed); write_json(&app,"server-instance.json",&json!({"canadian":enabled}))?; Ok(json!(enabled)) },
         "get-theme-mode" => Ok(json!(read_json(&app,"theme-settings.json",json!({"mode":"system"})).get("mode").and_then(Value::as_str).unwrap_or("system"))),

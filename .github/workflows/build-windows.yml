@@ -64,7 +64,7 @@ jobs:
         if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
         uses: Apple-Actions/download-provisioning-profiles@v7.0.0
         with:
-          bundle-id: com.schoology.app
+          bundle-id: com.schoologytauri.app
           profile-type: MAC_APP_DIRECT
           issuer-id: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
           api-key-id: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
@@ -141,103 +141,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  ios:
-    name: Tauri iOS simulator build and optional TestFlight
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
-      - name: Install JavaScript dependencies
-        run: npm install --no-audit --no-fund
-      - name: Download Apple Provisioning Profiles
-        uses: Apple-Actions/download-provisioning-profiles@v7.0.0
-        with:
-          bundle-id: com.schoology.app
-          profile-type: IOS_APP_STORE
-          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
-          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
-          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
-      - name: Prepare Tauri iOS project
-        run: npm run prepare:tauri && npx tauri ios init
-      - name: Build iOS simulator app
-        run: npx tauri ios build --target aarch64-sim --ci
-      - name: Package iOS simulator artifact
-        shell: bash
-        run: |
-          APP="$(find src-tauri/gen/apple -type d -name 'Schoology.app' -path '*iphonesimulator*' -print -quit)"
-          if [ -z "$APP" ]; then APP="$(find src-tauri/gen/apple -type d -name '*.app' -print -quit)"; fi
-          test -n "$APP"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "Schoology-iOS-Simulator.zip"
-      - name: Upload iOS simulator artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Schoology-iOS-Simulator
-          path: Schoology-iOS-Simulator.zip
-          if-no-files-found: error
-          retention-days: 14
-      - name: Check whether TestFlight publishing is configured
-        id: signing
-        shell: bash
-        env:
-          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
-          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
-        run: |
-          if [ -n "$IOS_CERTIFICATE_P12_BASE64" ] && [ -n "$IOS_CERTIFICATE_PASSWORD" ] && [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPSTORE_API_PRIVATE_KEY" ] && [ -n "$APPSTORE_API_KEY_ID" ] && [ -n "$APPSTORE_ISSUER_ID" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Import Apple distribution certificate
-        if: steps.signing.outputs.ready == 'true'
-        uses: apple-actions/import-codesign-certs@v3
-        with:
-          p12-file-base64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
-          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-      - name: Install App Store provisioning profile
-        if: steps.signing.outputs.ready == 'true'
-        shell: bash
-        env:
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-        run: |
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          PROFILE_TMP="$RUNNER_TEMP/schoology.mobileprovision"
-          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_TMP"
-          PROFILE_UUID="$(security cms -D -i "$PROFILE_TMP" | plutil -extract UUID raw -o - -)"
-          cp "$PROFILE_TMP" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
-      - name: Build signed iOS archive for App Store Connect
-        if: steps.signing.outputs.ready == 'true'
-        env:
-          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
-          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_MOBILE_PROVISION: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-        run: npx tauri ios build --target aarch64 --export-method app-store-connect --ci
-      - name: Upload IPA to TestFlight
-        if: steps.signing.outputs.ready == 'true'
-        shell: bash
-        env:
-          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
-          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
-        run: |
-          KEY_DIR="$HOME/.appstoreconnect/private_keys"
-          mkdir -p "$KEY_DIR"
-          printf '%s' "$APPSTORE_API_PRIVATE_KEY" > "$KEY_DIR/AuthKey_${APPSTORE_API_KEY_ID}.p8"
-          IPA="$(find src-tauri/gen/apple -type f -name '*.ipa' -print -quit)"
-          test -n "$IPA"
-          xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$APPSTORE_API_KEY_ID" --apiIssuer "$APPSTORE_ISSUER_ID"
-
   ios-adhoc:
     name: Optional iPhone QR installation package
     runs-on: macos-26
@@ -271,11 +174,11 @@ jobs:
       - name: Install JavaScript dependencies
         if: steps.adhoc.outputs.ready == 'true'
         run: npm install --no-audit --no-fund
-      - name: Download Apple Ad Hoc Provisioning Profile
+      - name: Download Apple Provisioning Profiles
         if: steps.adhoc.outputs.ready == 'true'
         uses: Apple-Actions/download-provisioning-profiles@v7.0.0
         with:
-          bundle-id: com.schoology.app
+          bundle-id: com.schoologytauri.app
           profile-type: IOS_APP_ADHOC
           issuer-id: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
           api-key-id: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
@@ -299,9 +202,9 @@ jobs:
             security cms -D -i "$candidate" > "$plist" 2>/dev/null || continue
             app_id="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$plist" 2>/dev/null | sed 's/^[^.]*\.//')"
             devices="$(/usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$plist" 2>/dev/null || true)"
-            if [ "$app_id" = "com.schoology.app" ] && [ -n "$devices" ]; then SELECTED="$candidate"; break; fi
+            if [ "$app_id" = "com.schoologytauri.app" ] && [ -n "$devices" ]; then SELECTED="$candidate"; break; fi
           done
-          test -n "$SELECTED" || { echo "No active Ad Hoc profile for com.schoology.app with registered devices was downloaded." >&2; exit 1; }
+          test -n "$SELECTED" || { echo "No active Ad Hoc profile for com.schoologytauri.app with registered devices was downloaded." >&2; exit 1; }
           cp "$SELECTED" "$RUNNER_TEMP/schoology-adhoc.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/schoology-adhoc.mobileprovision" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
       - name: Prepare Tauri iOS project
@@ -319,12 +222,12 @@ jobs:
           security cms -D -i "$PROFILE" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
           PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
           PROFILE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/schoology-adhoc-profile.plist" | sed "s/^[^.]*\.//")"
-          test "$PROFILE_BUNDLE_ID" = "com.schoology.app" || { echo "Ad Hoc profile bundle ID must be com.schoology.app, got $PROFILE_BUNDLE_ID" >&2; exit 1; }
+          test "$PROFILE_BUNDLE_ID" = "com.schoologytauri.app" || { echo "Ad Hoc profile bundle ID must be com.schoologytauri.app, got $PROFILE_BUNDLE_ID" >&2; exit 1; }
           if [ -z "$WORKSPACE" ] && [ -z "$PROJECT" ]; then echo "Could not find the generated Tauri Xcode project." >&2; exit 1; fi
           if [ -n "$WORKSPACE" ]; then PROJECT_ARGS=(-workspace "$WORKSPACE"); else PROJECT_ARGS=(-project "$PROJECT"); fi
           ARCHIVE="$RUNNER_TEMP/Schoology-AdHoc.xcarchive"
           EXPORT_DIR="$RUNNER_TEMP/Schoology-AdHoc-Export"
-          xcodebuild "${PROJECT_ARGS[@]}" -scheme schoology-desktop-port_iOS -configuration release -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" archive DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" PRODUCT_BUNDLE_IDENTIFIER=com.schoology.app
+          xcodebuild "${PROJECT_ARGS[@]}" -scheme schoology-desktop-port_iOS -configuration release -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" archive DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" PRODUCT_BUNDLE_IDENTIFIER=com.schoologytauri.app
           cat > "$RUNNER_TEMP/Schoology-AdHoc-ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -332,7 +235,7 @@ jobs:
             <key>method</key><string>ad-hoc</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
             <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict><key>com.schoology.app</key><string>${PROFILE_NAME}</string></dict>
+            <key>provisioningProfiles</key><dict><key>com.schoologytauri.app</key><string>${PROFILE_NAME}</string></dict>
             <key>stripSwiftSymbols</key><true/>
             <key>compileBitcode</key><false/>
           </dict></plist>
@@ -349,7 +252,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$RUNNER_TEMP/schoology-embedded-profile.plist" >/dev/null || { echo "Exported IPA is not Ad Hoc provisioned for registered devices." >&2; exit 1; }
           APP_INFO="$(find "$VALIDATE_DIR/Payload" -maxdepth 2 -type f -name Info.plist -print -quit)"
           APP_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")"
-          test "$APP_BUNDLE_ID" = "com.schoology.app" || { echo "Unexpected iOS bundle ID: $APP_BUNDLE_ID" >&2; exit 1; }
+          test "$APP_BUNDLE_ID" = "com.schoologytauri.app" || { echo "Unexpected iOS bundle ID: $APP_BUNDLE_ID" >&2; exit 1; }
       - name: Create QR installation manifest
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash
@@ -370,7 +273,7 @@ jobs:
           <plist version="1.0"><dict>
             <key>items</key><array><dict>
               <key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${IPA_URL}</string></dict></array>
-              <key>metadata</key><dict><key>bundle-identifier</key><string>com.schoology.app</string><key>bundle-version</key><string>${TAURI_VERSION}</string><key>kind</key><string>software</string><key>title</key><string>Schoology</string></dict>
+              <key>metadata</key><dict><key>bundle-identifier</key><string>com.schoologytauri.app</string><key>bundle-version</key><string>${TAURI_VERSION}</string><key>kind</key><string>software</string><key>title</key><string>Schoology</string></dict>
             </dict></array>
           </dict></plist>
           PLIST
@@ -395,7 +298,7 @@ jobs:
   release:
     name: Publish versioned Tauri release
     if: always() && github.ref == 'refs/heads/main'
-    needs: [build, android, ios, ios-adhoc]
+    needs: [build, android, ios-adhoc]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

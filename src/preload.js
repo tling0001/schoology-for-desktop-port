@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('schoology',{
   setDesktopNotifications:enabled=>ipcRenderer.invoke('set-desktop-notifications',enabled),
   getNotificationSound:()=>ipcRenderer.invoke('get-notification-sound'),
   setNotificationSound:enabled=>ipcRenderer.invoke('set-notification-sound',enabled),
+  getReducedMotion:()=>ipcRenderer.invoke('get-reduced-motion'),
+  setReducedMotion:enabled=>ipcRenderer.invoke('set-reduced-motion',enabled),
   setThemeMode:mode=>ipcRenderer.invoke('set-theme-mode',mode),
   getExperimentalForceDark:()=>ipcRenderer.invoke('get-experimental-force-dark'),
   setExperimentalForceDark:enabled=>ipcRenderer.invoke('set-experimental-force-dark',enabled),

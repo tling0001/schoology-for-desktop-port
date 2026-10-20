@@ -1,6 +1,6 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.06.0-port.191",
+  "version": "2026.06.0-port.192",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
@@ -29,7 +29,7 @@
     "email": "schoology-desktop-port@users.noreply.github.com"
   },
   "build": {
-    "appId": "com.schoology.app",
+    "appId": "com.schoologytauri.app",
     "productName": "Schoology",
     "artifactName": "Schoology-${version}-${arch}.${ext}",
     "directories": {

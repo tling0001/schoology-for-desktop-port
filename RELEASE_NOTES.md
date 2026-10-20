@@ -2,6 +2,8 @@
 
 ## [2026.06.0-port.192]
 
+### Failed build/release attempt
+
 ### Fixed
 - Use the consistent `com.schoologytauri.app` bundle identifier in desktop package metadata, Tauri configuration, and the iPhone QR installation workflow.
 - Make opening a message thread request attachments without explicitly preserving its unread state, matching the official Android request behavior.

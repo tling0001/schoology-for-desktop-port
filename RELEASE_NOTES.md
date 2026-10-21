@@ -12,7 +12,16 @@
 - Verify Android APK signing, package ID, and icon metadata in CI; produce an installable debug APK with the Schoology launcher icon.
 - Fix the release workflow's stale reference to the removed iOS build job so successful builds can consume failed-release notes correctly.
 
+### Fixed
+- Register the `schoology://` custom URL scheme in iOS builds so Schoology links can be handed to the app, while preserving desktop URL-scheme registration and the existing deep-link event bridge.
+- Add iOS camera and photo-library usage descriptions so iOS can show the appropriate privacy prompts when camera or image selection features are used.
+- Correct iOS icon generation validation: check the individual PNGs emitted by `tauri icon`, then validate the generated Xcode AppIcon catalog after `tauri ios init`.
+- Fix the iPhone Ad Hoc QR workflow to accept and validate the selected provisioning-profile UUID and stage the built IPA at the path expected by the QR manifest step.
+
 ### Changed
+- Regenerate iOS platform icons from the canonical 1024px Schoology launcher image during the iOS build.
+- Add an optional one-day iOS distribution-certificate setup artifact, retain the Ad Hoc iPhone QR install workflow, and omit TestFlight builds.
+- Cancel older builds when a newer run starts and download the required Apple provisioning profiles.
 - Add PDF.js and stage its worker, CMaps, standard fonts, and WASM assets for Tauri builds.
 - Add an optional one-day iOS distribution-certificate setup artifact, retain the Ad Hoc iPhone QR install workflow, and omit TestFlight builds.
 - Cancel older builds when a newer run starts and download the required Apple provisioning profiles.

@@ -1,6 +1,6 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.06.0-port.192",
+  "version": "2026.06.0-port.193",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.06.0 source",
   "main": "src/main.js",
   "scripts": {
@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "jsqr": "^1.4.0",
-    "@tauri-apps/api": "^2.12.4"
+    "@tauri-apps/api": "^2.12.4",
+    "pdfjs-dist": "^4.10.38"
   },
   "author": {
     "name": "Schoology Desktop Port",
@@ -39,7 +40,8 @@
       "src/**/*",
       "assets/**/*",
       "node_modules/jsqr/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/pdfjs-dist/**/*"
     ],
     "win": {
       "target": [

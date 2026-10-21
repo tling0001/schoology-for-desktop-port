@@ -449,7 +449,8 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     // Start on about:blank so the JS compatibility adapter can subscribe to native
     // navigation/load events before the first Schoology request begins. This avoids
     // losing the initial did-finish-load event on fast pages.
-    let initial_url = url;
+    let defer_navigation = info.get("deferNavigation").and_then(Value::as_bool).unwrap_or(false);
+    let initial_url = if defer_navigation { Url::parse("about:blank").expect("about:blank is a valid URL") } else { url };
     let builder = WebviewBuilder::new(label.clone(), WebviewUrl::External(initial_url))
         .user_agent(&user_agent)
         .initialization_script(initialization_script)
@@ -1153,6 +1154,109 @@ async fn latest_alternate_release(repo: &str, product_name: &str) -> Result<Valu
     Ok(release_asset_info(&release, &asset, repo, product_name))
 }
 
+fn annotation_storage_url(url: &Url) -> bool {
+    let host = url.host_str().unwrap_or_default().trim_end_matches('.').to_ascii_lowercase();
+    let allowed_host = host == "s3.amazonaws.com"
+        || host.ends_with(".s3.amazonaws.com")
+        || (host.contains(".s3.") && host.ends_with(".amazonaws.com"))
+        || host.ends_with(".cloudfront.net")
+        || host == "storage.googleapis.com"
+        || host.ends_with(".storage.googleapis.com");
+    let signed = url.query_pairs().any(|(key, value)| {
+        !value.is_empty() && matches!(key.to_ascii_lowercase().as_str(),
+            "signature" | "awsaccesskeyid" | "x-amz-signature" | "x-goog-signature" | "key-pair-id")
+    });
+    allowed_host && signed
+}
+
+async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) -> Result<Value, String> {
+    let raw_url = args.get("url").and_then(Value::as_str).ok_or("Annotation request URL is missing.")?;
+    let url = if raw_url.starts_with('/') {
+        Url::parse(&format!("https://{}{}", api_host(), raw_url)).map_err(|_| "Annotation request URL is invalid.")?
+    } else {
+        Url::parse(raw_url).map_err(|_| "Annotation request URL is invalid.")?
+    };
+    if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() {
+        return Err("Annotation requests must use a valid HTTPS URL.".into());
+    }
+    let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
+    let is_api = host == api_host();
+    let is_storage = annotation_storage_url(&url);
+    if !is_api && !is_storage {
+        return Err("Annotation request host is not an approved Schoology API or signed-file host.".into());
+    }
+    let method = args.get("method").and_then(Value::as_str).unwrap_or("GET").to_ascii_uppercase();
+    if !matches!(method.as_str(), "GET" | "POST" | "PUT") {
+        return Err("Annotation request method is not supported.".into());
+    }
+    if is_storage && !matches!(method.as_str(), "GET" | "PUT") {
+        return Err("This method is not allowed for signed annotation storage URLs.".into());
+    }
+    let binary = args.get("binary").and_then(Value::as_bool).unwrap_or(false);
+    let content_type = args.get("contentType").and_then(Value::as_str).unwrap_or("");
+    let body = args.get("body").and_then(Value::as_str);
+    let auth = if is_api { Some(auth_state(app).ok_or("Not signed in")?) } else { None };
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(90))
+        .build().map_err(|e| e.to_string())?;
+    let mut builder = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url.clone())
+        .header("User-Agent", ANDROID_UA);
+    if is_api {
+        let credentials = auth.as_ref().ok_or("Not signed in")?;
+        let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
+        let header = signed_header(&method, &url, credentials["oauth_token"].as_str().unwrap_or(""), credentials["oauth_token_secret"].as_str().unwrap_or(""), timestamp, &[])?;
+        builder = builder.header("Authorization", header)
+            .header("Cookie", MOBILE_COOKIE)
+            .header("X-Schoology-Client", "Android")
+            .header("X-Schoology-App-Version", "2026.06.0");
+    }
+    if !content_type.is_empty() { builder = builder.header("Content-Type", content_type); }
+    if is_storage && method == "PUT" {
+        if !content_type.to_ascii_lowercase().contains("xml") {
+            return Err("Only XML annotation documents can be uploaded to signed storage.".into());
+        }
+        builder = builder.header("x-amz-server-side-encryption", "AES256");
+    }
+    if method != "GET" {
+        if let Some(body) = body { builder = builder.body(body.to_owned()); }
+    }
+    let mut response = builder.send().await.map_err(|e| format!("Annotation request failed: {e}"))?;
+    // Schoology file endpoints can redirect to short-lived object-storage URLs.
+    // Follow only a single signed HTTPS storage redirect, never forward OAuth there.
+    if response.status().is_redirection() && binary && method == "GET" && is_api {
+        let location = response.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok())
+            .ok_or("Schoology returned an invalid annotation-file redirect.")?;
+        let target = url.join(location).map_err(|_| "Schoology returned an invalid annotation-file redirect.")?;
+        if target.scheme() != "https" || !annotation_storage_url(&target) {
+            return Err("Schoology redirected the annotation file to an untrusted host.".into());
+        }
+        response = client.get(target).header("User-Agent", ANDROID_UA).send().await
+            .map_err(|e| format!("Could not download annotation file: {e}"))?;
+    }
+    let status = response.status();
+    let response_type = response.headers().get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok()).unwrap_or("").to_owned();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("Annotation request returned HTTP {}: {}", status.as_u16(), text.chars().take(1200).collect::<String>()));
+    }
+    if binary {
+        if response.content_length().is_some_and(|size| size > 60 * 1024 * 1024) {
+            return Err("The annotation PDF exceeds the 60 MB safety limit.".into());
+        }
+        let bytes = response.bytes().await.map_err(|e| format!("Could not read annotation file: {e}"))?;
+        if bytes.len() > 60 * 1024 * 1024 { return Err("The annotation PDF exceeds the 60 MB safety limit.".into()); }
+        return Ok(json!({"base64": BASE64.encode(&bytes), "contentType": response_type, "status": status.as_u16()}));
+    }
+    let bytes = response.bytes().await.map_err(|e| format!("Could not read annotation response: {e}"))?;
+    let text = String::from_utf8_lossy(&bytes).to_string();
+    if response_type.contains("json") {
+        if let Ok(value) = serde_json::from_str::<Value>(&text) { return Ok(value); }
+    }
+    Ok(json!({"text": text, "contentType": response_type, "status": status.as_u16()}))
+}
+
 #[tauri::command]
 async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: String, args: Option<Value>) -> Result<Value, String> {
     if name != "set-server-instance" {
@@ -1162,6 +1266,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
     let args = args.unwrap_or(Value::Null);
     match name.as_str() {
         "auth-state" => Ok(auth_state(&app).unwrap_or(Value::Null)),
+        "annotation-request" => annotation_request(&app, &state, &args).await,
         "renderer-deep-link-ready" => {
             if let Ok(mut ready) = state.renderer_ready.lock() { *ready = true; }
             let pending = state.pending_deep_link.lock().ok().and_then(|mut pending| pending.take());

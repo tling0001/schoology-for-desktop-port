@@ -126,6 +126,7 @@
 
   const schoology = {
     onDeepLink: callback => subscribe('schoology-deep-link', callback),
+    annotationRequest: args => invoke('annotation-request', args),
     authState: () => invoke('auth-state'),
     getServerInstance: () => invoke('get-server-instance'),
     setServerInstance: enabled => invoke('set-server-instance', enabled),
@@ -312,7 +313,13 @@
         this.loading = false;
         this._url = '';
         this._observer = null;
-        this._syncHandler = () => this._syncBounds();
+        this._parentObserver = null;
+        this._mutationObserver = null;
+        this._syncFrame = 0;
+        this._syncHandler = () => {
+          if (this._syncFrame) return;
+          this._syncFrame = requestAnimationFrame(() => { this._syncFrame = 0; void this._syncBounds(); });
+        };
         this._clearSessionHandler = () => {
           if (!this.nativeView) return;
           // Clear the native cookie/storage partition as well as JS-visible cookies;
@@ -351,14 +358,27 @@
         this.style.minHeight = '1px';
         this._observer = new ResizeObserver(this._syncHandler);
         this._observer.observe(this);
+        this._observeLayoutAncestors();
+        this._mutationObserver = new MutationObserver(this._syncHandler);
+        this._mutationObserver.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
         window.addEventListener('scroll', this._syncHandler, true);
         window.addEventListener('resize', this._syncHandler);
         window.addEventListener('schoology-clear-web-session', this._clearSessionHandler);
         const initial = this.getAttribute('src');
         if (initial) this.loadURL(initial).catch(error => dispatchCompatEvent(this, 'did-fail-load', { errorDescription: String(error), isMainFrame: true }));
       }
+      _observeLayoutAncestors() {
+        this._parentObserver?.disconnect();
+        this._parentObserver = new ResizeObserver(this._syncHandler);
+        let parent = this.parentElement;
+        while (parent) { this._parentObserver.observe(parent); parent = parent.parentElement; }
+      }
       disconnectedCallback() {
         this._observer?.disconnect();
+        this._parentObserver?.disconnect();
+        this._mutationObserver?.disconnect();
+        if (this._syncFrame) cancelAnimationFrame(this._syncFrame);
+        this._syncFrame = 0;
         window.removeEventListener('scroll', this._syncHandler, true);
         window.removeEventListener('resize', this._syncHandler);
         window.removeEventListener('schoology-clear-web-session', this._clearSessionHandler);
@@ -418,7 +438,7 @@
             initializationScript: makeEmbeddedThemeBootstrap(dark, session),
             forceDark: dark,
             lti: this._ltiNavigation,
-            deferNavigation: false
+            deferNavigation: true
           });
           this.nativeView = await tauri.webview.Webview.getByLabel(label);
           if (!this.nativeView) throw new Error('The native embedded Schoology webview could not be retrieved.');
@@ -479,28 +499,14 @@
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
               dispatchCompatEvent(this, 'did-navigate', { url: this._url, isMainFrame: true });
-              try {
-                await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme));
-              } catch (_) {}
+              try { await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme)); } catch (_) {}
               await this._syncBounds();
               await this.nativeView.show().catch(() => {});
             }
           });
-          await this._syncBounds();
-          // Start directly at the requested URL instead of creating a blank
-          // native view, hiding it, and then navigating it in a second step.
+          this._syncHandler();
           await this.nativeView.show().catch(() => {});
-          const firstView = this.nativeView;
-          // Redirects can change this._url before the page-load event arrives.
-          // Recover from a missing/variant Finished event without leaving a blank view.
-          setTimeout(() => {
-            if (this.nativeView === firstView && this.isConnected) {
-              firstView.show().catch(() => {});
-              this.loading = false;
-              this.dispatchEvent(new Event('did-stop-loading'));
-              this.dispatchEvent(new Event('did-finish-load'));
-            }
-          }, 2500);
+          await this.nativeView.navigate(this._url);
         } else {
           await this.nativeView.navigate(this._url);
         }

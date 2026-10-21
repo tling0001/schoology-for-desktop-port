@@ -2423,3 +2423,53 @@ html,body,#app,.shell{box-shadow:none!important}
 
 .materialRowText{display:flex;flex-direction:column;align-items:flex-start;min-width:0;gap:3px}.materialRowText small{font-size:12px;line-height:1.35;color:var(--text-secondary,#66717b);white-space:normal;text-align:left}
 .assignmentInfoPoints{font-size:14px;font-weight:500;margin-top:4px;color:var(--text-secondary,#66717b)}
+
+
+/* Portrait profile pages keep identity and tabs fixed while their selected content scrolls. */
+@media (orientation:portrait){
+.sectionProfilePage .courseMainPane,.groupProfilePage .groupMainPane,.schoolProfilePage{display:flex;flex-direction:column;min-height:0;height:100%;overflow:hidden}
+.sectionProfilePage .sectionProfileHeader,.sectionProfilePage .sectionProfileTabs,.groupProfilePage .groupHeader,.groupProfilePage .groupTabs,.schoolProfilePage .schoolProfileHeader,.schoolProfilePage .schoolProfileTabs{flex:0 0 auto}
+.sectionProfilePage #sectionProfileContent,.groupProfilePage #groupTabContent,.schoolProfilePage #schoolProfileTabContent{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+}
+@media (min-width:1501px){
+.shell:has(>.drawer.open){display:grid;grid-template-columns:340px minmax(0,1fr)}
+.shell:has(>.drawer.open) .drawer{position:relative!important;inset:auto!important;transform:none!important;width:340px!important;grid-column:1;grid-row:1 / span 2}
+.shell:has(>.drawer.open) .drawerShade{display:none!important}
+.shell:has(>.drawer.open) .toolbar,.shell:has(>.drawer.open) #content{grid-column:2}
+.shell:has(>.drawer.open) #content{min-width:0}
+}
+
+
+/* Student PDF annotation editor — isolated overlay; PDF and ink canvases share the same viewport. */
+.annotationEditorOverlay{position:fixed;inset:0;z-index:2147483600;background:rgba(9,18,28,.66);display:flex;align-items:stretch;justify-content:center;padding:12px;box-sizing:border-box;animation:annotationEditorFadeIn .16s ease-out}
+.annotationEditor{display:flex;flex-direction:column;width:min(1500px,100%);height:100%;min-height:0;background:var(--theme-surface,#fff);color:var(--theme-text,#1b1b1f);border-radius:10px;overflow:hidden;box-shadow:0 16px 54px rgba(0,0,0,.35)}
+.annotationEditorToolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:56px;padding:8px 12px;background:#002137;color:#fff;flex:0 0 auto}
+.annotationEditorToolbar b{font-size:15px;font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto}
+.annotationEditorToolbar button{min-height:34px;padding:0 10px;border:1px solid rgba(255,255,255,.28);border-radius:5px;background:transparent;color:#fff;font:inherit;cursor:pointer}
+.annotationEditorToolbar button.selected{background:#fff;color:#002137;border-color:#fff}
+.annotationEditorToolbar button:disabled{opacity:.4;cursor:default}
+.annotationEditorToolbar .annotationEditorSubmit{background:#fff;color:#002137;font-weight:600}
+.annotationEditorStatus{font-size:12px;opacity:.88;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.annotationEditorPages{flex:1;min-height:0;overflow:auto;padding:20px;background:#e8ebef;display:flex;flex-direction:column;align-items:center;gap:18px}
+.annotationEditorLoading,.annotationEditorError{margin:auto;padding:24px;max-width:520px;background:#fff;color:#263238;border-radius:8px;line-height:1.5}
+.annotationEditorError p{overflow-wrap:anywhere}
+.annotationPdfPage{position:relative;flex:none;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);line-height:0;max-width:100%}
+.annotationPdfCanvas{display:block;max-width:100%;height:auto}
+.annotationInkCanvas{position:absolute;inset:0;display:block;touch-action:none;cursor:crosshair;max-width:100%;height:auto}
+.annotationLaunchButton{border-color:#c8d8e7!important;background:#f3f8fc!important;color:#174a76!important}
+.annotationLaunchButton .attachmentFileIcon{font-size:22px}
+@keyframes annotationEditorFadeIn{from{opacity:0}to{opacity:1}}
+:root[data-reduced-motion="true"] .annotationEditorOverlay{animation:none!important}
+:root[data-reduced-motion="true"] *, :root[data-reduced-motion="true"] *::before, :root[data-reduced-motion="true"] *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
+@media(max-width:760px){.annotationEditorOverlay{padding:0}.annotationEditor{border-radius:0}.annotationEditorToolbar{gap:4px;padding:6px}.annotationEditorToolbar b{max-width:130px}.annotationEditorStatus{order:2;flex-basis:100%;max-width:none}.annotationEditorToolbar button{font-size:12px;padding:0 7px}.annotationEditorPages{padding:8px}}
+
+/* Avoid a permanent edge shadow from the off-screen navigation drawer. */
+.drawer:not(.open){box-shadow:none!important}
+.drawer.open{box-shadow:4px 0 14px rgba(0,0,0,.3)}
+/* Dialogs enter smoothly instead of appearing abruptly. */
+.appDialogOverlay.open{animation:appDialogOverlayIn .16s ease-out}
+.appDialogOverlay.open .appDialog{animation:appDialogCardIn .18s cubic-bezier(.2,.8,.2,1)}
+@keyframes appDialogOverlayIn{from{opacity:0}to{opacity:1}}
+@keyframes appDialogCardIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+:root[data-reduced-motion="true"] .appDialogOverlay.open,
+:root[data-reduced-motion="true"] .appDialogOverlay.open .appDialog{animation:none!important}

@@ -26,6 +26,19 @@ if (fs.existsSync(jsqr)) {
   // Keep the staged frontend free of node_modules, which Tauri rejects.
   fs.copyFileSync(jsqr, path.join(out, 'jsQR.js'));
 }
+const pdfjsRoot = path.join(root, 'node_modules', 'pdfjs-dist');
+const pdfjsBuild = path.join(pdfjsRoot, 'build');
+const pdfjsOut = path.join(out, 'pdfjs');
+fs.mkdirSync(pdfjsOut, { recursive: true });
+for (const name of ['pdf.mjs', 'pdf.worker.mjs']) {
+  const sourceFile = path.join(pdfjsBuild, name);
+  if (!fs.existsSync(sourceFile)) throw new Error(`PDF.js build asset is missing: ${sourceFile}`);
+  fs.copyFileSync(sourceFile, path.join(pdfjsOut, name));
+}
+for (const directory of ['cmaps', 'standard_fonts', 'wasm']) {
+  const sourceDirectory = path.join(pdfjsRoot, directory);
+  if (fs.existsSync(sourceDirectory)) copy(sourceDirectory, path.join(pdfjsOut, directory));
+}
 const html = path.join(out, 'app.html');
 let page = fs.readFileSync(html, 'utf8');
 page = page.replace(/\.\.\/assets\//g, 'assets/');

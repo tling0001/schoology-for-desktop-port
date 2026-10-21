@@ -4,12 +4,23 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      generate_ios_certificate:
+        description: Generate the iOS distribution certificate and setup artifact only
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
 
 jobs:
   build:
+    if: ${{ inputs.generate_ios_certificate != true }}
     name: Tauri ${{ matrix.platform }} build
     strategy:
       fail-fast: false
@@ -101,6 +112,7 @@ jobs:
           retention-days: 14
 
   android:
+    if: ${{ inputs.generate_ios_certificate != true }}
     name: Tauri Android APK
     runs-on: ubuntu-22.04
     steps:
@@ -131,17 +143,35 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Prepare Tauri Android project
         run: npm run prepare:tauri && npx tauri android init
-      - name: Build Android APK
-        run: npx tauri android build --apk
-      - name: Upload Android APKs
+      - name: Prepare Schoology launcher icon
+        run: node scripts/prepare-android-icon.mjs
+      - name: Build installable Android debug APK
+        run: npx tauri android build --apk --debug
+      - name: Verify and stage Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_ROOT="src-tauri/gen/android/app/build/outputs/apk"
+          APK="$(find "$APK_ROOT" -type f -name '*.apk' | grep -E 'universal.*debug|debug.*universal' | head -n 1 || true)"
+          if [ -z "$APK" ]; then APK="$(find "$APK_ROOT" -type f -name '*debug*.apk' | head -n 1 || true)"; fi
+          test -n "$APK" && test -s "$APK" || { echo "No installable debug APK was produced." >&2; find "$APK_ROOT" -type f -print; exit 1; }
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
+          BADGING="$("$BUILD_TOOLS/aapt" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -F "package: name='com.schoologytauri.app'" >/dev/null || { echo "APK package ID is incorrect." >&2; printf '%s\n' "$BADGING"; exit 1; }
+          printf '%s\n' "$BADGING" | grep -E "application:.*icon=" >/dev/null || { echo "APK is missing an application icon." >&2; printf '%s\n' "$BADGING"; exit 1; }
+          mkdir -p release-apk
+          cp "$APK" release-apk/Schoology-Android-APK.apk
+      - name: Upload verified Android APK
         uses: actions/upload-artifact@v4
         with:
           name: Schoology-Android-APK
-          path: src-tauri/gen/android/app/build/outputs/**/*.apk
+          path: release-apk/Schoology-Android-APK.apk
           if-no-files-found: error
           retention-days: 14
 
   ios-adhoc:
+    if: ${{ inputs.generate_ios_certificate != true }}
     name: Optional iPhone QR installation package
     runs-on: macos-26
     steps:
@@ -295,9 +325,33 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  ios-certificate:
+    name: Generate iOS distribution certificate setup
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.generate_ios_certificate == true }}
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate and register iOS distribution certificate
+        env:
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID || vars.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
+        run: node scripts/generate-ios-distribution-certificate.mjs
+      - name: Upload certificate setup materials
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schoology-iOS-Certificate-Setup
+          path: ios-certificate-output/*
+          if-no-files-found: error
+          retention-days: 1
+
   release:
     name: Publish versioned Tauri release
-    if: always() && github.ref == 'refs/heads/main'
+    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true
     needs: [build, android, ios-adhoc]
     runs-on: ubuntu-latest
     steps:
@@ -359,7 +413,7 @@ jobs:
           generate_release_notes: false
 
       - name: Mark failed release notes as consumed after a successful release
-        if: ${{ needs.build.result == 'success' && needs.android.result == 'success' && needs.ios.result == 'success' && (needs.ios-adhoc.result == 'success' || needs.ios-adhoc.result == 'skipped') }}
+        if: ${{ needs.build.result == 'success' && needs.android.result == 'success' && (needs.ios-adhoc.result == 'success' || needs.ios-adhoc.result == 'skipped') }}
         uses: actions/github-script@v7
         env:
           RELEASE_VERSION: ${{ steps.release_meta.outputs.version }}
@@ -378,7 +432,7 @@ jobs:
               });
             }
       - name: Mark this version as failed when required builds fail
-        if: ${{ needs.build.result != 'success' || needs.android.result != 'success' || needs.ios.result != 'success' || (needs.ios-adhoc.result != 'success' && needs.ios-adhoc.result != 'skipped') }}
+        if: ${{ needs.build.result != 'success' || needs.android.result != 'success' || (needs.ios-adhoc.result != 'success' && needs.ios-adhoc.result != 'skipped') }}
         uses: actions/github-script@v7
         env:
           RELEASE_VERSION: ${{ steps.release_meta.outputs.version }}

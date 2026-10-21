@@ -1,5 +1,22 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.193]
+
+### Fixed
+- Implemented student PDF annotation using the official Schoology Android v2 annotation lifecycle: start or restore a draft, retrieve signed annotation URLs, render the submitted PDF, save XFDF ink/highlighter strokes, autosave, undo/redo, and submit through the assignment finish action.
+- Send message recipients as numeric JSON IDs and mark inbox messages read when opened.
+- Avoid duplicate folder-history entries when refreshing the current materials folder.
+- Correct the off-screen drawer's persistent edge shadow and add dialog-opening motion that respects the reduced-motion setting.
+- Keep window-control overlay color aligned with the startup splash/loading surface.
+- Verify Android APK signing, package ID, and icon metadata in CI; produce an installable debug APK with the Schoology launcher icon.
+- Fix the release workflow's stale reference to the removed iOS build job so successful builds can consume failed-release notes correctly.
+
+### Changed
+- Add PDF.js and stage its worker, CMaps, standard fonts, and WASM assets for Tauri builds.
+- Add an optional one-day iOS distribution-certificate setup artifact, retain the Ad Hoc iPhone QR install workflow, and omit TestFlight builds.
+- Cancel older builds when a newer run starts and download the required Apple provisioning profiles.
+- Bump the port version to 2026.06.0-port.193.
+
 ## [2026.06.0-port.192]
 
 ### Failed build/release attempt

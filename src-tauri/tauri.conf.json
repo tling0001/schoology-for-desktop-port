@@ -67,7 +67,15 @@
         "schemes": [
           "schoology"
         ]
-      }
+      },
+      "mobile": [
+        {
+          "scheme": [
+            "schoology"
+          ],
+          "appLink": false
+        }
+      ]
     }
   }
 }

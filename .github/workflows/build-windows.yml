@@ -249,35 +249,22 @@ jobs:
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
         run: |
-          PROJECT="$(find src-tauri/gen/apple -maxdepth 2 -type d -name '*.xcodeproj' -print -quit)"
-          WORKSPACE="$(find src-tauri/gen/apple -maxdepth 2 -type d -name '*.xcworkspace' -print -quit)"
+          set -euo pipefail
           PROFILE="$RUNNER_TEMP/schoology-adhoc.mobileprovision"
           security cms -D -i "$PROFILE" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
-          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
-          PROFILE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/schoology-adhoc-profile.plist" | sed "s/^[^.]*\.//")"
+          PROFILE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/schoology-adhoc-profile.plist" | sed 's/^[^.]*\.//')"
           test "$PROFILE_BUNDLE_ID" = "com.schoologytauri.app" || { echo "Ad Hoc profile bundle ID must be com.schoologytauri.app, got $PROFILE_BUNDLE_ID" >&2; exit 1; }
-          if [ -z "$WORKSPACE" ] && [ -z "$PROJECT" ]; then echo "Could not find the generated Tauri Xcode project." >&2; exit 1; fi
-          if [ -n "$WORKSPACE" ]; then PROJECT_ARGS=(-workspace "$WORKSPACE"); else PROJECT_ARGS=(-project "$PROJECT"); fi
-          ARCHIVE="$RUNNER_TEMP/Schoology-AdHoc.xcarchive"
-          EXPORT_DIR="$RUNNER_TEMP/Schoology-AdHoc-Export"
-          xcodebuild "${PROJECT_ARGS[@]}" -scheme schoology-desktop-port_iOS -configuration release -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" archive DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" PRODUCT_BUNDLE_IDENTIFIER=com.schoologytauri.app
-          cat > "$RUNNER_TEMP/Schoology-AdHoc-ExportOptions.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>ad-hoc</string>
-            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict><key>com.schoologytauri.app</key><string>${PROFILE_NAME}</string></dict>
-            <key>stripSwiftSymbols</key><true/>
-            <key>compileBitcode</key><false/>
-          </dict></plist>
-          PLIST
-          xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$RUNNER_TEMP/Schoology-AdHoc-ExportOptions.plist" -exportPath "$EXPORT_DIR"
-          IPA="$(find "$EXPORT_DIR" -type f -name '*.ipa' -print -quit)"
-          test -n "$IPA"
+          # Tauri must own the iOS build lifecycle: it starts the options server
+          # consumed by the generated Xcode Build Rust Code phase. Calling
+          # xcodebuild directly leaves cli-options-server.json missing.
+          export IOS_MOBILE_PROVISION="$(base64 -i "$PROFILE" | tr -d '\n')"
+          npx tauri ios build --ci --export-method release-testing
+          IPA="$(find src-tauri/gen/apple -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA" && test -s "$IPA" || { echo "Tauri iOS build did not produce an IPA." >&2; find src-tauri/gen/apple -type f -maxdepth 8 -print | tail -n 100; exit 1; }
           VALIDATE_DIR="$RUNNER_TEMP/schoology-adhoc-ipa"
           mkdir -p "$VALIDATE_DIR"
           ditto -x -k "$IPA" "$VALIDATE_DIR"

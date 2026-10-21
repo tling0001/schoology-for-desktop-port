@@ -264,7 +264,7 @@ jobs:
           export IOS_MOBILE_PROVISION="$(base64 -i "$PROFILE" | tr -d '\n')"
           npx tauri ios build --ci --export-method release-testing
           IPA="$(find src-tauri/gen/apple -type f -name '*.ipa' -print -quit)"
-          test -n "$IPA" && test -s "$IPA" || { echo "Tauri iOS build did not produce an IPA." >&2; find src-tauri/gen/apple -type f -maxdepth 8 -print | tail -n 100; exit 1; }
+          test -n "$IPA" && test -s "$IPA" || { echo "Tauri iOS build did not produce an IPA." >&2; find src-tauri/gen/apple -type f -print | tail -n 100; exit 1; }
           VALIDATE_DIR="$RUNNER_TEMP/schoology-adhoc-ipa"
           mkdir -p "$VALIDATE_DIR"
           ditto -x -k "$IPA" "$VALIDATE_DIR"

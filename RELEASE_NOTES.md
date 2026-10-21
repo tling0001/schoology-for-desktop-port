@@ -16,8 +16,7 @@
 
 ## [2026.06.0-port.193]
 
-### Failed build/release attempt
-
+### Failed build/release attempt (included in release 2026.06.0-port.194)
 ### Fixed
 - Implemented student PDF annotation using the official Schoology Android v2 annotation lifecycle: start or restore a draft, retrieve signed annotation URLs, render the submitted PDF, save XFDF ink/highlighter strokes, autosave, undo/redo, and submit through the assignment finish action.
 - Send message recipients as numeric JSON IDs and mark inbox messages read when opened.

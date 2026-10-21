@@ -232,10 +232,13 @@ jobs:
       - name: Select downloaded Ad Hoc provisioning profile
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash
+        env:
+          REQUESTED_PROFILE_UUID: ${{ inputs.ios_adhoc_profile_uuid }}
         run: |
           PROFILE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
           mkdir -p "$RUNNER_TEMP/adhoc-profile-checks"
-          REQUESTED_UUID="${{ inputs.ios_adhoc_profile_uuid }}"
+          REQUESTED_UUID="${REQUESTED_PROFILE_UUID:-}"
+          if [ -n "$REQUESTED_UUID" ] && [[ ! "$REQUESTED_UUID" =~ ^[A-Fa-f0-9-]{36}$ ]]; then echo "The requested provisioning profile UUID is malformed." >&2; exit 1; fi
           SELECTED=""
           for candidate in "$PROFILE_DIR"/*.mobileprovision; do
             [ -f "$candidate" ] || continue

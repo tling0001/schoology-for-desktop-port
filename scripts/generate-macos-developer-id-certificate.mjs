@@ -10,7 +10,11 @@ await fs.mkdir(outputDir, { recursive: true, mode: 0o700 });
 const privateKeyB64 = process.env.MACOS_CERTIFICATE_PRIVATE_KEY_PEM_BASE64?.trim();
 const certificateCerB64 = process.env.MACOS_DEVELOPER_ID_CERTIFICATE_CER_BASE64?.trim();
 
-if (!privateKeyB64 || !certificateCerB64) {
+if (Boolean(privateKeyB64) !== Boolean(certificateCerB64)) {
+  throw new Error('Both MACOS_CERTIFICATE_PRIVATE_KEY_PEM_BASE64 and MACOS_DEVELOPER_ID_CERTIFICATE_CER_BASE64 must be configured together. Do not generate a new CSR after submitting the previous CSR to Apple.');
+}
+
+if (!privateKeyB64 && !certificateCerB64) {
   const keyPath = path.join(outputDir, 'Schoology-Developer-ID-Application-private-key.pem');
   const csrPath = path.join(outputDir, 'Schoology-Developer-ID-Application.csr');
   execFileSync('openssl', [
@@ -51,8 +55,10 @@ if (!privateKeyB64 || !certificateCerB64) {
   await fs.writeFile(keyPath, Buffer.from(privateKeyB64, 'base64'), { mode: 0o600 });
   await fs.writeFile(cerPath, Buffer.from(certificateCerB64, 'base64'), { mode: 0o600 });
   execFileSync('openssl', ['x509', '-inform', 'DER', '-in', cerPath, '-out', pemPath], { stdio: 'inherit' });
-  const subject = execFileSync('openssl', ['x509', '-in', pemPath, '-noout', '-subject'], { encoding: 'utf8' }).trim();
-  if (!subject.includes('Developer ID Application')) {
+  const subject = execFileSync('openssl', ['x509', '-in', pemPath, '-noout', '-subject', '-nameopt', 'RFC2253'], { encoding: 'utf8' }).trim();
+  const identityMatch = subject.match(/CN=([^,]+)/);
+  const identity = identityMatch?.[1];
+  if (!identity?.startsWith('Developer ID Application:')) {
     throw new Error(`The supplied certificate does not appear to be a Developer ID Application certificate. Certificate subject: ${subject}`);
   }
   const p12Password = crypto.randomBytes(24).toString('base64url');
@@ -64,7 +70,6 @@ if (!privateKeyB64 || !certificateCerB64) {
   const p12Base64 = (await fs.readFile(p12Path)).toString('base64');
   await fs.writeFile(path.join(outputDir, 'MACOS_CERTIFICATE_P12_BASE64.txt'), p12Base64 + '\n', { mode: 0o600 });
   await fs.writeFile(path.join(outputDir, 'MACOS_CERTIFICATE_PASSWORD.txt'), p12Password + '\n', { mode: 0o600 });
-  const identity = subject.replace(/^subject=\s*/, '').replaceAll('\\', '');
   await fs.writeFile(path.join(outputDir, 'MACOS_SIGNING_IDENTITY.txt'), identity + '\n');
   await fs.writeFile(path.join(outputDir, 'SETUP-INSTRUCTIONS.txt'), [
     'MACOS DEVELOPER ID CERTIFICATE READY.',

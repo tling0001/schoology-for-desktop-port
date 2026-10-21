@@ -39,7 +39,7 @@ const response = await fetch('https://api.appstoreconnect.apple.com/v1/certifica
   body: JSON.stringify({
     data: {
       type: 'certificates',
-      attributes: { certificateType: 'IOS_DISTRIBUTION', csrContent: csr.toString('base64') }
+      attributes: { certificateType: 'IOS_DISTRIBUTION', csrContent: csr.toString('utf8') }
     }
   })
 });

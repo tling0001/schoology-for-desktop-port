@@ -10,6 +10,11 @@ on:
         required: false
         type: boolean
         default: false
+      generate_macos_certificate:
+        description: Generate macOS Developer ID Application certificate setup materials only
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,7 +25,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ inputs.generate_ios_certificate != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true }}
     name: Tauri ${{ matrix.platform }} build
     strategy:
       fail-fast: false
@@ -112,7 +117,7 @@ jobs:
           retention-days: 14
 
   android:
-    if: ${{ inputs.generate_ios_certificate != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true }}
     name: Tauri Android APK
     runs-on: ubuntu-22.04
     steps:
@@ -171,7 +176,7 @@ jobs:
           retention-days: 14
 
   ios-adhoc:
-    if: ${{ inputs.generate_ios_certificate != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true }}
     name: Optional iPhone QR installation package
     runs-on: macos-26
     steps:
@@ -349,9 +354,31 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  macos-certificate:
+    name: Generate macOS Developer ID certificate setup
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.generate_macos_certificate == true }}
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate macOS Developer ID certificate setup materials
+        env:
+          MACOS_CERTIFICATE_PRIVATE_KEY_PEM_BASE64: ${{ secrets.MACOS_CERTIFICATE_PRIVATE_KEY_PEM_BASE64 }}
+          MACOS_DEVELOPER_ID_CERTIFICATE_CER_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_CER_BASE64 }}
+        run: node scripts/generate-macos-developer-id-certificate.mjs
+      - name: Upload macOS certificate setup materials
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schoology-macOS-Developer-ID-Certificate-Setup
+          path: macos-certificate-output/*
+          if-no-files-found: error
+          retention-days: 1
+
   release:
     name: Publish versioned Tauri release
-    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true
+    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true
     needs: [build, android, ios-adhoc]
     runs-on: ubuntu-latest
     steps:

@@ -257,14 +257,12 @@ jobs:
         if: steps.adhoc.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          # Regenerate the full Tauri icon set from the canonical 1024px Schoology launcher icon.
-          # This creates the iOS AppIcon assets instead of relying on the desktop-only icon files.
+          # Tauri emits iOS icon PNGs directly under src-tauri/icons/ios; it does not
+          # create an Xcode .appiconset Contents.json at this stage.
           npx tauri icon assets/ic_launcher_1024.png
-          test -s src-tauri/icons/ios/AppIcon.appiconset/Contents.json || {
-            echo "Tauri did not generate the iOS AppIcon asset catalog." >&2
-            find src-tauri/icons -maxdepth 4 -type f -print | sort
-            exit 1
-          }
+          test -s src-tauri/icons/ios/AppIcon-60x60@3x.png
+          test -s src-tauri/icons/ios/AppIcon-512@2x.png
+          test -s src-tauri/icons/ios/AppIcon-20x20@1x.png
       - name: Prepare Tauri iOS project
         if: steps.adhoc.outputs.ready == 'true'
         run: |

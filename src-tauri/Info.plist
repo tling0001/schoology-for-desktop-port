@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Schoology uses the camera when you choose to scan a QR code or use a camera feature.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Schoology needs photo library access only when you choose a photo or image to upload.</string>
+</dict>
+</plist>

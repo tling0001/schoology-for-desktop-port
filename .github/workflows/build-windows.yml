@@ -253,9 +253,35 @@ jobs:
           cp "$SELECTED" "$RUNNER_TEMP/schoology-adhoc.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/schoology-adhoc.mobileprovision" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
           echo "Selected Ad Hoc profile UUID: $(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
+      - name: Generate Schoology iOS app icons
+        if: steps.adhoc.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          # Regenerate the full Tauri icon set from the canonical 1024px Schoology launcher icon.
+          # This creates the iOS AppIcon assets instead of relying on the desktop-only icon files.
+          npx tauri icon assets/ic_launcher_1024.png
+          test -s src-tauri/icons/ios/AppIcon.appiconset/Contents.json || {
+            echo "Tauri did not generate the iOS AppIcon asset catalog." >&2
+            find src-tauri/icons -maxdepth 4 -type f -print | sort
+            exit 1
+          }
       - name: Prepare Tauri iOS project
         if: steps.adhoc.outputs.ready == 'true'
-        run: npm run prepare:tauri && npx tauri ios init
+        run: |
+          set -euo pipefail
+          npm run prepare:tauri
+          npx tauri ios init
+          APP_ICON_SET="src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset"
+          test -s "$APP_ICON_SET/Contents.json" || {
+            echo "Generated Xcode project is missing the Schoology AppIcon catalog." >&2
+            find src-tauri/gen/apple -iname '*appicon*' -print
+            exit 1
+          }
+          test -n "$(find "$APP_ICON_SET" -maxdepth 1 -type f -name '*.png' -size +0c -print -quit)" || {
+            echo "Generated iOS AppIcon catalog contains no non-empty PNG images." >&2
+            find "$APP_ICON_SET" -maxdepth 1 -type f -print
+            exit 1
+          }
       - name: Build and export Ad Hoc iPhone IPA
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash

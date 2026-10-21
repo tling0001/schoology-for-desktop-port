@@ -19,8 +19,7 @@
 
 ## [2026.06.0-port.192]
 
-### Failed build/release attempt
-
+### Failed build/release attempt (included in release 2026.06.0-port.193)
 ### Fixed
 - Use the consistent `com.schoologytauri.app` bundle identifier in desktop package metadata, Tauri configuration, and the iPhone QR installation workflow.
 - Make opening a message thread request attachments without explicitly preserving its unread state, matching the official Android request behavior.
@@ -36,8 +35,7 @@ The source history is cumulative. GitHub release descriptions include the curren
 
 ## [2026.06.0-port.191]
 
-### Failed build/release attempt
-
+### Failed build/release attempt (included in release 2026.06.0-port.193)
 ### Fixed
 - Corrected assignment comment like requests to send the documented string value and update the visible like state/count from the API response; errors now display the actual failure instead of `undefined`.
 

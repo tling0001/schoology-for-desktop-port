@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      ios_adhoc_profile_uuid:
+        description: Optional exact App Store Connect Ad Hoc profile UUID to use for this iPhone build
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -230,6 +235,7 @@ jobs:
         run: |
           PROFILE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
           mkdir -p "$RUNNER_TEMP/adhoc-profile-checks"
+          REQUESTED_UUID="${{ inputs.ios_adhoc_profile_uuid }}"
           SELECTED=""
           for candidate in "$PROFILE_DIR"/*.mobileprovision; do
             [ -f "$candidate" ] || continue
@@ -237,11 +243,13 @@ jobs:
             security cms -D -i "$candidate" > "$plist" 2>/dev/null || continue
             app_id="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$plist" 2>/dev/null | sed 's/^[^.]*\.//')"
             devices="$(/usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$plist" 2>/dev/null || true)"
-            if [ "$app_id" = "com.schoologytauri.app" ] && [ -n "$devices" ]; then SELECTED="$candidate"; break; fi
+            uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$plist" 2>/dev/null || true)"
+            if [ "$app_id" = "com.schoologytauri.app" ] && [ -n "$devices" ] && { [ -z "$REQUESTED_UUID" ] || [ "$uuid" = "$REQUESTED_UUID" ]; }; then SELECTED="$candidate"; break; fi
           done
-          test -n "$SELECTED" || { echo "No active Ad Hoc profile for com.schoologytauri.app with registered devices was downloaded." >&2; exit 1; }
+          test -n "$SELECTED" || { if [ -n "$REQUESTED_UUID" ]; then echo "Requested Ad Hoc profile UUID $REQUESTED_UUID was not downloaded or does not provision registered devices for com.schoologytauri.app." >&2; else echo "No active Ad Hoc profile for com.schoologytauri.app with registered devices was downloaded." >&2; fi; exit 1; }
           cp "$SELECTED" "$RUNNER_TEMP/schoology-adhoc.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/schoology-adhoc.mobileprovision" > "$RUNNER_TEMP/schoology-adhoc-profile.plist"
+          echo "Selected Ad Hoc profile UUID: $(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/schoology-adhoc-profile.plist")"
       - name: Prepare Tauri iOS project
         if: steps.adhoc.outputs.ready == 'true'
         run: npm run prepare:tauri && npx tauri ios init
@@ -275,6 +283,8 @@ jobs:
           APP_INFO="$(find "$VALIDATE_DIR/Payload" -maxdepth 2 -type f -name Info.plist -print -quit)"
           APP_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")"
           test "$APP_BUNDLE_ID" = "com.schoologytauri.app" || { echo "Unexpected iOS bundle ID: $APP_BUNDLE_ID" >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/Schoology-AdHoc-Export"
+          cp "$IPA" "$RUNNER_TEMP/Schoology-AdHoc-Export/Schoology.ipa"
       - name: Create QR installation manifest
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash

@@ -371,8 +371,11 @@
         window.addEventListener('schoology-tauri-theme-changed', this._themeHandler);
         this.style.display = 'block';
         this.style.position = 'relative';
+        this.style.width = '100%';
+        this.style.height = '100%';
         this.style.minWidth = '1px';
         this.style.minHeight = '1px';
+        this.style.background = '#fff';
         this._observer = new ResizeObserver(this._syncHandler);
         this._observer.observe(this);
         this._observeLayoutAncestors();
@@ -422,10 +425,15 @@
         const visible = style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
         try {
           if (!visible) { await this.nativeView.hide(); return; }
-          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(Math.max(0, rect.left), Math.max(0, rect.top)));
-          await this.nativeView.setSize(new tauri.dpi.LogicalSize(Math.max(1, rect.width), Math.max(1, rect.height)));
+          // Keep the native surface aligned to the custom element's actual CSS box.
+          // The native child sits above the parent webview, so stale/zero geometry can
+          // cover the app bar or leave an apparently transparent blank surface.
+          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(rect.left, rect.top));
+          await this.nativeView.setSize(new tauri.dpi.LogicalSize(rect.width, rect.height));
           await this.nativeView.show();
-        } catch (_) {}
+        } catch (error) {
+          console.warn('Could not synchronize Schoology embedded webview bounds:', error);
+        }
       }
       async loadURL(url) {
         this._url = String(url);
@@ -523,9 +531,12 @@
               await this.nativeView.show().catch(() => {});
             }
           });
-          this._syncHandler();
-          await this.nativeView.show().catch(() => {});
+          // Apply the measured box before exposing the native child surface. Calling
+          // the requestAnimationFrame scheduler here used to show a 1px/zero-sized
+          // child briefly, and could leave it covering content if layout was late.
+          await this._syncBounds();
           await this.nativeView.navigate(this._url);
+          this._syncHandler();
         } else {
           await this.nativeView.navigate(this._url);
         }

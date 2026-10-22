@@ -2522,3 +2522,27 @@ html,body,#app,.shell{box-shadow:none!important}
  .courseUpdateComposerInner{width:100vw!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto;box-sizing:border-box;border-radius:0!important;display:flex;flex-direction:column;padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom))}
  .courseUpdateComposerInner textarea{flex:1 1 auto;min-height:180px}
 }
+
+
+/* Tauri uses <schoology-webview>, not Electron's built-in <webview> tag.
+   Give the native child surface the same full-size host box, and anchor it to the
+   content panel so its OS-level z-order does not cover the toolbar. */
+.embeddedPage,
+.dashboardHybrid{position:relative!important;overflow:hidden!important}
+.embeddedPage>schoology-webview,
+.dashboardHybrid>schoology-webview,
+.shell #content:has(.embeddedPage) schoology-webview,
+.shell #content:has(.dashboardHybrid) schoology-webview,
+.shell>.webContentHost schoology-webview,
+.shell>main#content>.embeddedPage schoology-webview,
+.shell>main#content>.dashboardHybrid schoology-webview{
+ position:absolute!important;inset:0!important;display:block!important;
+ width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+ max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important;
+}
+/* The right-hand Course Dashboard pane needs the same native-surface bounds as its Electron counterpart. */
+.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid>schoology-webview,
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid>schoology-webview{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+}

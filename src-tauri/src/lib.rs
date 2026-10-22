@@ -750,7 +750,11 @@ async fn poll_notifications(app: &AppHandle, state: &HostState) {
         for item in &new_items {
             let body = notification_body(item);
             let title = item.get("title").or_else(|| item.get("type_label")).and_then(Value::as_str).unwrap_or("Schoology");
-            let _ = app.notification().builder().title(title).body(if body.is_empty() { "You have a new Schoology notification" } else { &body }).show();
+            if let Err(error) = app.notification().builder().title(title)
+                .body(if body.is_empty() { "You have a new Schoology notification" } else { &body }).show() {
+                eprintln!("Could not show native Schoology notification: {error}");
+                let _ = app.emit("schoology-notification-error", json!({"message":error.to_string()}));
+            }
         }
         if !new_items.is_empty() && notification_sound_enabled(app) { play_system_notification_sound(); }
     }

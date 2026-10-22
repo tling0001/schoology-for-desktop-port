@@ -1,5 +1,12 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.199]
+
+### Fixed
+- Correct the Tauri custom embedded-webview element sizing: the native adapter uses `schoology-webview`, so it now receives the same full-size, content-anchored layout as the legacy Electron webview. This prevents zero-height blank surfaces and toolbar overlap.
+- Synchronize native child-webview bounds before navigating and report native position/size failures instead of silently swallowing them.
+- Log and emit native notification delivery errors instead of silently discarding them, so Windows notification failures can be diagnosed.
+
 ## [2026.06.0-port.198]
 
 ### Fixed

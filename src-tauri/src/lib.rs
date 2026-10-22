@@ -726,7 +726,7 @@ async fn poll_notifications(app: &AppHandle, state: &HostState) {
     let Some(auth) = auth_state(app) else { return; };
     let response = match api_json(app, state, "GET", Url::parse(&format!("https://{}/v1/notifications", api_host())).unwrap(), None, false).await {
         Ok(value) => value,
-        Err(error) => { if !error.contains("Not signed in") && !error.contains("401") { eprintln!("Schoology notification poll failed: {error}"); } return; }
+        Err(error) => { if !error.contains("Not signed in") && !error.contains("401") { eprintln!("Schoology notification poll failed: {error}"); let _ = app.emit("schoology-notification-poll-error", json!({"message":error})); } return; }
     };
     let raw = response.get("notification").or_else(|| response.get("notifications"))
         .or_else(|| response.get("data").and_then(|v| v.get("notification")))
@@ -1176,6 +1176,8 @@ async fn latest_alternate_release(repo: &str, product_name: &str) -> Result<Valu
 fn annotation_storage_url(url: &Url) -> bool {
     let host = url.host_str().unwrap_or_default().trim_end_matches('.').to_ascii_lowercase();
     let allowed_host = host == "s3.amazonaws.com"
+        || (host.starts_with("s3.") && host.ends_with(".amazonaws.com"))
+        || (host.starts_with("s3-") && host.ends_with(".amazonaws.com"))
         || host.ends_with(".s3.amazonaws.com")
         || (host.contains(".s3.") && host.ends_with(".amazonaws.com"))
         || host.ends_with(".cloudfront.net")
@@ -1286,6 +1288,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
     match name.as_str() {
         "auth-state" => Ok(auth_state(&app).unwrap_or(Value::Null)),
         "annotation-request" => annotation_request(&app, &state, &args).await,
+        "test-desktop-notification" => { app.notification().builder().title("Schoology notification test").body("Desktop notifications are enabled for Schoology.").show().map_err(|e| format!("Could not show a desktop notification: {e}"))?; Ok(json!(true)) },
         "renderer-deep-link-ready" => {
             if let Ok(mut ready) = state.renderer_ready.lock() { *ready = true; }
             let pending = state.pending_deep_link.lock().ok().and_then(|mut pending| pending.take());

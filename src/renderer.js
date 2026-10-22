@@ -711,6 +711,21 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
  loadCourseApps(course,document.getElementById('courseAppsSideContent')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});installCourseLayoutWatcher();
 }
+async function schoologyAssignmentSupportsAnnotations(sectionId,assignmentId){
+  if(!sectionId||!assignmentId||!A.annotationRequest)return false;
+  try{
+    const isCa=await A.getServerInstance?.().catch(()=>false);
+    const host=isCa?'api.schoologyca.com':'api.schoology.com';
+    const result=await A.annotationRequest({url:'https://'+host+'/v2/sections/'+encodeURIComponent(sectionId)+'/assignments/'+encodeURIComponent(assignmentId)});
+    const actions=result?.['@actions']||result?.actions||[];
+    const hasAction=type=>Array.isArray(actions)&&actions.some(action=>{
+      const types=Array.isArray(action?.['@type'])?action['@type']:[action?.['@type']||action?.type];
+      return types.includes(type)&&!!(action?.['@href']||action?.href);
+    });
+    return hasAction('assignment:startAssignment')||hasAction('assignment:restoreAssignment');
+  }catch(error){console.debug('Could not verify Schoology annotation availability:',error);return false;}
+}
+
 function collectAssignmentAttachments(a){
   const out=[],seen=new Set();
   const add=(kind,v)=>{if(!v||typeof v!=='object')return;const id=String(v.id||v.file_id||v.fileId||v.link_id||v.linkId||v.url||v.href||v.title||'');const key=kind+':'+id;if(seen.has(key))return;seen.add(key);out.push({kind,...v});};
@@ -967,7 +982,8 @@ async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTea
       let subs={};
       try{subs=await A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${uid}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}})}catch(e){subs={};}
       const g=(grades.grades?.grade||grades.grade||[])[0]||{};const revsRaw=subs.revision||subs.revisions||subs.data?.revision||subs.data?.revisions||[];const revs=Array.isArray(revsRaw)?revsRaw.slice():[];revs.sort((a,b)=>Number(b.revision_id??b.revisionId??b.id??0)-Number(a.revision_id??a.revisionId??a.id??0));
-      const revisionHtml=revs.length?revs.map(r=>{const rid=r.revision_id??r.revisionId??r.id??'';return `<article class="submissionRevisionAndroid"><div><b>Revision ${esc(rid)}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,assignmentId,gradeItemId,userId:uid,revisionId:rid,submissionId:r.submission_id||r.submissionId||r.sub_id||'',allowAnnotation:true})}</article>`}).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>';
+      const annotationAllowed=await schoologyAssignmentSupportsAnnotations(sectionId,assignmentId);
+      const revisionHtml=revs.length?revs.map(r=>{const rid=r.revision_id??r.revisionId??r.id??'';return `<article class="submissionRevisionAndroid"><div><b>Revision ${esc(rid)}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,assignmentId,gradeItemId,userId:uid,revisionId:rid,submissionId:r.submission_id||r.submissionId||r.sub_id||'',allowAnnotation:annotationAllowed})}</article>`}).join(''):'<div class="androidEmptyState">You haven’t made any submissions.</div>';
       const gradeComment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');
       c.innerHTML=`<section class="gradeDropboxAndroid studentSubmissionAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc((g.grade??'—')+(assignment.max_points!=null?` / ${assignment.max_points}`:''))}</span></div>${gradeComment?`<div class="studentOverallComment"><b>Overall Comment</b><div>${esc(gradeComment)}</div></div>`:''}<div class="submissionSectionTitle">Your Submissions</div><div class="submissionRevisionList">${revisionHtml}</div></section>`;
       await hydrateMediaImages(c);

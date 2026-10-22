@@ -416,9 +416,11 @@
           try { view.hide().catch(() => {}); } catch (_) {}
           try { view.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)).catch(() => {}); } catch (_) {}
           try { view.setSize(new tauri.dpi.LogicalSize(1, 1)).catch(() => {}); } catch (_) {}
-          try { view.close().catch(() => { if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {}); }); } catch (_) {
-            if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {});
-          }
+          // A platform webview may resolve close() before its native surface is
+          // detached. Always invoke the host teardown as well, or the stale surface
+          // can remain above the renderer and intercept clicks.
+          try { view.close().catch(() => {}); } catch (_) {}
+          if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {});
         }
       }
       async _syncBounds() {
@@ -478,7 +480,10 @@
             return;
           }
           this.dispatchEvent(new Event('dom-ready'));
-          this.nativeView.once('tauri://error', event => { dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true }); this.nativeView?.show().catch(() => {}); }).catch(() => {});
+          this.nativeView.once('tauri://error', event => {
+            dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true });
+            this.nativeView?.hide().catch(() => {});
+          }).catch(() => {});
           this.nativeView.onNavigation(url => {
             const nextUrl = String(url || this._url);
             let parsed = null;

@@ -16,13 +16,21 @@
     root.id = 'schoologyAnnotationEditor';
     root.className = 'annotationEditorOverlay';
     root.innerHTML = `<section class="annotationEditor" role="dialog" aria-modal="true" aria-label="Annotate PDF">
-      <header class="annotationEditorToolbar">
-        <button type="button" data-tool="close" aria-label="Close">✕</button><b>${esc(options.filename || 'Annotate submission')}</b>
-        <span class="annotationEditorStatus" id="annotationEditorStatus">Opening PDF…</span>
-        <button type="button" data-tool="undo" disabled>Undo</button><button type="button" data-tool="redo" disabled>Redo</button>
-        <button type="button" data-tool="pen" class="selected">Pen</button><button type="button" data-tool="highlighter">Highlight</button><button type="button" data-tool="eraser">Erase</button>
-        <button type="button" data-tool="save">Save draft</button><button type="button" data-tool="submit" class="annotationEditorSubmit">Submit</button>
-      </header><div class="annotationEditorPages" id="annotationEditorPages"><div class="annotationEditorLoading">Loading PDF and saved annotations…</div></div>
+      <header class="annotationEditorAppBar">
+        <button type="button" data-tool="close" class="annotationBackButton" aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+        <div class="annotationDocumentTitle"><b>${esc(options.filename || 'Annotate submission')}</b><span id="annotationEditorStatus">Opening PDF…</span></div>
+        <button type="button" data-tool="save" class="annotationAppBarAction" title="Save draft">Save</button>
+        <button type="button" data-tool="submit" class="annotationEditorSubmit" title="Submit annotated PDF">Submit</button>
+      </header>
+      <nav class="annotationEditorToolRow" aria-label="Annotation tools">
+        <button type="button" data-tool="undo" disabled title="Undo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 0 0-6.32 4H2l4 4 4-4H7.9A5 5 0 1 1 7 14H5a7 7 0 1 0 7-9z"/></svg><span>Undo</span></button>
+        <button type="button" data-tool="redo" disabled title="Redo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 0 1 6.32 4H22l-4 4-4-4h2.1A5 5 0 1 0 17 14h2a7 7 0 1 1-7-9z"/></svg><span>Redo</span></button>
+        <span class="annotationToolDivider"></span>
+        <button type="button" data-tool="pen" class="selected" title="Pen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17.25 11.06-11.06 3.75 3.75L6.75 21H3v-3.75zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg><span>Pen</span></button>
+        <button type="button" data-tool="highlighter" title="Highlight"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17.25 11.06-11.06 3.75 3.75L6.75 21H3v-3.75zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75zM2 22h20v-2H2z"/></svg><span>Highlight</span></button>
+        <button type="button" data-tool="eraser" title="Erase"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16.24 3.56 4.2 4.2a2 2 0 0 1 0 2.83l-8.49 8.49a2 2 0 0 1-2.82 0l-5.66-5.66a2 2 0 0 1 0-2.83l7.07-7.07a4 4 0 0 1 5.7.04zM7.7 10.93l5.66 5.66 5.66-5.66-5.66-5.66zM2 21h20v-2H2z"/></svg><span>Erase</span></button>
+      </nav>
+      <div class="annotationEditorPages" id="annotationEditorPages"><div class="annotationEditorLoading">Loading PDF and saved annotations…</div></div>
     </section>`;
     document.body.appendChild(root);
     const pagesEl = root.querySelector('#annotationEditorPages');

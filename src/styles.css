@@ -2551,3 +2551,34 @@ html,body,#app,.shell{box-shadow:none!important}
  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
  min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
 }
+
+
+/* Full-screen annotation workspace with a Schoology-style app bar and touch-friendly tool strip. */
+.annotationEditorOverlay{padding:0!important;background:var(--theme-background,#f5f7fa)!important;z-index:2147483600}
+.annotationEditor{width:100%!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;box-shadow:none!important;background:var(--theme-background,#f5f7fa)!important}
+.annotationEditorAppBar{display:flex;align-items:center;gap:8px;min-height:56px;padding:env(safe-area-inset-top) 12px 0;background:var(--theme-primary,#002137);color:#fff;flex:0 0 auto;box-sizing:content-box}
+.annotationBackButton{width:44px!important;min-width:44px;min-height:44px!important;padding:10px!important;border:0!important;background:transparent!important;color:inherit!important;display:grid;place-items:center}
+.annotationBackButton svg{width:24px;height:24px;fill:currentColor}
+.annotationDocumentTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
+.annotationDocumentTitle b{font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.annotationDocumentTitle span{font-size:12px;font-weight:400;opacity:.82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.annotationEditorAppBar button:not(.annotationBackButton){min-height:38px;padding:0 14px;border:0;border-radius:20px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.annotationEditorAppBar .annotationEditorSubmit{background:#fff!important;color:var(--theme-primary,#002137)!important}
+.annotationEditorToolRow{display:flex;align-items:center;gap:4px;min-height:64px;padding:6px 12px;background:var(--theme-surface,#fff);color:var(--theme-text,#202124);border-bottom:1px solid var(--theme-border,#dce1e6);overflow-x:auto;flex:0 0 auto}
+.annotationEditorToolRow button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:62px;min-height:52px;padding:5px 9px;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.annotationEditorToolRow button svg{width:22px;height:22px;fill:currentColor}
+.annotationEditorToolRow button span{font-size:11px;white-space:nowrap}
+.annotationEditorToolRow button.selected{background:var(--theme-secondary-container,#d9e8f8);color:var(--theme-on-secondary-container,#163a5b)}
+.annotationEditorToolRow button:disabled{opacity:.35}
+.annotationToolDivider{width:1px;height:34px;background:var(--theme-border,#dce1e6);margin:0 6px;flex:0 0 auto}
+.annotationEditorPages{background:var(--theme-background,#eef1f5);padding:16px 10px calc(20px + env(safe-area-inset-bottom))}
+.annotationPdfPage{border-radius:2px}
+@media(max-width:760px){
+ .annotationEditorAppBar{gap:4px;padding-left:4px;padding-right:8px}
+ .annotationDocumentTitle b{font-size:14px}
+ .annotationEditorAppBar button:not(.annotationBackButton){min-height:36px;padding:0 11px;font-size:13px}
+ .annotationEditorToolRow{min-height:60px;padding:4px 6px}
+ .annotationEditorToolRow button{min-width:56px;min-height:50px}
+ .annotationEditorPages{padding:8px 4px calc(16px + env(safe-area-inset-bottom))}
+}
+:root[data-reduced-motion="true"] .annotationEditorOverlay{animation:none!important}

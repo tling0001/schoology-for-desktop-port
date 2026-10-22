@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "../updater-tauri/dist/SchoologyUpdater.exe": "SchoologyUpdater.exe",
+      "resources/WebView2Loader.dll": "WebView2Loader.dll"
+    }
+  }
+}

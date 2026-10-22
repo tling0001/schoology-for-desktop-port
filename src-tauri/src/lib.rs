@@ -452,6 +452,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let defer_navigation = info.get("deferNavigation").and_then(Value::as_bool).unwrap_or(false);
     let initial_url = if defer_navigation { Url::parse("about:blank").expect("about:blank is a valid URL") } else { url };
     let builder = WebviewBuilder::new(label.clone(), WebviewUrl::External(initial_url))
+        .transparent(false)
         .user_agent(&user_agent)
         .initialization_script(initialization_script)
         .disable_drag_drop_handler()

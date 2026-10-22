@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.201]
+
+### Fixed
+- Move the standalone updater executable and WebView2Loader.dll into a Windows-only Tauri config so iOS, macOS, and Linux do not try to bundle Windows binaries.
+- Gate the student submission Annotate PDF action on Schoology v2 assignment start/restore annotation actions instead of showing it for every PDF.
+- Rework the annotation editor into a full-screen page with a Schoology-style app bar, back button, icon-based tool row, better touch targets, and theme-aware colors.
+- Make native embedded webviews opaque, hide failed surfaces, and always invoke the Rust teardown fallback to prevent stale child surfaces from intercepting clicks after navigation.
+
+
 ## [2026.06.0-port.200]
 
 ### Fixed

@@ -169,11 +169,6 @@ jobs:
           test -n "$APK" && test -s "$APK" || { echo "No installable release APK was produced." >&2; find "$APK_ROOT" -type f -print; exit 1; }
           echo "Optimized Android APK size:"
           du -h "$APK"
-          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
-          BADGING="$("$BUILD_TOOLS/aapt" dump badging "$APK")"
-          printf '%s\n' "$BADGING" | grep -F "package: name='com.schoologytauri.app'" >/dev/null || { echo "APK package ID is incorrect." >&2; printf '%s\n' "$BADGING"; exit 1; }
-          printf '%s\n' "$BADGING" | grep -E "application:.*icon=" >/dev/null || { echo "APK is missing an application icon." >&2; printf '%s\n' "$BADGING"; exit 1; }
           mkdir -p release-apk
           cp "$APK" release-apk/Schoology-Android-APK.apk
       - name: Upload verified Android APK

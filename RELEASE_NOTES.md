@@ -1,5 +1,16 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.196]
+
+### Fixed
+- Remove the unnecessary macOS direct-distribution provisioning-profile download from the Developer ID signing workflow; keep provisioning profiles for iOS Ad Hoc installation.
+- Display course titles in the app bar using the official Android format, including the section/period after a colon when available.
+- Show course-material folder descriptions from the API body when a separate description field is absent, matching the official Android folder-row behavior.
+
+### Changed
+- Remove the obsolete “verified” label from the Android APK staging and upload steps.
+- Bump the port version to 2026.06.0-port.196.
+
 ## [2026.06.0-port.195]
 
 ### Fixed

@@ -371,7 +371,7 @@ function bind(){
   document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{try{const r=await downloadWithFeedback(b,{url:b.dataset.downloadUrl,filename:b.dataset.downloadName,mime:b.dataset.downloadMime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err)}catch(e){alert('Unable to open file: '+e.message)}});
   document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Link')));
   document.querySelectorAll('[data-embed-html]').forEach(b=>b.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(b.dataset.embedHtml),'Embedded content'));
-  document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const i=+b.dataset.courseSub;const c=window.__schoologyCourses?.[i];state.drawerPage=null;state.tab='courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(c)||courseTitleOf(c);state.screen='app';render();showCourse(c)});
+  document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const i=+b.dataset.courseSub;const c=window.__schoologyCourses?.[i];state.drawerPage=null;state.tab='courses';state.courseView='course';state.toolbarTitle=courseToolbarTitleOf(c);state.screen='app';render();showCourse(c)});
 }
 function directoryIsPublic(user){
  const objects=[user,user?.user_permissions,user?.userPermissions,user?.permissions,user?.user?.user_permissions,user?.user?.userPermissions,user?.user?.permissions].filter(Boolean);
@@ -446,7 +446,7 @@ async function loadCourseSubmenu(){
    c.innerHTML=arr.length?arr.map((s,i)=>{const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';const sectionTitle=s.section_title||s.sectionTitle||'';const image=normalizeImageUrl(s.profile_url||s.profileUrl||s.course_profile_url||s.courseProfileUrl||s.course_theme||s.courseTheme||s.image||s.course_image||'');return `<button class="courseSubItem" data-course-sub="${i}"><span class="courseThumb">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(courseTitle.charAt(0))}</span></span><span class="courseText"><b>${esc(courseTitle)}</b><small>${esc(sectionTitle)}</small></span><span class="disclosure">›</span></button>`}).join(''):'<div class="drawerEmpty">No courses found.</div>';
    const joinCourseButton=document.getElementById('joinCourse');
    if(page==='courses'&&joinCourseButton){joinCourseButton.style.display=await canJoinByAccessCode('sections/accesscode')?'':'none';joinCourseButton.onclick=showJoinCourseDialog;}
-   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const course=window.__schoologyCourses[+b.dataset.courseSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab=page==='grades'?'grades':'courses';state.courseView='course';state.toolbarTitle=sectionTitleOf(course)||courseTitleOf(course);state.screen='app';render();showCourse(course,page==='grades'?'grades':'materials')});});
+   document.querySelectorAll('[data-course-sub]').forEach(b=>b.onclick=()=>{const course=window.__schoologyCourses[+b.dataset.courseSub];closeDrawerThen(()=>{state.drawerPage=null;state.tab=page==='grades'?'grades':'courses';state.courseView='course';state.toolbarTitle=courseToolbarTitleOf(course);state.screen='app';render();showCourse(course,page==='grades'?'grades':'materials')});});
    await hydrateCourseImages(c);
  }catch(e){c.innerHTML=`<div class="drawerError">${esc(e.message)}</div>`}
 }
@@ -494,6 +494,9 @@ async function resolveCourseSchoolName(course){
 }
 function courseTitleOf(course){return course?.course_title||course?.courseTitle||course?.title||course?.section_title||'Course'}
 function sectionTitleOf(course){return course?.section_title||course?.sectionTitle||''}
+// Official Android SectionProfileViewModel formats the app-bar title as course title, colon, and section title.
+function courseToolbarTitleOf(course){const title=courseTitleOf(course),section=sectionTitleOf(course);return section?`${title} : ${section}`:title}
+function materialDescriptionText(value){return String(value||'').replace(/<br\s*\/?\s*>/gi,' ').replace(/<\/(?:p|div|li|h[1-6])\s*>/gi,' ').replace(/<[^>]*>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/\s+/g,' ').trim()}
 function openProfileById(id,name='Profile'){
   const uid=Number(id); if(!uid)return;
   const returnGroup=state.currentGroup;
@@ -600,7 +603,7 @@ function navigateBack(){
   if(state.embeddedTitle){
     const ret=state.embeddedReturn;
     state.embeddedTitle=null; state.embeddedTheme=''; state.embeddedReturn=null;
-    if(ret){if(ret.group){state.currentGroup=ret.group;state.groupTab=ret.groupTab||'updates';state.tab='groups';state.toolbarTitle=ret.group.name||ret.title||'Group';showGroup(ret.group,state.groupTab);return;}if(ret.course){state.tab=ret.tab||'courses';state.homeTab=ret.homeTab||state.homeTab;state.currentGroup=null;state.profileUser=null;state.selectedCourse=ret.course;state.courseView='course';state.toolbarTitle=ret.title||courseTitleOf(ret.course);showCourse(ret.course,ret.courseTab||'materials');return;}state.tab=ret.tab;state.homeTab=ret.homeTab||state.homeTab;state.toolbarTitle=ret.title||'Settings';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;render();loadTab();return;}
+    if(ret){if(ret.group){state.currentGroup=ret.group;state.groupTab=ret.groupTab||'updates';state.tab='groups';state.toolbarTitle=ret.group.name||ret.title||'Group';showGroup(ret.group,state.groupTab);return;}if(ret.course){state.tab=ret.tab||'courses';state.homeTab=ret.homeTab||state.homeTab;state.currentGroup=null;state.profileUser=null;state.selectedCourse=ret.course;state.courseView='course';state.toolbarTitle=ret.title||courseToolbarTitleOf(ret.course);showCourse(ret.course,ret.courseTab||'materials');return;}state.tab=ret.tab;state.homeTab=ret.homeTab||state.homeTab;state.toolbarTitle=ret.title||'Settings';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;render();loadTab();return;}
     syncToolbar();
     if(state.selectedCourse){showCourse(state.selectedCourse,state.courseTab||'materials');}
     else if(state.currentGroup){showGroup(state.currentGroup,state.groupTab||'updates');}
@@ -652,7 +655,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  if(sameCourse){
    const tab=activeTab;const buttons=[...c.querySelectorAll('[data-course-tab]')];const target=buttons.find(b=>b.dataset.courseTab===tab);
    if(target){buttons.forEach(b=>b.classList.toggle('active',b===target));}
-   state.courseTab=tab;state.toolbarTitle=courseTitleOf(course)||sectionTitleOf(course)||'Course';state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;syncToolbar();
+   state.courseTab=tab;state.toolbarTitle=courseToolbarTitleOf(course)||'Course';state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;syncToolbar();
    const tabContent=document.getElementById('sectionProfileContent');if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
    await loadCourseTab(course,tab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});return;
  }
@@ -660,7 +663,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  // identity, tabs, and loading indicators are visible, so slow connections don't leave
  // the previous screen under a changed app bar.
  state.courseCanAddResources=false;state.selectedCourse=course;state.courseView='course';state.courseTab=activeTab;state.folderStack=[];state.currentFolderId=0;state.assignmentView=null;state.embeddedTitle=null;
- state.toolbarTitle=courseTitleOf(course)||sectionTitleOf(course)||'Course';syncToolbar();
+ state.toolbarTitle=courseToolbarTitleOf(course)||'Course';syncToolbar();
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const landscape=window.matchMedia('(min-width: 1000px)').matches;
@@ -1149,7 +1152,8 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
   const rows=items.map((f,i)=>{
     const type=String(f.type||'');
     const icon=materialIconForType(f);
-    const description=String(f.description||f.folder_description||f.folderDescription||'').trim();
+    const rawDescription=f.description||f.folder_description||f.folderDescription||(String(f.type||'').toLowerCase()==='folder'?f.body:'')||'';
+    const description=materialDescriptionText(rawDescription);
     return `<button class="materialRow" data-material-index="${i}"><span class="materialIcon officialMaterialIcon"><img src="../assets/icons/${icon}" alt=""></span><span class="materialRowText"><b>${esc(f.title||'Untitled')}</b>${description?`<small>${esc(description)}</small>`:''}</span><span>›</span></button>`;
   }).join('');
   el.innerHTML=parent+(items.length?`<div class="materialList">${rows}</div>`:'<div class="empty"><h2>This folder is empty</h2></div>');

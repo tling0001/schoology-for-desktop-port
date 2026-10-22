@@ -1,5 +1,12 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.198]
+
+### Fixed
+- Add a PDF attachment chooser with Download, View, and close actions; View opens a shared fullscreen PDF.js screen with a back app bar, while Download retains the existing file-download/open path.
+- Render likes and comments with author names and profile pictures, and resolve group-discussion creator IDs to names.
+- Use fullscreen composer layouts on compact screens for discussion/event posts, comments, assignment submissions, and course updates.
+
 ## [2026.06.0-port.197]
 
 ### Fixed

@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.197]
+
+### Fixed
+- Keep course app-bar titles in the official `Course : Section` format after tab/permission loading and prevent the Tauri bridge from overwriting them with the plain course name.
+- Gate course update and group discussion/event create buttons on API-reported POST permissions.
+- Resolve school-profile update authors using additional creator-ID fields returned by Schoology.
+- Require a persistent Android release keystore and validate APK signature/package identity before distributing the APK.
+- Copy generated iOS icon PNGs into the Xcode AppIcon asset catalog and validate its referenced image files.
+
 ## [2026.06.0-port.196]
 
 ### Fixed

@@ -51,8 +51,16 @@
     }
     return target.dispatchEvent(event);
   };
-  const platform = /Windows/i.test(navigator.userAgent) ? 'win32' : /Macintosh/i.test(navigator.userAgent) ? 'darwin' : 'linux';
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const platform = /Android/i.test(ua) ? 'android' : isIOS ? 'ios' : /Windows/i.test(ua) ? 'win32' : /Macintosh/i.test(ua) ? 'darwin' : 'linux';
   document.documentElement.dataset.electronPlatform = platform;
+  const schoologyLayoutStyle = document.createElement('style');
+  schoologyLayoutStyle.textContent = '.profileAndroidPage:not(.profileLandscapePage){display:flex!important;flex-direction:column!important;min-height:100%}.profileAndroidPage:not(.profileLandscapePage)>.profileTabs{order:0!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>.profileHeader{order:1!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>#profileTabContent{order:2!important;flex:1 1 auto!important;min-height:0!important}html[data-electron-platform="android"] .settingsPage label:has(#windowChromeOverlayToggle),html[data-electron-platform="ios"] .settingsPage label:has(#windowChromeOverlayToggle){display:none!important}';
+  document.head.appendChild(schoologyLayoutStyle);
+  const syncToolbarIdentity = () => { const profile = document.querySelector('#content .profileHeader h1'); const course = document.querySelector('#content .courseIdentityCard .sectionProfileTitle'); const desired = String(profile?.textContent || course?.textContent || '').trim(); const title = document.querySelector('.toolbarTitle'); if (desired && title && title.textContent !== desired) title.textContent = desired; };
+  if (typeof MutationObserver !== 'undefined') { const titleObserver = new MutationObserver(() => requestAnimationFrame(syncToolbarIdentity)); titleObserver.observe(document.documentElement, {subtree:true,childList:true,characterData:true}); }
+  document.addEventListener('DOMContentLoaded', syncToolbarIdentity);
   const isExternalLoginCandidate = (raw, expectedDomain) => {
     try {
       const url = new URL(String(raw || ''));
@@ -189,8 +197,9 @@
   const installWindowControls = async () => {
     let mode;
     try { mode = await invoke('get-window-chrome-mode'); } catch (_) { return; }
-    document.documentElement.dataset.windowControlsOverlay = String(mode?.overlay === true);
-    if (!mode?.overlay || document.getElementById('tauriWindowControls')) return;
+    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios';
+    document.documentElement.dataset.windowControlsOverlay = String(overlayEnabled);
+    if (!overlayEnabled || document.getElementById('tauriWindowControls')) return;
     const controls = document.createElement('div');
     controls.id = 'tauriWindowControls';
     controls.setAttribute('data-tauri-drag-region', '');
@@ -220,6 +229,13 @@
       invoke('window-toggle-maximize').catch(() => {});
     });
     document.body.appendChild(controls);
+    const overlayStyle = document.createElement('style');
+    overlayStyle.textContent = 'html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important;column-gap:0!important;padding:0!important;overflow:hidden!important;box-sizing:border-box!important}html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:auto!important;min-width:0!important;max-width:none!important;height:56px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;justify-content:flex-end!important}';
+    document.head.appendChild(overlayStyle);
+    const updateControlWidth = () => { const width = controls.getBoundingClientRect().width; if (width > 0) document.documentElement.style.setProperty('--tauri-window-controls-width', `${Math.ceil(width)}px`); };
+    updateControlWidth();
+    if (typeof ResizeObserver !== 'undefined') { const observer = new ResizeObserver(updateControlWidth); observer.observe(controls); }
+    window.addEventListener('resize', updateControlWidth);
   };
   // With overlay enabled, unused app-bar space starts a native drag. Controls stay clickable.
   document.addEventListener('pointerdown', event => {
@@ -227,7 +243,8 @@
     if (document.documentElement.dataset.windowControlsOverlay !== 'true') return;
     const target = event.target;
     const toolbar = target?.closest?.('.shell > .toolbar');
-    const topStrip = event.clientY >= 0 && event.clientY <= 56 && event.clientX < Math.max(0, window.innerWidth - 138);
+    const controlsWidth = document.getElementById('tauriWindowControls')?.getBoundingClientRect().width || 0;
+    const topStrip = event.clientY >= 0 && event.clientY <= 56 && event.clientX < Math.max(0, window.innerWidth - controlsWidth);
     if (!toolbar && !topStrip) return;
     if (target?.closest?.('button,a,input,textarea,select,[role="button"],.toolbarActionSlot,#tauriWindowControls,img')) return;
     invoke('window-start-dragging').catch(() => {});
@@ -404,8 +421,10 @@
         const style = getComputedStyle(this);
         const visible = style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
         try {
-          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(visible ? Math.max(0, rect.left) : -10000, visible ? Math.max(0, rect.top) : -10000));
-          await this.nativeView.setSize(new tauri.dpi.LogicalSize(visible ? Math.max(1, rect.width) : 1, visible ? Math.max(1, rect.height) : 1));
+          if (!visible) { await this.nativeView.hide(); return; }
+          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(Math.max(0, rect.left), Math.max(0, rect.top)));
+          await this.nativeView.setSize(new tauri.dpi.LogicalSize(Math.max(1, rect.width), Math.max(1, rect.height)));
+          await this.nativeView.show();
         } catch (_) {}
       }
       async loadURL(url) {

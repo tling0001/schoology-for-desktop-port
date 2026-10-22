@@ -1,5 +1,20 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.195]
+
+### Fixed
+- Keep the selected course name in the app bar during initial loading and when switching course tabs.
+- Show the resolved user's name in the app bar and include the user's school in the profile header; in portrait, place profile tabs before the identity header to match the official Android profile layout.
+- Remove the extra fixed 200px window-control overlay spacing. The app bar now reserves the measured control overlay width, and the overlay setting is hidden on Android and iOS.
+- Hide native child webviews when their host element is hidden or outside the viewport, preventing stale invisible surfaces from intercepting clicks.
+- Correct QR OAuth signing to pass raw scanned QR data into the normalized parameter string, matching the official Schoology Android 2026.06.0 signer.
+- Build an optimized Android release APK instead of a debug APK to substantially reduce the download size.
+- Add the Android camera permission and configure the generated app theme to use the Schoology-blue status bar with light status-bar icons.
+
+### Changed
+- Remove automatic failed-build labels from release notes and stop the workflow from marking builds failed on the user's behalf. Prior release history is retained.
+- Update the documentation to describe the active Tauri release workflow while retaining Electron as legacy reference code.
+- Bump the port version to 2026.06.0-port.195.
 ## [2026.06.0-port.194]
 
 ### Fixed
@@ -16,7 +31,6 @@
 
 ## [2026.06.0-port.193]
 
-### Failed build/release attempt (included in release 2026.06.0-port.194)
 ### Fixed
 - Implemented student PDF annotation using the official Schoology Android v2 annotation lifecycle: start or restore a draft, retrieve signed annotation URLs, render the submitted PDF, save XFDF ink/highlighter strokes, autosave, undo/redo, and submit through the assignment finish action.
 - Send message recipients as numeric JSON IDs and mark inbox messages read when opened.
@@ -34,7 +48,6 @@
 
 ## [2026.06.0-port.192]
 
-### Failed build/release attempt (included in release 2026.06.0-port.193)
 ### Fixed
 - Use the consistent `com.schoologytauri.app` bundle identifier in desktop package metadata, Tauri configuration, and the iPhone QR installation workflow.
 - Make opening a message thread request attachments without explicitly preserving its unread state, matching the official Android request behavior.
@@ -46,11 +59,10 @@
 - Bump the port version to 2026.06.0-port.192.
 
 
-The source history is cumulative. GitHub release descriptions include the current version and failed-build sections not yet carried into a successful release. After a successful release includes those sections, the workflow marks them as already included so they do not recur.
+Historical sections preserve prior changes; a build failure is not recorded as a release status unless explicitly requested.
 
 ## [2026.06.0-port.191]
 
-### Failed build/release attempt (included in release 2026.06.0-port.193)
 ### Fixed
 - Corrected assignment comment like requests to send the documented string value and update the visible like state/count from the API response; errors now display the actual failure instead of `undefined`.
 
@@ -121,7 +133,6 @@ The source history is cumulative. GitHub release descriptions include the curren
 
 ## [2026.06.0-port.185]
 
-### Failed build/release attempt (included in release 2026.06.0-port.186)
 - macOS failed because the workflow attempted to package `Schoology.app` as an `.app.zip` after the updater had moved to DMG-based installation and updating.
 - Android failed because `reqwest` default TLS features attempted to find host OpenSSL during the Android cross-compile.
 - iOS failed because desktop-only Tauri window methods were compiled into the iOS target.
@@ -144,7 +155,7 @@ The source history is cumulative. GitHub release descriptions include the curren
 
 
 
-Release descriptions include the current version and the previous four release-note sections so fixes from failed release attempts remain documented.
+Release descriptions are generated from the current version's release notes. Historical change details remain in this file.
 
 ## [2026.06.0-port.184]
 

@@ -169,7 +169,7 @@ async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Valu
         if let Some(a) = auth.filter(|_| current_is_api_host) {
             let token = a.get("oauth_token").and_then(Value::as_str).unwrap_or("");
             let secret = a.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
-            let qr_parameters = qr.map(|value| vec![("scanned_qr_data", enc(value))]).unwrap_or_default();
+            let qr_parameters = qr.map(|value| vec![("scanned_qr_data", value.to_owned())]).unwrap_or_default();
             let header = if plaintext { plaintext_header(token, secret, timestamp) } else { signed_header(&current_method, &current_url, token, secret, timestamp, &qr_parameters)? };
             builder = builder.header("Authorization", header).header("Cookie", MOBILE_COOKIE);
         }

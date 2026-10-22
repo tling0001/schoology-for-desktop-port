@@ -864,6 +864,7 @@ fn update_asset_suffixes() -> Vec<&'static str> {
         "windows" => vec!["_x64-setup.exe", "-x64-setup.exe", "Setup-x64.exe"],
         "macos" => vec![".app.zip"],
         "linux" => vec!["amd64.deb", "x86_64.rpm"],
+        "ios" => vec!["-iOS-AdHoc.plist"],
         _ => vec![],
     }
 }
@@ -1028,6 +1029,20 @@ open "$TARGET"
 }
 
 async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> {
+    #[cfg(target_os = "ios")]
+    {
+        let raw_url = info.get("url").and_then(Value::as_str).ok_or("The iOS installation manifest URL is missing.")?;
+        let manifest = Url::parse(raw_url).map_err(|_| "The iOS installation manifest URL is invalid.")?;
+        if manifest.scheme() != "https" || !matches!(manifest.host_str(), Some("github.com") | Some("objects.githubusercontent.com") | Some("release-assets.githubusercontent.com")) {
+            return Err("The iOS installation manifest must be hosted by GitHub over HTTPS.".into());
+        }
+        let encoded = url::form_urlencoded::byte_serialize(raw_url.as_bytes()).collect::<String>();
+        let install_url = format!("itms-services://?action=download-manifest&url={encoded}");
+        app.opener().open_url(&install_url, None::<&str>)
+            .map_err(|e| format!("Could not open the Schoology iOS installation link: {e}"))?;
+        let _ = app.emit("update-install-started", json!({"iosInstall":true,"version":info.get("version").and_then(Value::as_str).unwrap_or("")}));
+        return Ok(json!({"opened":true,"url":install_url}));
+    }
     #[cfg(target_os = "windows")]
     {
         if info.get("useWindowsUpdater").and_then(Value::as_bool).unwrap_or(false) {

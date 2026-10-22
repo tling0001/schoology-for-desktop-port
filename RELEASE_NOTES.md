@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.200]
+
+### Fixed
+- Accept signed regional and path-style AWS S3 URLs used by Schoology's PDF annotation-file redirects, without forwarding OAuth credentials to storage hosts.
+- Show the Download/View chooser for PDF files opened from assignment-info attachments, and detect PDFs from converted MIME metadata or the URL path.
+- Animate the shared PDF viewer's opening and closing, respecting the reduced-motion setting.
+- Bundle WebView2Loader.dll as an explicit app resource and stage it beside the standalone updater so the built-in Windows updater can launch reliably.
+- Add a desktop notification test action and surface native delivery or Schoology polling errors instead of silently losing them.
+- Keep the optimized Android release APK installable when signing secrets are missing by generating a temporary CI signing key; persistent keystore secrets remain required for seamless in-place upgrades.
+
 ## [2026.06.0-port.199]
 
 ### Fixed

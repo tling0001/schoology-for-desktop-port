@@ -1,23 +1,36 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const root = process.cwd();
 const required = ['ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'];
 const missing = required.filter(name => !String(process.env[name] || '').trim());
-if (missing.length) {
-  throw new Error('Android release APKs must use a persistent keystore to support in-place updates. Configure these GitHub Actions secrets: ' + missing.join(', ') + '. Do not generate a new keystore for each workflow run.');
-}
-
+const persistentSigning = missing.length === 0;
 const appDir = path.join(root, 'src-tauri', 'gen', 'android', 'app');
 const gradleFile = ['build.gradle.kts', 'build.gradle'].map(name => path.join(appDir, name)).find(file => fs.existsSync(file));
 if (!gradleFile) throw new Error('Generated Android app Gradle file was not found. Run tauri android init first.');
 
 const keystorePath = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'schoology-android-release.jks');
-const keystore = Buffer.from(process.env.ANDROID_KEYSTORE_BASE64.replace(/\s+/g, ''), 'base64');
-if (keystore.length < 512) throw new Error('ANDROID_KEYSTORE_BASE64 does not decode to a valid Android keystore.');
-fs.writeFileSync(keystorePath, keystore, { mode: 0o600 });
-if (process.env.GITHUB_ENV) fs.appendFileSync(process.env.GITHUB_ENV, `ANDROID_KEYSTORE_PATH=${keystorePath}\n`);
+let storePassword = String(process.env.ANDROID_KEYSTORE_PASSWORD || '');
+let keyAlias = String(process.env.ANDROID_KEY_ALIAS || '');
+let keyPassword = String(process.env.ANDROID_KEY_PASSWORD || '');
+if (persistentSigning) {
+  const keystore = Buffer.from(process.env.ANDROID_KEYSTORE_BASE64.replace(/\s+/g, ''), 'base64');
+  if (keystore.length < 512) throw new Error('ANDROID_KEYSTORE_BASE64 does not decode to a valid Android keystore.');
+  fs.writeFileSync(keystorePath, keystore, { mode: 0o600 });
+  console.log('Using the configured persistent Android release keystore.');
+} else {
+  storePassword = 'schoology-ci-' + process.pid + '-store';
+  keyPassword = storePassword;
+  keyAlias = 'schoologyRelease';
+  console.warn('WARNING: Missing Android signing secrets (' + missing.join(', ') + '). Generating a temporary signing key so the optimized APK remains installable. This APK cannot update an installation signed with another key, and future builds will use different temporary keys until a persistent keystore is configured.');
+  execFileSync('keytool', ['-genkeypair','-noprompt','-keystore',keystorePath,'-storetype','PKCS12','-storepass',storePassword,'-keypass',keyPassword,'-alias',keyAlias,'-dname','CN=Schoology CI Release, OU=Build, O=Schoology, L=CI, ST=CI, C=US','-keyalg','RSA','-keysize','2048','-validity','10000'], { stdio: 'inherit' });
+}
+if (process.env.GITHUB_ENV) {
+  const lines = ['ANDROID_KEYSTORE_PATH=' + keystorePath,'ANDROID_KEYSTORE_PASSWORD=' + storePassword,'ANDROID_KEY_ALIAS=' + keyAlias,'ANDROID_KEY_PASSWORD=' + keyPassword];
+  fs.appendFileSync(process.env.GITHUB_ENV, lines.join('\n') + '\n');
+}
 
 let source = fs.readFileSync(gradleFile, 'utf8');
 if (source.includes('schoologyRelease')) throw new Error('Android Gradle signing configuration was already inserted; refusing to duplicate it.');

@@ -148,7 +148,7 @@ jobs:
         run: node scripts/prepare-android-mobile.mjs
       - name: Prepare Schoology launcher icon
         run: node scripts/prepare-android-icon.mjs
-      - name: Configure persistent Android release signing
+      - name: Configure Android release signing
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -157,11 +157,6 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: node scripts/prepare-android-signing.mjs
       - name: Build signed installable Android APK
-        env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/schoology-android-release.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: npx tauri android build --apk
       - name: Stage Android APK
         shell: bash

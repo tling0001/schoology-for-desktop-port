@@ -134,6 +134,9 @@
 
   const schoology = {
     onDeepLink: callback => subscribe('schoology-deep-link', callback),
+    onNotificationError: callback => subscribe('schoology-notification-error', callback),
+    onNotificationPollError: callback => subscribe('schoology-notification-poll-error', callback),
+    testDesktopNotification: () => invoke('test-desktop-notification'),
     annotationRequest: args => invoke('annotation-request', args),
     authState: () => invoke('auth-state'),
     getServerInstance: () => invoke('get-server-instance'),

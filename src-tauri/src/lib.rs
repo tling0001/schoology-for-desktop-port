@@ -1244,17 +1244,34 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
         if let Some(body) = body { builder = builder.body(body.to_owned()); }
     }
     let mut response = builder.send().await.map_err(|e| format!("Annotation request failed: {e}"))?;
-    // Schoology file endpoints can redirect to short-lived object-storage URLs.
-    // Follow only a single signed HTTPS storage redirect, never forward OAuth there.
-    if response.status().is_redirection() && binary && method == "GET" && is_api {
-        let location = response.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok())
-            .ok_or("Schoology returned an invalid annotation-file redirect.")?;
-        let target = url.join(location).map_err(|_| "Schoology returned an invalid annotation-file redirect.")?;
-        if target.scheme() != "https" || !annotation_storage_url(&target) {
-            return Err("Schoology redirected the annotation file to an untrusted host.".into());
+    // Schoology's file endpoint may first redirect through a Schoology/LAUSD file
+    // URL before issuing a short-lived signed object-storage URL. Follow a bounded
+    // chain, validate every hop, and never forward OAuth credentials past the API.
+    if binary && method == "GET" && is_api {
+        let mut current_url = url.clone();
+        let mut redirects = 0usize;
+        while response.status().is_redirection() {
+            if redirects >= 5 {
+                return Err("Schoology's annotation file used too many redirects.".into());
+            }
+            let location = response.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok())
+                .ok_or("Schoology returned an invalid annotation-file redirect.")?;
+            let target = current_url.join(location).map_err(|_| "Schoology returned an invalid annotation-file redirect.")?;
+            let target_host = target.host_str().unwrap_or_default();
+            let trusted_schoology_hop = is_schoology_or_lausd_host(target_host);
+            let trusted_signed_storage = annotation_storage_url(&target);
+            if target.scheme() != "https" || !target.username().is_empty() || target.password().is_some()
+                || !(trusted_schoology_hop || trusted_signed_storage) {
+                return Err(format!("Schoology redirected the annotation file to an untrusted host: {}.", target_host));
+            }
+            // Deliberately construct a new request without Authorization/Cookie headers.
+            // Signed URLs authorize their own storage request; Schoology redirects are
+            // allowed as an intermediate hop but receive no OAuth credentials either.
+            current_url = target.clone();
+            response = client.get(target).header("User-Agent", ANDROID_UA).send().await
+                .map_err(|e| format!("Could not download annotation file: {e}"))?;
+            redirects += 1;
         }
-        response = client.get(target).header("User-Agent", ANDROID_UA).send().await
-            .map_err(|e| format!("Could not download annotation file: {e}"))?;
     }
     let status = response.status();
     let response_type = response.headers().get(reqwest::header::CONTENT_TYPE)
@@ -1367,14 +1384,17 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "close-embedded-webview" => {
             let label = args.get("label").and_then(Value::as_str).unwrap_or("");
-            if label.starts_with("schoology-embedded-") {
-                if let Some(view) = app.get_webview(label) {
-                    let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0));
-                    let _ = view.set_size(LogicalSize::new(1.0, 1.0));
-                    view.close().map_err(|e| format!("Could not close embedded webview: {e}"))?;
-                }
+            if !label.starts_with("schoology-embedded-") {
+                return Ok(json!(false));
             }
-            Ok(json!(true))
+            if let Some(view) = app.get_webview(label) {
+                let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0));
+                let _ = view.set_size(LogicalSize::new(1.0, 1.0));
+                view.close().map_err(|e| format!("Could not close embedded webview: {e}"))?;
+                Ok(json!(true))
+            } else {
+                Ok(json!(false))
+            }
         },
         #[cfg(any(target_os = "android", target_os = "ios"))]
         "close-embedded-webview" => Ok(json!(true)),

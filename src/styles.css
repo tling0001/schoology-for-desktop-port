@@ -2582,3 +2582,10 @@ html,body,#app,.shell{box-shadow:none!important}
  .annotationEditorPages{padding:8px 4px calc(16px + env(safe-area-inset-bottom))}
 }
 :root[data-reduced-motion="true"] .annotationEditorOverlay{animation:none!important}
+
+
+/* Keep hidden native desktop webviews from covering the app shell. */
+.embeddedPage>schoology-webview,
+.dashboardHybrid>schoology-webview{pointer-events:auto}
+.embeddedPage[hidden]>schoology-webview,
+.dashboardHybrid[hidden]>schoology-webview{display:none!important}

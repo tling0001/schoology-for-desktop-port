@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.202]
+
+### Fixed
+- Serialize native embedded-webview teardown through Rust before falling back to the JavaScript close API, avoiding a race that could leave a blank native surface intercepting clicks after leaving a shared page.
+- Move hidden native webviews off-screen and shrink them before hiding, and check hidden ancestors before synchronizing native bounds.
+- Detach a failed native embedded webview instead of leaving an empty surface above the renderer, and log the underlying native error for diagnosis.
+- Follow bounded Schoology annotation-file redirect chains through trusted Schoology/LAUSD hosts and signed object-storage URLs without forwarding OAuth credentials beyond the initial API request.
+
+### Changed
+- Bump the port version to 2026.06.0-port.202.
+
+
 ## [2026.06.0-port.201]
 
 ### Fixed

@@ -410,29 +410,54 @@
         this._unlistenPageLoad?.();
         if (this.nativeView) {
           const view = this.nativeView;
+          const label = this._label;
           this.nativeView = null;
-          // Close one native child surface exactly once and move it away first,
-          // so a slow close cannot intercept clicks in the app shell.
-          try { view.hide().catch(() => {}); } catch (_) {}
-          try { view.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)).catch(() => {}); } catch (_) {}
-          try { view.setSize(new tauri.dpi.LogicalSize(1, 1)).catch(() => {}); } catch (_) {}
-          // A platform webview may resolve close() before its native surface is
-          // detached. Always invoke the host teardown as well, or the stale surface
-          // can remain above the renderer and intercept clicks.
-          try { view.close().catch(() => {}); } catch (_) {}
-          if (this._label) invoke('close-embedded-webview', { label: this._label }).catch(() => {});
+          // Keep the native handle alive until Rust has detached the child from its
+          // parent window. Closing it in JS first can make get_webview(label) fail,
+          // leaving a stale native surface over the renderer and stealing clicks.
+          void (async () => {
+            try { await view.hide(); } catch (_) {}
+            try { await view.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)); } catch (_) {}
+            try { await view.setSize(new tauri.dpi.LogicalSize(1, 1)); } catch (_) {}
+            let hostClosed = false;
+            if (label) {
+              try { hostClosed = (await invoke('close-embedded-webview', { label })) === true; }
+              catch (error) { console.warn('Rust could not detach the embedded Schoology webview:', error); }
+            }
+            // Only use the JS close as a fallback when the native host no longer
+            // owns the child. Do not race two close operations against the same view.
+            if (!hostClosed) {
+              try { await view.close(); } catch (error) { console.warn('Could not close the embedded Schoology webview:', error); }
+            }
+          })();
         }
       }
       async _syncBounds() {
         if (!this.nativeView || !this.isConnected) return;
         const rect = this.getBoundingClientRect();
         const style = getComputedStyle(this);
-        const visible = style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+        let visible = !this.hidden && style.display !== 'none' && style.visibility !== 'hidden' &&
+          style.visibility !== 'collapse' && Number(style.opacity) !== 0 &&
+          rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 &&
+          rect.top < innerHeight && rect.left < innerWidth;
+        // Native child webviews do not obey HTML ancestor clipping. If a renderer
+        // route, drawer, tab, or page hides any ancestor, explicitly take the native
+        // surface out of the hit-test area as well.
+        for (let ancestor = this.parentElement; visible && ancestor; ancestor = ancestor.parentElement) {
+          const ancestorStyle = getComputedStyle(ancestor);
+          if (ancestor.hidden || ancestorStyle.display === 'none' ||
+              ancestorStyle.visibility === 'hidden' || ancestorStyle.visibility === 'collapse' ||
+              Number(ancestorStyle.opacity) === 0) visible = false;
+        }
         try {
-          if (!visible) { await this.nativeView.hide(); return; }
-          // Keep the native surface aligned to the custom element's actual CSS box.
-          // The native child sits above the parent webview, so stale/zero geometry can
-          // cover the app bar or leave an apparently transparent blank surface.
+          if (!visible) {
+            // Move away before hiding: some desktop WebView implementations leave a
+            // transparent hit-test surface for a frame when hide() is asynchronous.
+            await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)).catch(() => {});
+            await this.nativeView.setSize(new tauri.dpi.LogicalSize(1, 1)).catch(() => {});
+            await this.nativeView.hide();
+            return;
+          }
           await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(rect.left, rect.top));
           await this.nativeView.setSize(new tauri.dpi.LogicalSize(rect.width, rect.height));
           await this.nativeView.show();
@@ -481,8 +506,23 @@
           }
           this.dispatchEvent(new Event('dom-ready'));
           this.nativeView.once('tauri://error', event => {
-            dispatchCompatEvent(this, 'did-fail-load', { ...(event.payload || {}), isMainFrame: true });
-            this.nativeView?.hide().catch(() => {});
+            const failure = event?.payload || {};
+            console.error('Native Schoology webview failed:', failure);
+            dispatchCompatEvent(this, 'did-fail-load', { ...failure, isMainFrame: true, errorDescription: failure.message || failure.error || 'The embedded Schoology page failed to load.' });
+            // A failed native surface can still sit above and intercept pointer
+            // events even when it paints nothing. Detach it instead of leaving a
+            // blank overlay on top of the application.
+            const failedView = this.nativeView;
+            const failedLabel = this._label;
+            this.nativeView = null;
+            void (async () => {
+              let closed = false;
+              if (failedLabel) {
+                try { closed = (await invoke('close-embedded-webview', { label: failedLabel })) === true; }
+                catch (closeError) { console.warn('Could not detach failed Schoology webview:', closeError); }
+              }
+              if (!closed && failedView) { try { await failedView.close(); } catch (_) {} }
+            })();
           }).catch(() => {});
           this.nativeView.onNavigation(url => {
             const nextUrl = String(url || this._url);

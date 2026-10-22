@@ -1,5 +1,22 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.203]
+
+### Fixed
+- Grant the standalone updater the event-listener permission required to receive update progress events.
+- Keep macOS window controls visible over splash/login content, remove the artificial top offset, and synchronize controls with pushed-drawer layouts while hiding them over an overlay drawer.
+- Quit Schoology before replacing the installed macOS application bundle during DMG updates.
+- Preserve course names in the app bar while switching course tabs and show the course-update action when posting permission is available.
+- Resolve PDF.js worker and auxiliary assets from the local renderer script rather than Schoology's remote document base URL, and show the standard loading spinner while opening a PDF.
+- Use the shared people dialog for like/comment counts and hydrate profile photos through the authenticated media loader.
+- Preserve original Office-file URLs for downloads and use converted PDF URLs for viewing course materials.
+- Serialize shared native-webview bounds updates and limit layout observation to the app surface to avoid overlapping position/visibility operations.
+- Use the 1500px pushed-drawer breakpoint and calculate toolbar spacing from the measured native window-control width.
+
+### Changed
+- Bump the port version to 2026.06.0-port.203.
+
+
 ## [2026.06.0-port.202]
 
 ### Fixed

@@ -217,15 +217,17 @@
       if (!button) return;
       event.preventDefault(); event.stopPropagation();
       const action = button.dataset.windowAction;
-      if (action === 'minimize') await invoke('window-minimize');
-      if (action === 'maximize') {
-        await invoke('window-toggle-maximize');
-        const maximized = await invoke('window-is-maximized').catch(() => false);
-        button.dataset.maximized = String(maximized);
-        button.setAttribute('aria-label', maximized ? 'Restore' : 'Maximize');
-        button.title = maximized ? 'Restore' : 'Maximize';
-      }
-      if (action === 'close') await invoke('window-close');
+      try {
+        if (action === 'minimize') await invoke('window-minimize');
+        if (action === 'maximize') {
+          await invoke('window-toggle-maximize');
+          const maximized = await invoke('window-is-maximized').catch(() => false);
+          button.dataset.maximized = String(maximized);
+          button.setAttribute('aria-label', maximized ? 'Restore' : 'Maximize');
+          button.title = maximized ? 'Restore' : 'Maximize';
+        }
+        if (action === 'close') await invoke('window-close');
+      } catch (error) { console.warn('Window-control action failed:', action, error); }
     });
     controls.addEventListener('dblclick', event => {
       if (event.target.closest('button')) return;
@@ -235,7 +237,15 @@
     const overlayStyle = document.createElement('style');
     overlayStyle.textContent = 'html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important;column-gap:0!important;padding:0!important;overflow:hidden!important;box-sizing:border-box!important}html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:auto!important;min-width:0!important;max-width:none!important;height:56px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;justify-content:flex-end!important}';
     document.head.appendChild(overlayStyle);
-    const updateControlWidth = () => { const width = controls.getBoundingClientRect().width; if (width > 0) document.documentElement.style.setProperty('--tauri-window-controls-width', `${Math.ceil(width)}px`); };
+    const updateControlWidth = () => {
+      const width = controls.getBoundingClientRect().width;
+      if (width > 0) document.documentElement.style.setProperty('--tauri-window-controls-width', `${Math.ceil(width)}px`);
+      const toolbar = document.querySelector('.shell > .toolbar');
+      if (toolbar) {
+        const background = getComputedStyle(toolbar).backgroundColor;
+        if (background && background !== 'rgba(0, 0, 0, 0)') document.documentElement.style.setProperty('--tauri-window-controls-bg', background);
+      }
+    };
     updateControlWidth();
     if (typeof ResizeObserver !== 'undefined') { const observer = new ResizeObserver(updateControlWidth); observer.observe(controls); }
     window.addEventListener('resize', updateControlWidth);
@@ -336,6 +346,8 @@
         this._parentObserver = null;
         this._mutationObserver = null;
         this._syncFrame = 0;
+        this._boundsSyncRunning = false;
+        this._boundsSyncAgain = false;
         this._syncHandler = () => {
           if (this._syncFrame) return;
           this._syncFrame = requestAnimationFrame(() => { this._syncFrame = 0; void this._syncBounds(); });
@@ -383,7 +395,7 @@
         this._observer.observe(this);
         this._observeLayoutAncestors();
         this._mutationObserver = new MutationObserver(this._syncHandler);
-        this._mutationObserver.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
+        this._mutationObserver.observe(document.getElementById('app') || document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class','style','hidden','aria-hidden'] });
         window.addEventListener('scroll', this._syncHandler, true);
         window.addEventListener('resize', this._syncHandler);
         window.addEventListener('schoology-clear-web-session', this._clearSessionHandler);
@@ -433,6 +445,12 @@
         }
       }
       async _syncBounds() {
+        if (this._boundsSyncRunning) { this._boundsSyncAgain = true; return; }
+        this._boundsSyncRunning = true;
+        try { do { this._boundsSyncAgain = false; await this._syncBoundsOnce(); } while (this._boundsSyncAgain && this.isConnected && this.nativeView); }
+        finally { this._boundsSyncRunning = false; }
+      }
+      async _syncBoundsOnce() {
         if (!this.nativeView || !this.isConnected) return;
         const rect = this.getBoundingClientRect();
         const style = getComputedStyle(this);

@@ -2353,7 +2353,7 @@ html[data-window-controls-overlay="true"] .toolbar::after{content:""!important;g
 
 /* v181: native Windows caption glyph font and macOS left-side overlay layout. */
 html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
-html[data-electron-platform=darwin] #tauriWindowControls{top:28px!important;left:0!important;right:auto!important;z-index:20!important;width:138px!important;height:56px!important}
+html[data-electron-platform=darwin] #tauriWindowControls{top:0!important;left:0!important;right:auto!important;z-index:2147483647!important;width:138px!important;height:56px!important}
 html[data-electron-platform=darwin] .shell>.toolbar{padding-left:138px!important}
 html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
 html[data-electron-platform=darwin] #drawer{z-index:40!important}
@@ -2431,7 +2431,7 @@ html,body,#app,.shell{box-shadow:none!important}
 .sectionProfilePage .sectionProfileHeader,.sectionProfilePage .sectionProfileTabs,.groupProfilePage .groupHeader,.groupProfilePage .groupTabs,.schoolProfilePage .schoolProfileHeader,.schoolProfilePage .schoolProfileTabs{flex:0 0 auto}
 .sectionProfilePage #sectionProfileContent,.groupProfilePage #groupTabContent,.schoolProfilePage #schoolProfileTabContent{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
 }
-@media (min-width:1501px){
+@media (min-width:1500px){
 .shell:has(>.drawer.open){display:grid;grid-template-columns:340px minmax(0,1fr)}
 .shell:has(>.drawer.open) .drawer{position:relative!important;inset:auto!important;transform:none!important;width:340px!important;grid-column:1;grid-row:1 / span 2}
 .shell:has(>.drawer.open) .drawerShade{display:none!important}
@@ -2589,3 +2589,24 @@ html,body,#app,.shell{box-shadow:none!important}
 .dashboardHybrid>schoology-webview{pointer-events:auto}
 .embeddedPage[hidden]>schoology-webview,
 .dashboardHybrid[hidden]>schoology-webview{display:none!important}
+
+
+/* v203: native window controls stay above splash/login and track pushed-drawer layouts. */
+html[data-window-controls-overlay="true"] #tauriWindowControls{z-index:2147483647!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] #tauriWindowControls{top:0!important;height:56px!important}
+@media(max-width:1499px){body:has(.shell>.drawer.open) #tauriWindowControls{display:none!important}}
+@media(min-width:1500px){body:has(.shell>.drawer.open) #tauriWindowControls{left:340px!important}}
+html[data-window-controls-overlay="true"] .toolbar{grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important}
+html[data-window-controls-overlay="true"] .toolbar::after{width:var(--tauri-window-controls-width,138px)!important}
+html[data-electron-platform=darwin] .shell>.toolbar{padding-left:var(--tauri-window-controls-width,138px)!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar{grid-template-columns:var(--tauri-window-controls-width,138px) 44px minmax(0,1fr) auto!important;padding:0!important}
+html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important}
+.peopleListDialogOverlay,.pdfAttachmentOptionsOverlay{opacity:0;transition:opacity .16s ease-out}
+.peopleListDialogOverlay.open,.pdfAttachmentOptionsOverlay.open{opacity:1}
+.peopleListDialog,.pdfAttachmentOptions{transform:translateY(8px) scale(.98);transition:transform .16s ease-out}
+.peopleListDialogOverlay.open .peopleListDialog,.pdfAttachmentOptionsOverlay.open .pdfAttachmentOptions{transform:translateY(0) scale(1)}
+#createPostDialog,.assignmentCommentDialogOverlay,.submissionComposerOverlay,.messageComposerOverlay,.messageComposeOverlay{animation:schoologyDialogFadeIn .16s ease-out}
+#createPostDialog .androidCreatePostDialog,.assignmentCommentDialogOverlay .assignmentCommentDialog,.submissionComposerOverlay .submissionComposer,.messageComposerOverlay>*,.messageComposeOverlay>*{animation:schoologyDialogRiseIn .18s ease-out}
+@keyframes schoologyDialogFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes schoologyDialogRiseIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+:root[data-reduced-motion="true"] .peopleListDialogOverlay,:root[data-reduced-motion="true"] .pdfAttachmentOptionsOverlay,:root[data-reduced-motion="true"] #createPostDialog,:root[data-reduced-motion="true"] .assignmentCommentDialogOverlay,:root[data-reduced-motion="true"] .submissionComposerOverlay,:root[data-reduced-motion="true"] .messageComposerOverlay,:root[data-reduced-motion="true"] .messageComposeOverlay,:root[data-reduced-motion="true"] .peopleListDialog,:root[data-reduced-motion="true"] .pdfAttachmentOptions,:root[data-reduced-motion="true"] #createPostDialog .androidCreatePostDialog,:root[data-reduced-motion="true"] .assignmentCommentDialogOverlay .assignmentCommentDialog,:root[data-reduced-motion="true"] .submissionComposerOverlay .submissionComposer{animation:none!important;transition:none!important}

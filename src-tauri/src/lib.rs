@@ -1009,6 +1009,23 @@ rm -rf "$STAGED"
 ditto --rsrc --extattr "$APP" "$STAGED"
 hdiutil detach "$MOUNT" -force
 MOUNTED=0
+# Close Schoology before replacing its installed bundle.
+osascript -e 'tell application "Schoology" to quit' >/dev/null 2>&1 || true
+for i in {{1..100}}; do
+  if ! pgrep -x "Schoology" >/dev/null 2>&1; then break; fi
+  sleep .2
+done
+if pgrep -x "Schoology" >/dev/null 2>&1; then
+  pkill -TERM -x "Schoology" >/dev/null 2>&1 || true
+  for i in {{1..25}}; do
+    if ! pgrep -x "Schoology" >/dev/null 2>&1; then break; fi
+    sleep .2
+  done
+fi
+if pgrep -x "Schoology" >/dev/null 2>&1; then
+  echo 'Schoology is still running; refusing to replace its application bundle.'
+  exit 1
+fi
 BACKUP={backup}
 if [ -e "$TARGET" ]; then mv "$TARGET" "$BACKUP"; fi
 if mv "$STAGED" "$TARGET"; then rm -rf "$BACKUP"; else [ ! -e "$BACKUP" ] || mv "$BACKUP" "$TARGET"; exit 1; fi

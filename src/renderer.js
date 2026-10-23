@@ -1142,40 +1142,21 @@ async function openSharedPdfViewer(info){
    const assetRoot=pdfjsAssetRoot==='./pdfjs/'?'./pdfjs/':'../node_modules/pdfjs-dist/';
    const pdf=await pdfjs.getDocument({data:bytes,cMapUrl:localAssetUrl(assetRoot+'cmaps/'),cMapPacked:true,standardFontDataUrl:localAssetUrl(assetRoot+'standard_fonts/'),wasmUrl:localAssetUrl(assetRoot+'wasm/')}).promise;
    const pages=root.querySelector('.sharedPdfViewerPages');if(!pages)return;pages.innerHTML='';
-   for(let number=1;number<=pdf.numPages;number++){
-     const page=await pdf.getPage(number),natural=page.getViewport({scale:1}),width=Math.max(280,pages.clientWidth-24),scale=Math.min(1.6,width/natural.width),viewport=page.getViewport({scale});
-     const dpr=Math.min(2,window.devicePixelRatio||1),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-     canvas.width=Math.floor(viewport.width*dpr);canvas.height=Math.floor(viewport.height*dpr);canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';canvas.dataset.baseWidth=String(viewport.width);canvas.dataset.baseHeight=String(viewport.height);canvas.setAttribute('aria-label','PDF page '+number);
-     const pageWrap=document.createElement('div');pageWrap.className='sharedPdfPage';pageWrap.appendChild(canvas);pages.appendChild(pageWrap);
-     await page.render({canvasContext:ctx,viewport,transform:dpr===1?null:[dpr,0,0,dpr,0,0]}).promise;
-   }
-   // Keep pinch zoom available in the built-in viewer even though app-wide browser zoom is disabled.
-   const pinch={startDistance:0,startZoom:1,zoom:1};
-   const touchDistance=touches=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
-   pages.style.touchAction='pan-x pan-y';
-   pages.addEventListener('touchstart',event=>{if(event.touches.length===2){pinch.startDistance=touchDistance(event.touches);pinch.startZoom=pinch.zoom}},{passive:true});
-   pages.addEventListener('touchmove',event=>{
-     if(event.touches.length!==2||!pinch.startDistance)return;
-     event.preventDefault();
-     pinch.zoom=Math.min(4,Math.max(1,pinch.startZoom*touchDistance(event.touches)/pinch.startDistance));
-     pages.querySelectorAll('.sharedPdfPage canvas').forEach(canvas=>{
-       const width=Number(canvas.dataset.baseWidth)||canvas.width,height=Number(canvas.dataset.baseHeight)||canvas.height;
-       canvas.style.width=(width*pinch.zoom)+'px';canvas.style.height=(height*pinch.zoom)+'px';
-       canvas.style.maxWidth=pinch.zoom>1?'none':'100%';
-     });
-   },{passive:false});
-   pages.addEventListener('touchend',event=>{if(event.touches.length<2)pinch.startDistance=0},{passive:true});
-   // Chromium reports trackpad pinch gestures as ctrl+wheel; preserve normal wheel scrolling.
-   pages.addEventListener('wheel',event=>{
-     if(!event.ctrlKey)return;
-     event.preventDefault();
-     pinch.zoom=Math.min(4,Math.max(1,pinch.zoom*Math.exp(-event.deltaY*0.01)));
-     pages.querySelectorAll('.sharedPdfPage canvas').forEach(canvas=>{
-       const width=Number(canvas.dataset.baseWidth)||canvas.width,height=Number(canvas.dataset.baseHeight)||canvas.height;
-       canvas.style.width=(width*pinch.zoom)+'px';canvas.style.height=(height*pinch.zoom)+'px';
-       canvas.style.maxWidth=pinch.zoom>1?'none':'100%';
-     });
-   },{passive:false});
+   const pinch={startDistance:0,startZoom:1,zoom:1},baseScales=new Map(),renderTasks=new Map();let renderGeneration=0,renderFrame=0;
+   const touchDistance=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+   const renderAtZoom=async()=>{const gen=++renderGeneration;for(const task of renderTasks.values()){try{task.cancel()}catch{}}renderTasks.clear();pages.innerHTML='';
+     for(let number=1;number<=pdf.numPages;number++){if(gen!==renderGeneration)return;const page=await pdf.getPage(number),natural=page.getViewport({scale:1}),fit=Math.max(280,pages.clientWidth-24),base=baseScales.get(number)||Math.min(1.6,fit/natural.width);baseScales.set(number,base);
+       const viewport=page.getViewport({scale:base*pinch.zoom}),dpr=Math.min(3,window.devicePixelRatio||1),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{alpha:false});
+       canvas.width=Math.max(1,Math.floor(viewport.width*dpr));canvas.height=Math.max(1,Math.floor(viewport.height*dpr));canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';canvas.setAttribute('aria-label','PDF page '+number);
+       const wrap=document.createElement('div');wrap.className='sharedPdfPage';wrap.appendChild(canvas);pages.appendChild(wrap);const task=page.render({canvasContext:ctx,viewport,transform:dpr===1?null:[dpr,0,0,dpr,0,0]});renderTasks.set(number,task);
+       try{await task.promise}catch(error){if(error?.name!=='RenderingCancelledException')throw error}if(gen!==renderGeneration)return;
+     }};
+   const scheduleRender=()=>{if(renderFrame)return;renderFrame=requestAnimationFrame(()=>{renderFrame=0;renderAtZoom().catch(error=>{const p=root.querySelector('.sharedPdfViewerPages');if(p)p.innerHTML='<div class="sharedPdfViewerError"><b>Unable to render PDF</b><p>'+esc(error?.message||String(error))+'</p></div>'})})};
+   pages.style.touchAction='pan-x pan-y';pages.addEventListener('touchstart',e=>{if(e.touches.length===2){pinch.startDistance=touchDistance(e.touches);pinch.startZoom=pinch.zoom}},{passive:true});
+   pages.addEventListener('touchmove',e=>{if(e.touches.length!==2||!pinch.startDistance)return;e.preventDefault();pinch.zoom=Math.min(4,Math.max(.5,pinch.startZoom*touchDistance(e.touches)/pinch.startDistance));scheduleRender()},{passive:false});
+   pages.addEventListener('touchend',e=>{if(e.touches.length<2)pinch.startDistance=0},{passive:true});
+   pages.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();pinch.zoom=Math.min(4,Math.max(.5,pinch.zoom*Math.exp(-e.deltaY*.01)));scheduleRender()},{passive:false,capture:true});
+   await renderAtZoom();
  }catch(error){const pages=root.querySelector('.sharedPdfViewerPages');if(pages)pages.innerHTML='<div class="sharedPdfViewerError"><b>Unable to view this PDF</b><p>'+esc(error?.message||String(error))+'</p><button type="button" data-pdf-viewer-back>Back</button></div>';root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close)}
 }
 function renderAttachments(a,submissionContext=null){
@@ -1183,10 +1164,12 @@ function renderAttachments(a,submissionContext=null){
   const out=[];
   const addFile=(f)=>{
     const viewUrl=f?.file_converted_download_url||f?.fileConvertedDownloadURL||f?.converted_download_path||f?.convertedDownloadPath||'';
-    const url=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url||f?.url||viewUrl;
+    const originalUrl=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url||f?.url||'';
+    const title=(f.filename||f.fileName||f.file_title||f.fileTitle||f.title||'File').trim();
+    const officeFile=/\.(?:docx?|pptx?|xlsx?)$/i.test(title);
+    const url=originalUrl||(officeFile?'':viewUrl);
     if(!url)return;
-    const title=(f.title||f.fileTitle||f.filename||f.fileName||'File').trim();
-    const mime=f.filemime||f.fileMIME||f.converted_filemime||f.convertedFileMime||'application/octet-stream';
+    const mime=f.filemime||f.fileMIME||'application/octet-stream';
     const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
     out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-pdf-view-url="${esc(viewUrl)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon">${officialOrAssetIcon(mimeIconForFilename(title,mime),'')}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon">${officialOrAssetIcon('ic_action_download.png','')}</span></button>`);
     if (submissionContext?.allowAnnotation && f?.id && (String(mime).toLowerCase().includes('pdf') || /\.pdf$/i.test(title))) {
@@ -1630,7 +1613,7 @@ function dialogPersonId(person){
  const nested=person?.user||person?.author||person?.creator||person?.profile_info||person?.profile||{};
  const linked=person?.links?.user?.href||person?.links?.creator?.href||person?.links?.author?.href||'';
  const linkedId=String(linked).match(/(?:users|user)\/(\d+)/i)?.[1];
- return Number(person?.uid??person?.user_id??person?.userId??person?.author_user_id??person?.authorUserId??person?.creator_user_id??person?.creatorUserId??person?.commenter_id??person?.commenterId??person?.creater_id??person?.creator_id??person?.created_by??person?.createdBy??person?.author_id??person?.authorId??person?.user?.id??person?.author?.id??person?.creator?.id??nested?.uid??nested?.user_id??nested?.userId??nested?.author_id??nested?.id??linkedId??person?.id??0);
+ return Number(person?.uid??person?.user_id??person?.userId??person?.author_user_id??person?.authorUserId??person?.creator_user_id??person?.creatorUserId??person?.commenter_id??person?.commenterId??person?.creater_id??person?.creator_id??person?.created_by??person?.createdBy??person?.author_id??person?.authorId??person?.user?.id??person?.author?.id??person?.creator?.id??nested?.uid??nested?.user_id??nested?.userId??nested?.author_id??nested?.id??linkedId??((person?.id&&(person?.name_display||person?.display_name||person?.name||person?.picture_url||person?.avatar_url))?person.id:0));
 }
 function dialogPersonName(person,profile={}){
  const nested=person?.user||person?.author||person?.creator||person?.profile_info||person?.profile||{};
@@ -1653,8 +1636,8 @@ async function hydrateDialogPeople(records){
    if(name!=='Schoology user'&&avatar)return;
    try{
      const response=await A.api({path:'users/'+id,params:{picture_size:'sm'}});
-     const candidates=[response?.user,response?.data?.user,response?.users?.user,response?.data?.users?.user,response?.data?.data?.user,response?.data?.profile,response?.profile,response?.data,response];
-     profiles[id]=candidates.find(value=>value&&typeof value==='object'&&!Array.isArray(value)&&(value.name_display||value.nameDisplay||value.display_name||value.displayName||value.full_name||value.fullName||value.name||value.picture_url||value.pictureUrl||value.picture||value.avatar_url||value.avatarUrl||value.profile_info||value.profile))||{};
+     const candidates=[response?.user,response?.data?.user,response?.users?.user,response?.data?.users?.user,response?.data?.data?.user,response?.data?.profile,response?.profile,response?.data?.data?.profile,response?.data?.data,response?.data,response];
+     profiles[id]=candidates.find(value=>value&&typeof value==='object'&&!Array.isArray(value)&&(value.name_display||value.nameDisplay||value.display_name||value.displayName||value.full_name||value.fullName||value.name||value.picture_url||value.pictureUrl||value.picture||value.avatar_url||value.avatarUrl||value.photo_url||value.photoUrl||value.avatar||value.profile_info||value.profile||value.user))||{};
    }catch{}
  }));
  return rows.map(person=>({person,profile:profiles[dialogPersonId(person)]||{},id:dialogPersonId(person)}));

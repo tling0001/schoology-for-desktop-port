@@ -11,22 +11,7 @@
   <main>
     <h1 id="title">Schoology</h1>
     <p id="status" aria-live="polite">Preparing update…</p>
-    <section class="step" id="sevenDownload" hidden>
-      <div class="row"><strong>Download 7-Zip</strong><span class="state">Waiting</span></div>
-      <div class="track"><div class="bar"></div></div>
-    </section>
-    <section class="step" id="sevenInstall" hidden>
-      <div class="row"><strong>Install 7-Zip</strong><span class="state">Waiting</span></div>
-      <div class="track"><div class="bar"></div></div>
-    </section>
-    <section class="step" id="schoologyDownload" hidden>
-      <div class="row"><strong>Download Schoology</strong><span class="state">Waiting</span></div>
-      <div class="track"><div class="bar"></div></div>
-    </section>
-    <section class="step" id="install" hidden>
-      <div class="row"><strong>Install Schoology</strong><span class="state">Waiting</span></div>
-      <div class="track"><div class="bar"></div></div>
-    </section>
+    <section class="step" id="activeStep" hidden><div class="row"><strong id="stageTitle">Preparing update</strong><span class="state" id="stageState">Waiting</span></div><div class="track"><div class="bar" id="stageBar"></div></div></section>
     <p id="foot">Please keep this window open.</p>
     <div class="actions"><button id="cancel">Cancel</button></div>
   </main>

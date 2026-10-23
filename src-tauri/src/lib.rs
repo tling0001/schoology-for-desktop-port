@@ -604,10 +604,16 @@ async fn download_schoology_file(app: &AppHandle, state: &HostState, info: &Valu
     let suggested = info.get("filename").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_owned)
         .or(response_filename).unwrap_or_else(|| url.path_segments().and_then(|s| s.last()).unwrap_or("Schoology-file").to_owned());
     let filename = safe_filename(&suggested);
-    let mut dir = app.path().app_cache_dir().map_err(|e| e.to_string())?; dir.push("Schoology"); fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let unique = format!("{}-{}", epoch(), filename); let target = dir.join(unique);
+    let dir=if cfg!(target_os="ios"){let mut d=app.path().document_dir().map_err(|e|e.to_string())?;d.push("Downloads");d}else{app.path().download_dir().or_else(|_|app.path().document_dir()).map_err(|e|e.to_string())?};fs::create_dir_all(&dir).map_err(|e|format!("Could not create Downloads folder: {e}"))?;let mut target=dir.join(&filename);if target.exists(){let path=Path::new(&filename);let stem=path.file_stem().and_then(|s|s.to_str()).unwrap_or("Schoology-file");let ext=path.extension().and_then(|s|s.to_str()).map(|s|format!(".{s}")).unwrap_or_default();let mut n=2_u32;loop{let candidate=dir.join(format!("{stem} ({n}){ext}"));if !candidate.exists(){target=candidate;break}n+=1}}
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-    if bytes.starts_with(b"<!doctype html") || bytes.starts_with(b"<html") { return Err("Schoology returned an HTML page instead of the requested file.".into()); }
+    let prefix=String::from_utf8_lossy(&bytes[..bytes.len().min(256)]).trim_start().to_ascii_lowercase();
+    if prefix.starts_with("<!doctype html") || prefix.starts_with("<html") || response_mime.as_deref().is_some_and(|m|m.eq_ignore_ascii_case("text/html")) {
+        return Err("Schoology returned an HTML/preview page instead of the original file. The invalid download was not saved.".into());
+    }
+    let extension=Path::new(&filename).extension().and_then(|x|x.to_str()).unwrap_or("").to_ascii_lowercase();
+    if matches!(extension.as_str(),"docx"|"pptx"|"xlsx") && !bytes.starts_with(b"PK\x03\x04") {
+        return Err(format!("Schoology did not return a valid original .{extension} Office document. The invalid download was not saved."));
+    }
     tokio::fs::write(&target, &bytes).await.map_err(|e| e.to_string())?;
     let progress_id = info.get("progressId").and_then(Value::as_str).unwrap_or("");
     let _ = app.emit("file-download-progress", json!({"id":progress_id,"received":bytes.len(),"total":bytes.len(),"done":true}));

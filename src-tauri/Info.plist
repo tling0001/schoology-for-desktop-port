@@ -6,5 +6,9 @@
     <string>Schoology uses the camera when you choose to scan a QR code or use a camera feature.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Schoology needs photo library access only when you choose a photo or image to upload.</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
 </dict>
 </plist>

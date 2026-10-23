@@ -8,16 +8,11 @@
   let finished=false;
   function setStep(data){
     if(data.status)status.textContent=data.status;
-    const row=document.getElementById(data.id);
-    if(row){
-      row.hidden=false;
-      row.classList.toggle('done',data.state==='done');
-      row.classList.toggle('indeterminate',data.state==='indeterminate');
-      row.classList.toggle('error',data.state==='error');
-      const label=row.querySelector('.state');
-      const bar=row.querySelector('.bar');
-      if(label)label.textContent=data.text||'';
-      if(bar&&data.percent!=null)bar.style.width=Math.max(0,Math.min(100,data.percent))+'%';
+    const row=document.getElementById('activeStep'),titles={sevenDownload:'Download 7-Zip',sevenInstall:'Prepare 7-Zip',schoologyDownload:'Download Schoology',install:'Install Schoology'};
+    if(row){row.hidden=false;row.classList.toggle('done',data.state==='done');row.classList.toggle('indeterminate',data.state==='indeterminate');row.classList.toggle('error',data.state==='error');
+      const title=document.getElementById('stageTitle'),label=document.getElementById('stageState'),bar=document.getElementById('stageBar');
+      if(title)title.textContent=titles[data.id]||'Update';if(label)label.textContent=data.text||'';
+      if(bar){bar.style.width=data.percent==null?'0%':Math.max(0,Math.min(100,data.percent))+'%';bar.parentElement.classList.toggle('indeterminate',data.state==='indeterminate');}
     }
     if(data.state==='error'){
       finished=true;

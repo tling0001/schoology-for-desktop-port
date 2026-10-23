@@ -1,5 +1,21 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.208]
+
+### Fixed
+- Center the Schoology logo independently on both splash screens and place the loading spinner below it; match the native window background to the splash.
+- Make the New Event dialog fullscreen on narrow/short displays and apply iOS safe-area insets.
+- Rerender PDF pages at the requested zoom and device-pixel ratio instead of stretching the original bitmap; support horizontal scrolling and trackpad pinch gestures.
+- Fix comment author ID resolution so comment IDs are not mistaken for user IDs; accept additional nested profile response shapes.
+- Apply dark-theme surfaces to people/comment dialogs and assignment submission panes.
+- Save downloaded files in Downloads, with an app Documents/Downloads location on iOS, Files-app sharing enabled, and collision-safe filenames.
+- Keep Office downloads on original file URLs (never converted previews) and reject HTML or invalid ZIP-based DOCX/PPTX/XLSX payloads rather than saving corrupted documents.
+- Show one updater progress stage at a time and omit 7-Zip stages when an extractor is already installed.
+- Add a context menu inside native child webviews for navigation, reload, copy, select-all, and open-link actions.
+
+### Requires device validation
+- Verify DOCX/PPTX downloads against real Schoology files and confirm iOS Files visibility and embedded-webview behavior.
+
 ## [2026.06.0-port.207]
 
 ### Fixed

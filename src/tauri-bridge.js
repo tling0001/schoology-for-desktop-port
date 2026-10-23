@@ -201,12 +201,12 @@
   const installWindowControls = async () => {
     let mode;
     try { mode = await invoke('get-window-chrome-mode'); } catch (_) { return; }
-    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios' && platform !== 'darwin';
+    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios';
     document.documentElement.dataset.windowControlsOverlay = String(overlayEnabled);
     if (platform === 'darwin') {
       const syncNativeMacControls = () => {
         const drawerOpen = !!document.getElementById('drawer')?.classList.contains('open');
-        invoke('set-macos-window-controls-visible', { visible: !drawerOpen }).catch(error => console.warn('Could not synchronize native macOS window controls:', error));
+        invoke('set-macos-window-controls-visible', { visible: !(overlayEnabled && drawerOpen) }).catch(error => console.warn('Could not synchronize native macOS window controls:', error));
       };
       syncNativeMacControls();
       const drawerObserver = new MutationObserver(syncNativeMacControls);
@@ -249,7 +249,7 @@
     });
     document.body.appendChild(controls);
     const overlayStyle = document.createElement('style');
-    overlayStyle.textContent = 'html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important;column-gap:0!important;padding:0!important;overflow:hidden!important;box-sizing:border-box!important}html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:auto!important;min-width:0!important;max-width:none!important;height:56px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;justify-content:flex-end!important}';
+    overlayStyle.textContent = platform === 'darwin' ? 'html[data-window-controls-overlay="true"] .shell>.toolbar{padding-left:82px!important;box-sizing:border-box!important}html[data-window-controls-overlay="true"] .shell>.toolbar>.toolbarActionSlot{margin-left:auto!important}' : 'html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important;column-gap:0!important;padding:0!important;overflow:hidden!important;box-sizing:border-box!important}html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:auto!important;min-width:0!important;max-width:none!important;height:56px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;justify-content:flex-end!important}';
     document.head.appendChild(overlayStyle);
     const updateControlWidth = () => {
       const width = controls.getBoundingClientRect().width;

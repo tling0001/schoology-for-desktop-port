@@ -44,7 +44,7 @@ document.addEventListener('click',async event=>{
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
 function showUpdateDialog(u){
-  const iosInstall=A.platform==='ios';
+  const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios';
   showAppDialog('Update available',`Schoology Desktop Port ${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{
     if(iosInstall){
       try{await A.installUpdate(u);showAppDialog('Installing update','App installation will start after closing Schoology or going to your Home Screen.')}
@@ -122,12 +122,16 @@ function watchBackIconPlaceholders(){
  backIconRepairObserver.observe(app,{subtree:true,childList:true,characterData:true});
 }
 function syncIosStatusBarInset(){
- const enabled=A.platform==='ios'&&state.screen==='app'&&!!app.querySelector('.shell');
- document.documentElement.classList.toggle('iosAppSafeArea',enabled);
+ const platform=A.platform||document.documentElement.dataset.electronPlatform||'';
+ const enabled=(platform==='ios'||platform==='android')&&state.screen==='app'&&!!app.querySelector('.shell');
+ const ios=enabled&&platform==='ios',android=enabled&&platform==='android';
+ document.documentElement.classList.toggle('iosAppSafeArea',ios);
+ document.documentElement.classList.toggle('androidAppSafeArea',android);
  app.querySelector('.iosStatusBarInset')?.remove();
- if(enabled){
+ app.querySelector('.androidStatusBarInset')?.remove();
+ if(ios||android){
    const inset=document.createElement('div');
-   inset.className='iosStatusBarInset';
+   inset.className=ios?'iosStatusBarInset':'androidStatusBarInset';
    inset.setAttribute('aria-hidden','true');
    app.prepend(inset);
  }
@@ -2050,13 +2054,20 @@ async function openSchoolProfile(schoolId,title='School'){
 }
 
 function openGroupUpdateComposer(groupId){
+  if(!state.groupCanPostUpdates||!groupId)return;
   document.getElementById('groupUpdateComposer')?.remove();
-  const wrap=document.createElement('div');wrap.id='groupUpdateComposer';wrap.className='courseUpdateComposer';
-  wrap.innerHTML='<div class="courseUpdateComposerInner"><h2>Post Update</h2><textarea id="groupUpdateBody" placeholder="Write an update…"></textarea><div><button id="cancelGroupUpdate">Cancel</button><button id="submitGroupUpdate" class="androidPrimary">Post</button></div></div>';
+  const wrap=document.createElement('div');wrap.id='groupUpdateComposer';wrap.className='assignmentCommentDialogOverlay';
+  const groupName=state.currentGroup?.name||state.currentGroup?.title||'Group';
+  wrap.innerHTML=`<section class="androidCreatePostDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button id="cancelGroupUpdate" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">Post Update</div><button id="submitGroupUpdate" class="androidDialogIcon" aria-label="Post">${officialIcon('ic_action_send_icon.png','Post')}</button></header><div class="androidCreatePostBody"><label class="androidFieldLabel">Post To</label><div class="androidPostToField">${esc(groupName)}</div><textarea id="groupUpdateBody" placeholder="Write an update…" rows="3"></textarea><div class="messageAttachmentChoices createPostAttachmentChoices"><button id="groupUpdateAttachFile" type="button">${officialOrAssetIcon('ic_action_ic_menu_folder.png','File')}File</button><button id="groupUpdateAttachResource" type="button">${officialOrAssetIcon('ic_attach_resourcesv3.png','')}Resources</button></div><div id="groupUpdateAttachmentList"></div><div id="groupUpdateStatus" class="androidCreatePostStatus"></div></div></section>`;
   document.body.appendChild(wrap);
-  wrap.querySelector('#cancelGroupUpdate')?.addEventListener('click',()=>wrap.remove());
-  wrap.querySelector('#submitGroupUpdate')?.addEventListener('click',async()=>{const body=wrap.querySelector('#groupUpdateBody')?.value.trim();if(!body)return;const button=wrap.querySelector('#submitGroupUpdate');button.disabled=true;try{await A.api({path:`groups/${groupId}/updates`,method:'POST',params:{body},signBody:true});wrap.remove();if(state.currentGroup)await showGroup(state.currentGroup,'updates')}catch(error){button.disabled=false;showAppDialog('Unable to post update',error?.message||String(error))}});
-  wrap.querySelector('#groupUpdateBody')?.focus();
+  const attachments={files:[],resources:[]};
+  const close=()=>wrap.remove();
+  wrap.querySelector('#cancelGroupUpdate')?.addEventListener('click',close);
+  wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  wrap.querySelector('#groupUpdateAttachFile')?.addEventListener('click',async()=>{try{const picked=await A.pickFile?.();if(!picked)return;const filePath=typeof picked==='string'?picked:(picked.path||picked.filePath);if(!filePath)throw new Error('The selected file has no local path.');const id=await A.uploadSchoologyFile({filePath,mime:typeof picked==='object'?picked.mime:''});attachments.files.push(String(id));const row=document.createElement('div');row.className='messageAttachedItem';row.textContent=(typeof picked==='object'&&(picked.name||picked.fileName))||filePath.split(/[\\/]/).pop();wrap.querySelector('#groupUpdateAttachmentList')?.appendChild(row)}catch(error){showAppDialog('Unable to attach file',error?.message||String(error))}});
+  wrap.querySelector('#groupUpdateAttachResource')?.addEventListener('click',async()=>{try{await chooseSchoologyResource(resource=>{const id=resource.template_id??resource.templateID??resource.resource_id??resource.resourceId??resource.template?.id??resource.id;if(id==null)throw new Error('This resource does not have a usable Schoology resource ID.');attachments.resources.push(String(id));const row=document.createElement('div');row.className='messageAttachedItem';row.textContent=resourceTitle(resource);wrap.querySelector('#groupUpdateAttachmentList')?.appendChild(row)},'Attach Resource')}catch(error){showAppDialog('Unable to attach resource',error?.message||String(error))}});
+  wrap.querySelector('#submitGroupUpdate')?.addEventListener('click',async()=>{const body=wrap.querySelector('#groupUpdateBody')?.value.trim(),button=wrap.querySelector('#submitGroupUpdate'),status=wrap.querySelector('#groupUpdateStatus');if(!body){status.textContent='Write an update before posting.';return}button.disabled=true;status.textContent='Posting…';try{const params={body};if(attachments.files.length)params['file-attachment']={id:attachments.files};if(attachments.resources.length)params.attachments=attachments.resources.map(resource=>({resource:Number(resource)}));await A.api({path:`groups/${groupId}/updates`,method:'POST',params,signBody:true});close();if(state.currentGroup)await showGroup(state.currentGroup,'updates')}catch(error){button.disabled=false;status.textContent='';showAppDialog('Unable to post update',error?.message||String(error))}});
+  requestAnimationFrame(()=>wrap.querySelector('#groupUpdateBody')?.focus());
 }
 async function showGroup(group,activeTab='updates'){
   if(!group)return;
@@ -2083,7 +2094,7 @@ async function showGroup(group,activeTab='updates'){
   document.querySelector('[data-group-school-id]')?.addEventListener('click',async e=>{const b=e.currentTarget;const id=Number(b?.dataset?.groupSchoolId);if(id)openSchoolProfile(id,b.textContent||'School')});
   const loadGroupUpcoming=async()=>{const up=document.getElementById('groupUpcomingContent');if(!up)return;try{const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));up.innerHTML=a.length?renderUpcoming(a):'<div class="empty upcomingEmpty"><h2>No upcoming events</h2></div>';up.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=a.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;if(String(e.type||'').toLowerCase()==='assignment'&&aid){openWithPressTransition(b,()=>showAssignment(gid,aid));}else if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(e.type||'').toLowerCase())){const id=aid??e.id;openWithPressTransition(b,async()=>{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true})})}else if(String(e.type||'').toLowerCase()==='event'&&e.id){openWithPressTransition(b,()=>showEventNative('groups',gid,e.id,e.title||'Event'));}})}catch(e){up.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}};
   const load=async(tab)=>{
-    state.groupTab=tab;document.querySelectorAll('[data-group-tab]').forEach(b=>b.classList.toggle('active',b.dataset.groupTab===tab));
+    state.groupTab=tab;document.querySelectorAll('[data-group-tab]').forEach(b=>b.classList.toggle('active',b.dataset.groupTab===tab));syncToolbar();
     gc.innerHTML='<div class="loading groupTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
     try{
       if(tab==='updates'){

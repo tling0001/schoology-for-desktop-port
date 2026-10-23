@@ -589,6 +589,11 @@
           await view.setSize(new tauri.dpi.LogicalSize(width,height));
           if (this._closingNativeView || !this.isConnected || this.nativeView !== view) { await view.hide().catch(()=>{}); return; }
           await view.show();
+          if (this._closingNativeView || !this.isConnected || this.nativeView !== view) {
+            await view.hide().catch(()=>{});
+            await view.setPosition(new tauri.dpi.LogicalPosition(-10000,-10000)).catch(()=>{});
+            await view.setSize(new tauri.dpi.LogicalSize(1,1)).catch(()=>{});
+          }
         }catch(error){console.warn('Could not synchronize Schoology embedded webview bounds:',error)}
       }
       async loadURL(url) {
@@ -651,6 +656,7 @@
             })();
           }).catch(() => {});
           this.nativeView.onNavigation(url => {
+            if (this._closingNativeView || !this.isConnected || !this.nativeView) return false;
             const nextUrl = String(url || this._url);
             let parsed = null;
             try { parsed = new URL(nextUrl); } catch (_) {}
@@ -686,6 +692,8 @@
             return true;
           }).catch(() => {});
           this._unlistenPageLoad = await this.nativeView.onPageLoad(async event => {
+            const currentView = this.nativeView;
+            if (this._closingNativeView || !this.isConnected || !currentView) return;
             const payload = event?.payload || event || {};
             let rawEvent = payload.event ?? payload.type ?? event?.event ?? '';
             if (rawEvent && typeof rawEvent === 'object') rawEvent = Object.keys(rawEvent)[0] || '';
@@ -700,9 +708,10 @@
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
               dispatchCompatEvent(this, 'did-navigate', { url: this._url, isMainFrame: true });
-              try { await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, null, this._label)); } catch (_) {}
+              try { await currentView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, null, this._label)); } catch (_) {}
               await this._syncBounds();
-              await this.nativeView.show().catch(() => {});
+              if (this._closingNativeView || !this.isConnected || this.nativeView !== currentView) { await currentView.hide().catch(() => {}); return; }
+              await currentView.show().catch(() => {});
             }
           });
           // Apply the measured box before exposing the native child surface. Calling

@@ -2633,3 +2633,7 @@ html.iosAppSafeArea .drawerShade{top:var(--ios-status-bar-height)!important}
 :root[data-theme="dark"] .peopleDialogPersonBody small,
 :root[data-theme="dark"] .peopleDialogEmpty{color:var(--theme-muted)!important}
 :root[data-theme="dark"] .peopleDialogAvatar{background:var(--theme-surface-raised)!important;color:var(--theme-text)!important}
+
+/* v206: remove the legacy macOS shell spacer for both native-titlebar modes. */
+/* The v73 28px spacer predates the current Tauri titlebar layout and leaves a strip in both overlay and normal titlebar mode. */
+html[data-electron-platform=darwin] .shell{padding-top:0!important}

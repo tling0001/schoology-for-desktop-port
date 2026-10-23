@@ -1,5 +1,13 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.206]
+
+### Fixed
+- Remove the obsolete macOS 28px shell spacer in both titlebar-overlay and normal-titlebar modes, preventing the white strip above the Schoology toolbar.
+
+### Changed
+- Bump the port version to 2026.06.0-port.206.
+
 ## [2026.06.0-port.205]
 
 ### Fixed
@@ -11,27 +19,6 @@
 
 ### Changed
 - Bump the port version to 2026.06.0-port.205.
-
-## [2026.06.0-port.205]
-
-### Fixed
-- Resolve comment authors and profile pictures in the shared post-comments dialog using the official comment creator ID and tolerate nested user/profile response shapes.
-- Apply explicit dark-theme surfaces, borders, text, and scrim to the shared Comments/Liked by dialog.
-- Locate Android Gradle release build types in both Groovy and Kotlin DSL generated files, while ignoring braces inside quoted strings and comments during block matching.
-
-### Changed
-- Bump the port version to 2026.06.0-port.205.
-
-## [2026.06.0-port.205]
-
-### Fixed
-- Resolve comment authors and profile pictures in the shared post-comments dialog using the official comment creator ID and tolerate nested user/profile response shapes.
-- Apply explicit dark-theme surfaces, borders, text, and scrim to the shared Comments/Liked by dialog.
-- Locate Android Gradle release build types in both Groovy and Kotlin DSL generated files, while ignoring braces inside quoted strings and comments during block matching.
-
-### Changed
-- Bump the port version to 2026.06.0-port.205.
-
 
 ## [2026.06.0-port.204]
 

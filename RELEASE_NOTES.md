@@ -1,5 +1,21 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.210]
+
+### Fixed
+- Restore group update creation using the official Schoology updates endpoint and permission checks.
+- Open update comments in a dialog with reply and like controls.
+- Normalize additional School Profile update response shapes.
+- Remove the HTML loading overlay from embedded Schoology webviews and strengthen native-view teardown.
+- Preview PDF pinch zoom smoothly and rerender at full resolution on release; support Ctrl/Cmd + and - and fit-to-width initial zoom.
+- Fix macOS updater asset detection and restore window-control overlay only when enabled.
+- Improve Ad Hoc manifest discovery across recent published releases.
+- Reuse a stable Ad Hoc profile name, include enabled iOS devices, and clean up superseded profiles after replacement.
+
+### Requires device validation
+- Verify native webview layering/input recovery, macOS traffic lights, PDF gestures, and enrollment builds on actual devices.
+
+
 ## [2026.06.0-port.209]
 
 ### Fixed

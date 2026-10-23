@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.211]
+
+### Fixed
+- Use the Android-style post action bar, destination label, body field, and attachment actions for Group Updates.
+- Refresh the app-bar action when switching Group tabs so Update and Discussion composers appear only on their matching tabs and only when API permissions allow them.
+- Detect iOS updates reliably and explain that installation begins after leaving or closing the app instead of showing a download-progress dialog.
+- Apply native status-bar insets to Android layouts and keep shared embedded webviews below the status bar and app bar on Android and iOS.
+
+### Requires device validation
+- Android edge-to-edge/status-bar insets, iOS embedded webview placement, and Group update attachment posting require runtime verification.
+
+
 ## [2026.06.0-port.210]
 
 ### Fixed

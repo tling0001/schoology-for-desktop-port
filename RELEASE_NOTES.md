@@ -9,7 +9,7 @@
 - Remove the HTML loading overlay from embedded Schoology webviews and strengthen native-view teardown.
 - Preview PDF pinch zoom smoothly and rerender at full resolution on release; support Ctrl/Cmd + and - and fit-to-width initial zoom.
 - Fix macOS updater asset detection and restore window-control overlay only when enabled.
-- Make enrollment-triggered Actions build only iOS and improve Ad Hoc manifest discovery.
+- Improve Ad Hoc manifest discovery across recent published releases.
 - Reuse a stable Ad Hoc profile name, include enabled iOS devices, and clean up superseded profiles after replacement.
 
 ### Requires device validation

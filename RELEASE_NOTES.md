@@ -1,5 +1,19 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.207]
+
+### Fixed
+- Route QR login through Schoology's signed API authorization endpoint, matching the official Android QRCodeAuthorizer flow.
+- Fix shared embedded webview height rules: the renderer switches to `embeddedContentActive`, while the old full-height rules targeted only `webContentHost`.
+- Keep native embedded webview bounds synchronized while CSS transitions and animations move their HTML host.
+- Apply iOS safe-area padding to fullscreen dialogs and the PDF viewer; make the PDF page surroundings follow app dark mode.
+- Normalize school profile update response shapes and broaden comment-author profile hydration.
+- Prefer original Office file download URLs over converted preview URLs.
+- Add trackpad/mouse pinch zoom to the built-in PDF viewer and restore the requested iOS updater copy and Install update action.
+
+### Changed
+- Bump the port version to 2026.06.0-port.207.
+
 ## [2026.06.0-port.206]
 
 ### Fixed

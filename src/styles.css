@@ -227,9 +227,9 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .drawerShade{transition:opacity .28s ease}
 .drawerItem,.profileRow,.courseSubItem{transition:background-color .12s ease,transform .12s ease}
 .drawerItem:active,.profileRow:active,.courseSubItem:active{transform:scale(.99)}
-.webContentHost{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important;background:#fff!important;z-index:5}
-.webContentHost .embeddedPage,.webContentHost .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;display:block!important}
-.webContentHost webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important;border:0!important;margin:0!important;padding:0!important}
+.webContentHost,.embeddedContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important;background:#fff!important;z-index:20!important}
+.webContentHost .embeddedPage,.webContentHost .dashboardHybrid,.embeddedContentActive .embeddedPage,.embeddedContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;display:block!important}
+.webContentHost webview,.embeddedContentActive webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important;border:0!important;margin:0!important;padding:0!important}
 .toolbarPlus{font-size:34px!important;font-weight:300!important}
 .composeMessagePage{background:#fff;min-height:100%;padding:18px}
 .composeField{margin-bottom:18px}.composeField label{display:block;font-size:13px;color:#777;margin-bottom:7px}.composeField input,.composeField textarea{width:100%;border:0;border-bottom:1px solid #c9ced2;outline:0;padding:10px 4px;font-size:16px;background:#fff;color:#333}.composeBody textarea{min-height:230px;resize:vertical;border:1px solid #c9ced2;padding:12px}.composeActions{display:flex;justify-content:flex-end}.composeActions .androidPrimary{min-width:100px}.composeMessagePage #composeStatus{margin-top:12px;color:#666}
@@ -242,9 +242,9 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .shell{position:relative!important;height:100vh!important;width:100vw!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
 .shell>.toolbar{flex:0 0 56px!important}
 .shell>main#content{position:relative!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;padding:0!important;margin:0!important;overflow:auto!important}
-.shell>.webContentHost{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;z-index:20!important}
-.shell>.webContentHost .embeddedPage,.shell>.webContentHost .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
-.shell>.webContentHost webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
+.shell>.webContentHost,.shell>#content.embeddedContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;z-index:20!important}
+.shell>.webContentHost .embeddedPage,.shell>.webContentHost .dashboardHybrid,.shell>#content.embeddedContentActive .embeddedPage,.shell>#content.embeddedContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
+.shell>.webContentHost webview,.shell>#content.embeddedContentActive webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
 .toolbarTitle{min-width:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;display:block!important;flex:1 1 auto!important;line-height:56px!important;height:56px!important}
 .sectionProfileTabs,.messageTabs,.homeTabs{flex:0 0 auto}
 .tabSlideViewport{position:relative;overflow:hidden;min-height:120px}
@@ -2497,7 +2497,7 @@ html,body,#app,.shell{box-shadow:none!important}
 .pdfAttachmentActions{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px 20px}
 .pdfAttachmentActions button{min-width:100px;border:1px solid #2e66a3;border-radius:5px;background:transparent;color:#2e66a3;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
 .pdfAttachmentActions .pdfViewAction{background:#2e66a3;color:#fff}
-.sharedPdfViewerOverlay{position:fixed;inset:0;z-index:14000;background:var(--theme-background,#f4f6f8);color:var(--theme-text,#263238);display:flex;flex-direction:column;opacity:0;transform:translateY(12px) scale(.99);transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}
+.sharedPdfViewerOverlay{position:fixed;inset:0;z-index:14000;background:var(--theme-bg,#f4f6f8);color:var(--theme-text,#263238);display:flex;flex-direction:column;opacity:0;transform:translateY(12px) scale(.99);transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}
 .sharedPdfViewerOverlay.open{opacity:1;transform:translateY(0) scale(1)}
 .sharedPdfViewerOverlay.closing{opacity:0;transform:translateY(8px) scale(.99);pointer-events:none}
 :root[data-reduced-motion="true"] .sharedPdfViewerOverlay{transition:none!important;transform:none!important}
@@ -2507,7 +2507,7 @@ html,body,#app,.shell{box-shadow:none!important}
 .sharedPdfViewerAppBar button{width:40px;height:48px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;cursor:pointer}
 .sharedPdfViewerAppBar button svg{width:24px;height:24px}
 .sharedPdfViewerAppBar b{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:17px;font-weight:600}
-.sharedPdfViewerPages{flex:1;min-height:0;overflow:auto;padding:12px 8px calc(20px + env(safe-area-inset-bottom));overscroll-behavior:contain;touch-action:pan-x pan-y}
+.sharedPdfViewerPages{flex:1;min-height:0;overflow:auto;padding:12px 8px calc(20px + env(safe-area-inset-bottom));overscroll-behavior:contain;touch-action:pan-x pan-y;background:var(--theme-bg,#f4f6f8)}
 .sharedPdfPage{display:flex;justify-content:center;margin:0 auto 14px;max-width:100%}
 .sharedPdfPage canvas{display:block;max-width:100%;height:auto;box-shadow:0 2px 10px #0003;background:#fff}
 .sharedPdfViewerError{max-width:560px;margin:36px auto;padding:24px;background:var(--theme-surface,#fff);border-radius:8px;text-align:center}
@@ -2634,6 +2634,14 @@ html.iosAppSafeArea .drawerShade{top:var(--ios-status-bar-height)!important}
 :root[data-theme="dark"] .peopleDialogEmpty{color:var(--theme-muted)!important}
 :root[data-theme="dark"] .peopleDialogAvatar{background:var(--theme-surface-raised)!important;color:var(--theme-text)!important}
 
-/* v206: remove the legacy macOS shell spacer for both native-titlebar modes. */
+/* iOS fullscreen overlays: keep dialogs and PDF viewer clear of the notch and home indicator. */
+html.iosAppSafeArea .sharedPdfViewerOverlay{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+html.iosAppSafeArea .appDialogOverlay{padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
+html.iosAppSafeArea .peopleListDialogOverlay,html.iosAppSafeArea .pdfAttachmentOptionsOverlay,html.iosAppSafeArea .assignmentCommentDialogOverlay,html.iosAppSafeArea .submissionComposerOverlay,html.iosAppSafeArea .courseUpdateComposer{padding-top:env(safe-area-inset-top)!important;padding-bottom:env(safe-area-inset-bottom)!important}
+html.iosAppSafeArea .assignmentCommentDialogOverlay .assignmentCommentDialog,html.iosAppSafeArea .assignmentCommentDialogOverlay .androidCreatePostDialog,html.iosAppSafeArea #createPostDialog .androidCreatePostDialog,html.iosAppSafeArea .submissionComposerOverlay .submissionComposer,html.iosAppSafeArea .courseUpdateComposerInner{padding-top:max(12px,env(safe-area-inset-top))!important;padding-bottom:max(18px,env(safe-area-inset-bottom))!important}
+
+/* v206: remove the legacy macOS shell spacer for both titlebar modes. */
 /* The v73 28px spacer predates the current Tauri titlebar layout and leaves a strip in both overlay and normal titlebar mode. */
 html[data-electron-platform=darwin] .shell{padding-top:0!important}
+
+/* v207: native child webviews track the HTML host through CSS motion. */

@@ -270,7 +270,7 @@ async fn login_qr(app: &AppHandle, state: &HostState, qr: &str) -> Result<Value,
     sync_server_time(state).await;
     let temporary = request_token(state).await?;
     let mut form = serde_json::Map::new(); form.insert("scanned_qr_data".into(), json!(qr)); form.insert("oauth_token".into(), temporary.get("oauth_token").cloned().unwrap_or(Value::Null));
-    let url = Url::parse(&format!("https://{}/oauth/qr_code_authorize_auto", web_host())).map_err(|e| e.to_string())?;
+    let url = Url::parse(&format!("https://{}/oauth/qr_code_authorize_auto", api_host())).map_err(|e| e.to_string())?;
     let response = request("POST", url, Some(Value::Object(form)), Some(&temporary), state, true, Some(qr), false).await?;
     if !response.status().is_success() { let status=response.status().as_u16(); let text=response.text().await.unwrap_or_default(); return Err(format!("QR authorization failed: {status} {text}")); }
     exchange_token(app, state, &temporary).await

@@ -346,6 +346,22 @@
         this._parentObserver = null;
         this._mutationObserver = null;
         this._syncFrame = 0;
+        this._motionSyncFrame = 0;
+        this._motionSyncActive = false;
+        this._motionTargets = new Set();
+        this._motionStartHandler = event => {
+          const target = event?.target;
+          if (!this.isConnected || !target || !(target === this || target.contains?.(this) || this.contains?.(target))) return;
+          this._startMotionBoundsSync(target);
+        };
+        this._motionEndHandler = event => {
+          const target = event?.target;
+          if (!target || !(target === this || target.contains?.(this) || this.contains?.(target))) return;
+          const stillAnimating = typeof target.getAnimations === "function" && target.getAnimations().some(animation => animation.playState === "running" || animation.playState === "pending");
+          if (!stillAnimating) this._motionTargets.delete(target);
+          if (!this._motionTargets.size) this._stopMotionBoundsSync();
+          this._syncHandler();
+        };
         this._boundsSyncRunning = false;
         this._boundsSyncAgain = false;
         this._syncHandler = () => {
@@ -398,6 +414,12 @@
         this._mutationObserver.observe(document.getElementById('app') || document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class','style','hidden','aria-hidden'] });
         window.addEventListener('scroll', this._syncHandler, true);
         window.addEventListener('resize', this._syncHandler);
+        document.addEventListener('transitionrun', this._motionStartHandler, true);
+        document.addEventListener('animationstart', this._motionStartHandler, true);
+        document.addEventListener('transitionend', this._motionEndHandler, true);
+        document.addEventListener('transitioncancel', this._motionEndHandler, true);
+        document.addEventListener('animationend', this._motionEndHandler, true);
+        document.addEventListener('animationcancel', this._motionEndHandler, true);
         window.addEventListener('schoology-clear-web-session', this._clearSessionHandler);
         const initial = this.getAttribute('src');
         if (initial) this.loadURL(initial).catch(error => dispatchCompatEvent(this, 'did-fail-load', { errorDescription: String(error), isMainFrame: true }));
@@ -416,6 +438,14 @@
         this._syncFrame = 0;
         window.removeEventListener('scroll', this._syncHandler, true);
         window.removeEventListener('resize', this._syncHandler);
+        document.removeEventListener('transitionrun', this._motionStartHandler, true);
+        document.removeEventListener('animationstart', this._motionStartHandler, true);
+        document.removeEventListener('transitionend', this._motionEndHandler, true);
+        document.removeEventListener('transitioncancel', this._motionEndHandler, true);
+        document.removeEventListener('animationend', this._motionEndHandler, true);
+        document.removeEventListener('animationcancel', this._motionEndHandler, true);
+        this._motionTargets.clear();
+        this._stopMotionBoundsSync();
         window.removeEventListener('schoology-clear-web-session', this._clearSessionHandler);
         window.removeEventListener('schoology-tauri-theme-changed', this._themeHandler);
         embeddedViews.delete(this);
@@ -443,6 +473,23 @@
             }
           })();
         }
+      }
+      _startMotionBoundsSync(target) {
+        this._motionTargets.add(target);
+        if (this._motionSyncFrame || this._motionSyncActive) return;
+        this._motionSyncActive = true;
+        const tick = () => {
+          this._motionSyncFrame = 0;
+          if (!this.isConnected || !this.nativeView || !this._motionTargets.size) { this._stopMotionBoundsSync(); return; }
+          this._syncHandler();
+          this._motionSyncFrame = requestAnimationFrame(tick);
+        };
+        this._motionSyncFrame = requestAnimationFrame(tick);
+      }
+      _stopMotionBoundsSync() {
+        this._motionSyncActive = false;
+        if (this._motionSyncFrame) cancelAnimationFrame(this._motionSyncFrame);
+        this._motionSyncFrame = 0;
       }
       async _syncBounds() {
         if (this._boundsSyncRunning) { this._boundsSyncAgain = true; return; }

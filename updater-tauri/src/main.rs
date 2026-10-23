@@ -256,8 +256,7 @@ async fn run_update(
     let extracted = run_dir.join("installer-outer");
 
     let seven = if let Some(path) = find_7zip(&install_dir) {
-        emit_progress(app, "sevenDownload", "done", "Already installed", Some(100), "Preparing update…");
-        emit_progress(app, "sevenInstall", "done", "Already installed", Some(100), "Preparing update…");
+        // Skip the 7-Zip progress screens when a usable extractor is already present.
         path
     } else {
         download_file(

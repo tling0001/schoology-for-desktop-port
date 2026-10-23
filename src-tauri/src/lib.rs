@@ -9,6 +9,8 @@ use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync:
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+use tauri::menu::{Menu, MenuItem};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
@@ -21,6 +23,9 @@ use tokio::sync::oneshot;
 
 type HmacSha1 = Hmac<Sha1>;
 static CANADIAN_INSTANCE: AtomicBool = AtomicBool::new(false);
+static EMBEDDED_CONTEXT_TARGET: Mutex<Option<String>> = Mutex::new(None);
+static EMBEDDED_CONTEXT_LINK: Mutex<Option<String>> = Mutex::new(None);
+static EMBEDDED_CONTEXT_HAS_SELECTION: AtomicBool = AtomicBool::new(false);
 fn api_host() -> &'static str { if CANADIAN_INSTANCE.load(Ordering::Relaxed) { "api.schoologyca.com" } else { "api.schoology.com" } }
 fn web_host() -> &'static str { if CANADIAN_INSTANCE.load(Ordering::Relaxed) { "app.schoologyca.com" } else { "app.schoology.com" } }
 const CONSUMER_KEY: &str = "998121f221d5dc0f4956ee6946d27d5e04e55635e";
@@ -604,10 +609,16 @@ async fn download_schoology_file(app: &AppHandle, state: &HostState, info: &Valu
     let suggested = info.get("filename").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_owned)
         .or(response_filename).unwrap_or_else(|| url.path_segments().and_then(|s| s.last()).unwrap_or("Schoology-file").to_owned());
     let filename = safe_filename(&suggested);
-    let mut dir = app.path().app_cache_dir().map_err(|e| e.to_string())?; dir.push("Schoology"); fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let unique = format!("{}-{}", epoch(), filename); let target = dir.join(unique);
+    let dir=if cfg!(target_os="ios"){let mut d=app.path().document_dir().map_err(|e|e.to_string())?;d.push("Downloads");d}else{app.path().download_dir().or_else(|_|app.path().document_dir()).map_err(|e|e.to_string())?};fs::create_dir_all(&dir).map_err(|e|format!("Could not create Downloads folder: {e}"))?;let mut target=dir.join(&filename);if target.exists(){let path=Path::new(&filename);let stem=path.file_stem().and_then(|s|s.to_str()).unwrap_or("Schoology-file");let ext=path.extension().and_then(|s|s.to_str()).map(|s|format!(".{s}")).unwrap_or_default();let mut n=2_u32;loop{let candidate=dir.join(format!("{stem} ({n}){ext}"));if !candidate.exists(){target=candidate;break}n+=1}}
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-    if bytes.starts_with(b"<!doctype html") || bytes.starts_with(b"<html") { return Err("Schoology returned an HTML page instead of the requested file.".into()); }
+    let prefix=String::from_utf8_lossy(&bytes[..bytes.len().min(256)]).trim_start().to_ascii_lowercase();
+    if prefix.starts_with("<!doctype html") || prefix.starts_with("<html") || response_mime.as_deref().is_some_and(|m|m.eq_ignore_ascii_case("text/html")) {
+        return Err("Schoology returned an HTML/preview page instead of the original file. The invalid download was not saved.".into());
+    }
+    let extension=Path::new(&filename).extension().and_then(|x|x.to_str()).unwrap_or("").to_ascii_lowercase();
+    if matches!(extension.as_str(),"docx"|"pptx"|"xlsx") && !bytes.starts_with(b"PK\x03\x04") {
+        return Err(format!("Schoology did not return a valid original .{extension} Office document. The invalid download was not saved."));
+    }
     tokio::fs::write(&target, &bytes).await.map_err(|e| e.to_string())?;
     let progress_id = info.get("progressId").and_then(Value::as_str).unwrap_or("");
     let _ = app.emit("file-download-progress", json!({"id":progress_id,"received":bytes.len(),"total":bytes.len(),"done":true}));
@@ -1397,6 +1408,30 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             Ok(json!(""))
         },
         "open-external" => { let url=args.as_str().ok_or("Missing URL")?; if !(url.starts_with("https://")||url.starts_with("http://")) { return Err("Only HTTP(S) URLs may be opened externally.".into()); } app.opener().open_url(url,None::<&str>).map_err(|e|e.to_string())?; Ok(json!(true)) },
+        "show-embedded-context-menu" => {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let label=args.get("label").and_then(Value::as_str).unwrap_or("");
+                if !label.starts_with("schoology-embedded-") { return Err("Invalid embedded webview context target.".into()); }
+                let view=app.get_webview(label).ok_or("The embedded Schoology webview is no longer available.")?;
+                let link=args.get("link").and_then(Value::as_str).unwrap_or("").to_owned();
+                if !link.is_empty() && !(link.starts_with("https://")||link.starts_with("http://")) { return Err("Unsupported context-menu link.".into()); }
+                if let Ok(mut target)=EMBEDDED_CONTEXT_TARGET.lock(){*target=Some(label.to_owned());}
+                if let Ok(mut active_link)=EMBEDDED_CONTEXT_LINK.lock(){*active_link=if link.is_empty(){None}else{Some(link.clone())};}
+                EMBEDDED_CONTEXT_HAS_SELECTION.store(args.get("hasSelection").and_then(Value::as_bool).unwrap_or(false),Ordering::Relaxed);
+                let back=MenuItem::with_id(&app,"schoology-context-back","Back",true,None::<&str>).map_err(|e|e.to_string())?;
+                let forward=MenuItem::with_id(&app,"schoology-context-forward","Forward",true,None::<&str>).map_err(|e|e.to_string())?;
+                let reload=MenuItem::with_id(&app,"schoology-context-reload","Reload",true,None::<&str>).map_err(|e|e.to_string())?;
+                let copy=MenuItem::with_id(&app,"schoology-context-copy","Copy",EMBEDDED_CONTEXT_HAS_SELECTION.load(Ordering::Relaxed),None::<&str>).map_err(|e|e.to_string())?;
+                let select_all=MenuItem::with_id(&app,"schoology-context-select-all","Select all",true,None::<&str>).map_err(|e|e.to_string())?;
+                let open_link=MenuItem::with_id(&app,"schoology-context-open-link","Open link in browser",!link.is_empty(),None::<&str>).map_err(|e|e.to_string())?;
+                let menu=Menu::with_items(&app,&[&back,&forward,&reload,&copy,&select_all,&open_link]).map_err(|e|e.to_string())?;
+                menu.popup(&view).map_err(|e|format!("Could not show embedded webview context menu: {e}"))?;
+                Ok(json!(true))
+            }
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            { Ok(json!(false)) }
+        },
         "create-embedded-webview" => create_embedded_webview(&app, &args).await,
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "close-embedded-webview" => {
@@ -1559,6 +1594,20 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
+        .on_menu_event(|app,event| {
+            let target=EMBEDDED_CONTEXT_TARGET.lock().ok().and_then(|v|v.clone());
+            let Some(label)=target else{return};
+            let Some(view)=app.get_webview(&label) else{return};
+            match event.id().as_ref() {
+                "schoology-context-back"=>{let _=view.eval("history.back()");}
+                "schoology-context-forward"=>{let _=view.eval("history.forward()");}
+                "schoology-context-reload"=>{let _=view.eval("location.reload()");}
+                "schoology-context-copy"=>{let _=view.eval("document.execCommand('copy')");}
+                "schoology-context-select-all"=>{let _=view.eval("document.execCommand('selectAll')");}
+                "schoology-context-open-link"=>{let link=EMBEDDED_CONTEXT_LINK.lock().ok().and_then(|v|v.clone());if let Some(url)=link{let _=app.opener().open_url(url,None::<&str>);}}
+                _=>{}
+            }
+        })
         .invoke_handler(tauri::generate_handler![schoology_invoke])
         .run(tauri::generate_context!())
         .expect("error while running Schoology Desktop Port");

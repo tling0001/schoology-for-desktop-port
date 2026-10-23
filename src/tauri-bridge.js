@@ -265,8 +265,9 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWindowControls, { once: true });
   else installWindowControls();
 
-  const makeEmbeddedThemeBootstrap = (dark, session = null) => `(() => {
+  const makeEmbeddedThemeBootstrap = (dark, session = null, viewLabel = '') => `(() => {
     const session = ${JSON.stringify(session && typeof session === 'object' ? session : null)};
+    const nativeLabel = ${JSON.stringify(String(viewLabel || ''))};
     const host = String(location.hostname || '').toLowerCase();
     if (session && (host === 'app.schoology.com' || host.endsWith('.schoology.com') || host === 'app.schoologyca.com' || host.endsWith('.schoologyca.com'))) {
       const setCookie = (name, value, path = '/', domain = '') => {
@@ -288,6 +289,20 @@
     const css = 'html[data-schoology-shade-inversion="true"]{color-scheme:dark!important;background:#17191c!important}html[data-schoology-shade-inversion="true"] body{filter:invert(1) hue-rotate(180deg)!important}html[data-schoology-shade-inversion="true"] img,html[data-schoology-shade-inversion="true"] picture,html[data-schoology-shade-inversion="true"] video,html[data-schoology-shade-inversion="true"] canvas,html[data-schoology-shade-inversion="true"] svg,html[data-schoology-shade-inversion="true"] iframe,html[data-schoology-shade-inversion="true"] object,html[data-schoology-shade-inversion="true"] embed{filter:invert(1) hue-rotate(180deg)!important}';
     const root = document.documentElement;
     if (!root) return;
+    // Native child webviews do not bubble right-click events to the main renderer.
+    if (!window.__schoologyContextMenuInstalled) {
+      window.__schoologyContextMenuInstalled=true;let menu=null;
+      const close=()=>{menu?.remove();menu=null;};
+      document.addEventListener('pointerdown',e=>{if(menu&&!menu.contains(e.target))close()},true);
+      document.addEventListener('keydown',e=>{if(e.key==='Escape')close()},true);
+      document.addEventListener('contextmenu',e=>{close();e.preventDefault();const a=e.target?.closest?.('a[href]'),selection=String(window.getSelection?.()||'');const nativeInvoke=window.__TAURI__?.core?.invoke;if(nativeInvoke){nativeInvoke('schoology_invoke',{name:'show-embedded-context-menu',args:{label:nativeLabel,hasSelection:!!selection,link:a?.href||''}}).catch(()=>{});return}
+        menu=document.createElement('div');menu.setAttribute('role','menu');menu.style.cssText='position:fixed;z-index:2147483647;min-width:190px;padding:4px;background:#fff;color:#202124;border:1px solid #c8cdd2;box-shadow:0 4px 18px #0004;font:14px Arial,sans-serif;border-radius:4px';
+        const add=(label,fn,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.style.cssText='display:block;width:100%;border:0;background:transparent;color:inherit;text-align:left;padding:10px 14px;cursor:pointer;font:inherit';b.onclick=async()=>{try{await fn()}catch{}close()};menu.appendChild(b)};
+        add('Back',()=>history.back(),history.length<2);add('Forward',()=>history.forward(),history.length<2);add('Reload',()=>location.reload());add('Copy selected text',()=>navigator.clipboard.writeText(selection),!selection);
+        add('Select all',()=>{const r=document.createRange();r.selectNodeContents(document.body);const s=window.getSelection();s.removeAllRanges();s.addRange(r)});if(a)add('Open link',()=>{location.href=a.href});
+        menu.addEventListener('contextmenu',x=>x.preventDefault());document.body.appendChild(menu);menu.style.left=Math.min(e.clientX,Math.max(0,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.min(e.clientY,Math.max(0,innerHeight-menu.offsetHeight-8))+'px';
+      },true);
+    }
     // Tauri child webviews do not implement Electron's native allowpopups/preload
     // contract. Keep Schoology pages inside this view, but send non-Schoology
     // destinations to the user's default browser.
@@ -397,7 +412,7 @@
           if (!this.nativeView) return;
           const dark = resolvedDark();
           this._darkTheme = dark;
-          this.nativeView.eval(makeEmbeddedThemeBootstrap(dark)).catch(() => {});
+          this.nativeView.eval(makeEmbeddedThemeBootstrap(dark, null, this._label)).catch(() => {});
         };
         window.addEventListener('schoology-tauri-theme-changed', this._themeHandler);
         this.style.display = 'block';
@@ -499,36 +514,30 @@
       }
       async _syncBoundsOnce() {
         if (!this.nativeView || !this.isConnected) return;
-        const rect = this.getBoundingClientRect();
-        const style = getComputedStyle(this);
-        let visible = !this.hidden && style.display !== 'none' && style.visibility !== 'hidden' &&
-          style.visibility !== 'collapse' && Number(style.opacity) !== 0 &&
-          rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 &&
-          rect.top < innerHeight && rect.left < innerWidth;
-        // Native child webviews do not obey HTML ancestor clipping. If a renderer
-        // route, drawer, tab, or page hides any ancestor, explicitly take the native
-        // surface out of the hit-test area as well.
-        for (let ancestor = this.parentElement; visible && ancestor; ancestor = ancestor.parentElement) {
-          const ancestorStyle = getComputedStyle(ancestor);
-          if (ancestor.hidden || ancestorStyle.display === 'none' ||
-              ancestorStyle.visibility === 'hidden' || ancestorStyle.visibility === 'collapse' ||
-              Number(ancestorStyle.opacity) === 0) visible = false;
+        const rect=this.getBoundingClientRect(),style=getComputedStyle(this);
+        let left=rect.left,top=rect.top,right=rect.right,bottom=rect.bottom;
+        let visible=!this.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&style.visibility!=='collapse'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0;
+        // A native child surface is not clipped by CSS overflow, transforms, or scroll containers.
+        // Intersect its rectangle with every clipping ancestor and the viewport before positioning it.
+        for(let ancestor=this.parentElement;visible&&ancestor;ancestor=ancestor.parentElement){
+          const astyle=getComputedStyle(ancestor),ar=ancestor.getBoundingClientRect();
+          if(ancestor.hidden||astyle.display==='none'||astyle.visibility==='hidden'||astyle.visibility==='collapse'||Number(astyle.opacity)===0){visible=false;break}
+          if(['hidden','clip','auto','scroll'].includes(astyle.overflowX)){left=Math.max(left,ar.left);right=Math.min(right,ar.right)}
+          if(['hidden','clip','auto','scroll'].includes(astyle.overflowY)){top=Math.max(top,ar.top);bottom=Math.min(bottom,ar.bottom)}
         }
-        try {
-          if (!visible) {
-            // Move away before hiding: some desktop WebView implementations leave a
-            // transparent hit-test surface for a frame when hide() is asynchronous.
-            await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)).catch(() => {});
-            await this.nativeView.setSize(new tauri.dpi.LogicalSize(1, 1)).catch(() => {});
-            await this.nativeView.hide();
-            return;
+        left=Math.max(0,left);top=Math.max(0,top);right=Math.min(innerWidth,right);bottom=Math.min(innerHeight,bottom);
+        const width=right-left,height=bottom-top;
+        if(width<=1||height<=1)visible=false;
+        try{
+          if(!visible){
+            await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(-10000,-10000)).catch(()=>{});
+            await this.nativeView.setSize(new tauri.dpi.LogicalSize(1,1)).catch(()=>{});
+            await this.nativeView.hide();return;
           }
-          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(rect.left, rect.top));
-          await this.nativeView.setSize(new tauri.dpi.LogicalSize(rect.width, rect.height));
+          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(left,top));
+          await this.nativeView.setSize(new tauri.dpi.LogicalSize(width,height));
           await this.nativeView.show();
-        } catch (error) {
-          console.warn('Could not synchronize Schoology embedded webview bounds:', error);
-        }
+        }catch(error){console.warn('Could not synchronize Schoology embedded webview bounds:',error)}
       }
       async loadURL(url) {
         this._url = String(url);
@@ -557,7 +566,7 @@
             width: Math.max(1, rect.width),
             height: Math.max(1, rect.height),
             userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
-            initializationScript: makeEmbeddedThemeBootstrap(dark, session),
+            initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
             forceDark: dark,
             lti: this._ltiNavigation,
             deferNavigation: true
@@ -639,7 +648,7 @@
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
               dispatchCompatEvent(this, 'did-navigate', { url: this._url, isMainFrame: true });
-              try { await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme)); } catch (_) {}
+              try { await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, null, this._label)); } catch (_) {}
               await this._syncBounds();
               await this.nativeView.show().catch(() => {});
             }

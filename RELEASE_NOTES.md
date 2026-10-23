@@ -1,5 +1,18 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.209]
+
+### Fixed
+- Preserve the configured Tauri builder after setup so desktop, Android, and iOS compile the same plugin/setup chain before platform-specific handlers are attached.
+- Keep the course name/section title stable when switching course tabs instead of letting the identity card overwrite the app bar.
+- Replace the Calendar landscape Upcoming pane with events, assignments, quizzes, and other calendar items for the selected date; keep the selected-date agenda synchronized in portrait and landscape.
+- Use real native macOS titlebar controls and hide them only while the navigation drawer is open; other desktop platforms keep their existing overlay controls.
+- Prevent a detached native Schoology webview from being re-shown by an in-flight bounds update, avoiding stale surfaces that steal clicks after leaving an embedded page.
+- Keep the startup logo centered and position its spinner directly below the rendered logo.
+
+### Requires device validation
+- Confirm native macOS traffic-light visibility during drawer transitions and verify embedded-webview pointer/context-menu behavior on desktop and mobile.
+
 ## [2026.06.0-port.208]
 
 ### Fixed

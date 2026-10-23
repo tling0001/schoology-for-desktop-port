@@ -59,7 +59,7 @@
   const schoologyLayoutStyle = document.createElement('style');
   schoologyLayoutStyle.textContent = '.profileAndroidPage:not(.profileLandscapePage){display:flex!important;flex-direction:column!important;min-height:100%}.profileAndroidPage:not(.profileLandscapePage)>.profileTabs{order:0!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>.profileHeader{order:1!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>#profileTabContent{order:2!important;flex:1 1 auto!important;min-height:0!important}html[data-electron-platform="android"] .settingsPage label:has(#windowChromeOverlayToggle),html[data-electron-platform="ios"] .settingsPage label:has(#windowChromeOverlayToggle){display:none!important}';
   document.head.appendChild(schoologyLayoutStyle);
-  const syncToolbarIdentity = () => { const profile = document.querySelector('#content .profileHeader h1'); const desired = String(profile?.textContent || '').trim(); const title = document.querySelector('.toolbarTitle'); if (desired && title && title.textContent !== desired) title.textContent = desired; }; // Course titles are managed by the renderer so the official `Course : Section` title is not overwritten by the plain identity-card title.
+  const syncToolbarIdentity = () => { if (document.querySelector('#content .courseLandscapePage')) return; const profile = document.querySelector('#content .profileHeader h1'); const desired = String(profile?.textContent || '').trim(); const title = document.querySelector('.toolbarTitle'); if (desired && title && title.textContent !== desired) title.textContent = desired; }; // Course titles are managed by the renderer so the official `Course : Section` title is not overwritten by the plain identity-card title.
   if (typeof MutationObserver !== 'undefined') { const titleObserver = new MutationObserver(() => requestAnimationFrame(syncToolbarIdentity)); titleObserver.observe(document.documentElement, {subtree:true,childList:true,characterData:true}); }
   document.addEventListener('DOMContentLoaded', syncToolbarIdentity);
   const isExternalLoginCandidate = (raw, expectedDomain) => {
@@ -201,8 +201,21 @@
   const installWindowControls = async () => {
     let mode;
     try { mode = await invoke('get-window-chrome-mode'); } catch (_) { return; }
-    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios';
+    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios' && platform !== 'darwin';
     document.documentElement.dataset.windowControlsOverlay = String(overlayEnabled);
+    if (platform === 'darwin') {
+      const syncNativeMacControls = () => {
+        const drawerOpen = !!document.getElementById('drawer')?.classList.contains('open');
+        invoke('set-macos-window-controls-visible', { visible: !drawerOpen }).catch(error => console.warn('Could not synchronize native macOS window controls:', error));
+      };
+      syncNativeMacControls();
+      const drawerObserver = new MutationObserver(syncNativeMacControls);
+      drawerObserver.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      document.addEventListener('click', event => {
+        if (event.target?.closest?.('#menuButton, #drawerShade, #drawer [data-action], #drawer button, #drawer a')) setTimeout(syncNativeMacControls, 80);
+      }, true);
+      return;
+    }
     if (!overlayEnabled || document.getElementById('tauriWindowControls')) return;
     const controls = document.createElement('div');
     controls.id = 'tauriWindowControls';
@@ -298,12 +311,42 @@
         event.preventDefault();
         const anchor = event.target?.closest?.('a[href]');
         const selection = String(window.getSelection?.() || '');
+        const showFallbackMenu = () => {
+          document.getElementById('schoology-context-menu-fallback')?.remove();
+          const menu = document.createElement('div');
+          menu.id = 'schoology-context-menu-fallback';
+          Object.assign(menu.style, { position:'fixed', zIndex:'2147483647', minWidth:'196px', padding:'5px', border:'1px solid #b7c0c8', borderRadius:'6px', background:'#fff', color:'#263238', boxShadow:'0 5px 20px rgba(0,0,0,.28)', font:'14px system-ui,sans-serif' });
+          const actions = [
+            ['Back', () => history.back(), true],
+            ['Forward', () => history.forward(), true],
+            ['Reload', () => location.reload(), true],
+            ['Copy', () => document.execCommand('copy'), !!selection],
+            ['Select all', () => { const range=document.createRange(); range.selectNodeContents(document.body); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }, true],
+            ['Open link in browser', () => { if(anchor?.href) window.open(anchor.href, '_blank', 'noopener'); }, !!anchor?.href]
+          ];
+          for (const [label, action, enabled] of actions) {
+            const button = document.createElement('button');
+            button.type = 'button'; button.textContent = label; button.disabled = !enabled;
+            Object.assign(button.style, { display:'block', width:'100%', padding:'8px 10px', border:'0', borderRadius:'3px', textAlign:'left', background:'transparent', color:enabled?'inherit':'#92999e', font:'inherit', cursor:enabled?'default':'not-allowed' });
+            button.addEventListener('mouseenter', () => { if(enabled) button.style.background='#e8f1f8'; });
+            button.addEventListener('mouseleave', () => { button.style.background='transparent'; });
+            button.addEventListener('click', () => { menu.remove(); try { action(); } catch (_) {} });
+            menu.appendChild(button);
+          }
+          menu.addEventListener('contextmenu', e => e.preventDefault());
+          menu.addEventListener('mousedown', e => e.stopPropagation());
+          document.body.appendChild(menu);
+          menu.style.left = Math.max(4, Math.min(event.clientX, innerWidth - menu.offsetWidth - 4)) + 'px';
+          menu.style.top = Math.max(4, Math.min(event.clientY, innerHeight - menu.offsetHeight - 4)) + 'px';
+          const dismiss = e => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', dismiss, true); } };
+          setTimeout(() => document.addEventListener('pointerdown', dismiss, true), 0);
+        };
         const nativeInvoke = window.__TAURI__?.core?.invoke;
-        if (!nativeInvoke) return;
+        if (!nativeInvoke) { showFallbackMenu(); return; }
         nativeInvoke('schoology_invoke', {
           name: 'show-embedded-context-menu',
           args: { label: nativeLabel, hasSelection: !!selection, link: anchor?.href || '' }
-        }).catch(error => console.warn('Could not open native Schoology context menu:', error));
+        }).catch(error => { console.warn('Could not open native Schoology context menu:', error); showFallbackMenu(); });
       }, true);
     }
     // Tauri child webviews do not implement Electron's native allowpopups/preload
@@ -382,6 +425,7 @@
         };
         this._boundsSyncRunning = false;
         this._boundsSyncAgain = false;
+        this._closingNativeView = false;
         this._syncHandler = () => {
           if (this._syncFrame) return;
           this._syncFrame = requestAnimationFrame(() => { this._syncFrame = 0; void this._syncBounds(); });
@@ -410,6 +454,7 @@
         this.setAttribute('src', next);
       }
       connectedCallback() {
+        this._closingNativeView = false;
         embeddedViews.add(this);
         this._themeHandler = () => {
           if (!this.nativeView) return;
@@ -449,6 +494,7 @@
         while (parent) { this._parentObserver.observe(parent); parent = parent.parentElement; }
       }
       disconnectedCallback() {
+        this._closingNativeView = true;
         this._observer?.disconnect();
         this._parentObserver?.disconnect();
         this._mutationObserver?.disconnect();
@@ -516,7 +562,8 @@
         finally { this._boundsSyncRunning = false; }
       }
       async _syncBoundsOnce() {
-        if (!this.nativeView || !this.isConnected) return;
+        const view = this.nativeView;
+        if (!view || !this.isConnected || this._closingNativeView) return;
         const rect=this.getBoundingClientRect(),style=getComputedStyle(this);
         let left=rect.left,top=rect.top,right=rect.right,bottom=rect.bottom;
         let visible=!this.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&style.visibility!=='collapse'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0;
@@ -533,13 +580,15 @@
         if(width<=1||height<=1)visible=false;
         try{
           if(!visible){
-            await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(-10000,-10000)).catch(()=>{});
-            await this.nativeView.setSize(new tauri.dpi.LogicalSize(1,1)).catch(()=>{});
-            await this.nativeView.hide();return;
+            await view.setPosition(new tauri.dpi.LogicalPosition(-10000,-10000)).catch(()=>{});
+            await view.setSize(new tauri.dpi.LogicalSize(1,1)).catch(()=>{});
+            await view.hide();return;
           }
-          await this.nativeView.setPosition(new tauri.dpi.LogicalPosition(left,top));
-          await this.nativeView.setSize(new tauri.dpi.LogicalSize(width,height));
-          await this.nativeView.show();
+          await view.setPosition(new tauri.dpi.LogicalPosition(left,top));
+          if (this._closingNativeView || !this.isConnected || this.nativeView !== view) { await view.hide().catch(()=>{}); return; }
+          await view.setSize(new tauri.dpi.LogicalSize(width,height));
+          if (this._closingNativeView || !this.isConnected || this.nativeView !== view) { await view.hide().catch(()=>{}); return; }
+          await view.show();
         }catch(error){console.warn('Could not synchronize Schoology embedded webview bounds:',error)}
       }
       async loadURL(url) {

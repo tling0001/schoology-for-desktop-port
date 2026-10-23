@@ -1413,7 +1413,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             {
                 let label=args.get("label").and_then(Value::as_str).unwrap_or("");
                 if !label.starts_with("schoology-embedded-") { return Err("Invalid embedded webview context target.".into()); }
-                let view=app.get_webview(label).ok_or("The embedded Schoology webview is no longer available.")?;
+                let _view=app.get_webview(label).ok_or("The embedded Schoology webview is no longer available.")?;
                 let link=args.get("link").and_then(Value::as_str).unwrap_or("").to_owned();
                 if !link.is_empty() && !(link.starts_with("https://")||link.starts_with("http://")) { return Err("Unsupported context-menu link.".into()); }
                 if let Ok(mut target)=EMBEDDED_CONTEXT_TARGET.lock(){*target=Some(label.to_owned());}
@@ -1490,6 +1490,16 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "window-start-dragging" => { if let Some(window)=app.get_webview_window("main") { window.start_dragging().map_err(|e|e.to_string())?; } Ok(json!(true)) },
         #[cfg(any(target_os = "android", target_os = "ios"))]
         "window-start-dragging" => Ok(json!(false)),
+        #[cfg(target_os = "macos")]
+        "set-macos-window-controls-visible" => {
+            let visible = args.get("visible").and_then(Value::as_bool).unwrap_or(true);
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_decorations(visible).map_err(|e| format!("Could not toggle native macOS window controls: {e}"))?;
+            }
+            Ok(json!(true))
+        },
+        #[cfg(not(target_os = "macos"))]
+        "set-macos-window-controls-visible" => Ok(json!(false)),
         "window-close" => { if let Some(window)=app.get_webview_window("main") { window.close().map_err(|e|e.to_string())?; } Ok(json!(true)) },
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "window-is-maximized" => Ok(json!(app.get_webview_window("main").and_then(|window|window.is_maximized().ok()).unwrap_or(false))),
@@ -1548,11 +1558,12 @@ pub fn run() {
                 PermissionResponse::Deny
             }
         });
-    builder
+    let builder = builder
         .setup(|app| {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 let overlay = read_json(app.handle(), "window-chrome.json", json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false);
+                #[cfg(not(target_os = "macos"))]
                 if overlay {
                     if let Some(window) = app.get_webview_window("main") {
                         window.set_decorations(false).map_err(|e| std::io::Error::other(format!("Could not enable window-controls overlay: {e}")))?;

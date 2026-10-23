@@ -121,7 +121,18 @@ function watchBackIconPlaceholders(){
  backIconRepairObserver=new MutationObserver(()=>repairBackIconPlaceholders(app));
  backIconRepairObserver.observe(app,{subtree:true,childList:true,characterData:true});
 }
-function render(){let h=state.message?messageDetail():state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;repairBackIconPlaceholders(app);watchBackIconPlaceholders();bind();syncWindowChrome();requestAnimationFrame(positionLoginLogo);return h}
+function syncIosStatusBarInset(){
+ const enabled=A.platform==='ios'&&state.screen==='app'&&!!app.querySelector('.shell');
+ document.documentElement.classList.toggle('iosAppSafeArea',enabled);
+ app.querySelector('.iosStatusBarInset')?.remove();
+ if(enabled){
+   const inset=document.createElement('div');
+   inset.className='iosStatusBarInset';
+   inset.setAttribute('aria-hidden','true');
+   app.prepend(inset);
+ }
+}
+function render(){let h=state.message?messageDetail():state.screen==='login'?login():state.screen==='search'?schoolSearchScreen():state.screen==='credentials'?credentials():state.screen==='externalSelect'?externalSelect():state.screen==='qr'?qr():shell();app.innerHTML=h;repairBackIconPlaceholders(app);watchBackIconPlaceholders();bind();syncIosStatusBarInset();syncWindowChrome();requestAnimationFrame(positionLoginLogo);return h}
 function syncWindowChrome(){let color='#002137';if(document.body.classList.contains('splashVisible')&&document.getElementById('startupSplash'))color='#44505d';else if(state.screen!=='app'){color=(state.screen==='login'||state.screen==='search'||state.screen==='credentials'||state.screen==='externalSelect'||state.screen==='qr')?'#44505d':'#22303e'}else if(document.getElementById('drawer')?.classList.contains('open'))color='#001827';document.documentElement.style.setProperty('--tauri-window-controls-bg',color);if(A.platform!=='win32'&&A.platform!=='linux')return;A.setWindowChrome?.({color,symbolColor:'#ffffff',height:56}).catch?.(()=>{})}
 function positionLoginLogo(){const button=document.getElementById('schoolLogin');const logo=button?.closest('.login')?.querySelector('.logo');if(!button||!logo)return;const buttonTop=button.getBoundingClientRect().top;const logoHeight=logo.getBoundingClientRect().height;if(buttonTop>0&&logoHeight>0)logo.style.setProperty('top',Math.max(8,(buttonTop-logoHeight)/2)+'px','important')}
 window.addEventListener('resize',()=>requestAnimationFrame(positionLoginLogo));

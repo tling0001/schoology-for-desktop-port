@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.204]
+
+### Fixed
+- Keep the homepage Create Event dialog full-screen on narrow displays instead of overriding it with a smaller centered modal.
+- Extend the iOS app viewport into the device safe area and add a Schoology-blue status-bar inset above app bars and the navigation drawer, sized from the system-reported top safe-area inset. Splash and login screens remain unchanged.
+
+### Changed
+- Bump the port version to 2026.06.0-port.204.
+
+
 ## [2026.06.0-port.203]
 
 ### Fixed

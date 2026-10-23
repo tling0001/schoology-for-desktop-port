@@ -1,5 +1,20 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.210]
+
+### Fixed
+- Add the missing group Updates composer using group update permissions and the official Schoology update-post API path.
+- Open Course, Groups, and School Profile update comments in an interactive dialog with reply and like actions.
+- Normalize additional School Profile update response shapes.
+- Remove the loading overlay from embedded Schoology webviews and tighten native-view teardown checks.
+- Preview PDF zoom smoothly during gestures, rerender at full resolution after release, fit pages to width initially, and support Ctrl/Cmd + and -.
+- Use the published macOS DMG asset for update detection and restore native macOS traffic lights in window-control overlay mode.
+- Support an iOS-only enrollment build path that republishes the current release's iOS assets.
+
+### Requires device validation
+- Shared webview layering and click recovery, macOS traffic lights, PDF gesture behavior, and iOS enrollment publishing require runtime verification.
+
+
 ## [2026.06.0-port.209]
 
 ### Fixed

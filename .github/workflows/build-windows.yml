@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: ''
+      ios_adhoc_only:
+        description: Build only the iOS Ad Hoc package and publish its assets (used by iPhone enrollment)
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,7 +35,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
     name: Tauri ${{ matrix.platform }} build
     strategy:
       fail-fast: false
@@ -113,7 +118,7 @@ jobs:
           retention-days: 14
 
   android:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
     name: Tauri Android APK
     runs-on: ubuntu-22.04
     steps:
@@ -477,5 +482,6 @@ jobs:
           target_commitish: main
           body_path: release-notes.md
           files: release-upload/*
+          overwrite_files: true
           fail_on_unmatched_files: false
           generate_release_notes: false

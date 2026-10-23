@@ -878,7 +878,7 @@ fn local_release_number() -> u64 {
 fn update_asset_suffixes() -> Vec<&'static str> {
     match std::env::consts::OS {
         "windows" => vec!["_x64-setup.exe", "-x64-setup.exe", "Setup-x64.exe"],
-        "macos" => vec![".app.zip"],
+        "macos" => vec![".dmg"],
         "linux" => vec!["amd64.deb", "x86_64.rpm"],
         "ios" => vec!["-iOS-AdHoc.plist"],
         _ => vec![],

@@ -9,7 +9,7 @@ use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync:
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{ContextMenu, Menu, MenuItem};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

@@ -201,9 +201,10 @@
   const installWindowControls = async () => {
     let mode;
     try { mode = await invoke('get-window-chrome-mode'); } catch (_) { return; }
-    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios' && platform !== 'darwin';
+    const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios';
     document.documentElement.dataset.windowControlsOverlay = String(overlayEnabled);
     if (platform === 'darwin') {
+      if (!overlayEnabled) { invoke('set-macos-window-controls-visible', { visible: true }).catch(()=>{}); return; }
       const syncNativeMacControls = () => {
         const drawerOpen = !!document.getElementById('drawer')?.classList.contains('open');
         invoke('set-macos-window-controls-visible', { visible: !drawerOpen }).catch(error => console.warn('Could not synchronize native macOS window controls:', error));
@@ -589,6 +590,11 @@
           await view.setSize(new tauri.dpi.LogicalSize(width,height));
           if (this._closingNativeView || !this.isConnected || this.nativeView !== view) { await view.hide().catch(()=>{}); return; }
           await view.show();
+          if (this._closingNativeView || !this.isConnected || this.nativeView !== view) {
+            await view.hide().catch(()=>{});
+            await view.setPosition(new tauri.dpi.LogicalPosition(-10000,-10000)).catch(()=>{});
+            await view.setSize(new tauri.dpi.LogicalSize(1,1)).catch(()=>{});
+          }
         }catch(error){console.warn('Could not synchronize Schoology embedded webview bounds:',error)}
       }
       async loadURL(url) {

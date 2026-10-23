@@ -1,8 +1,6 @@
 /* Tauri compatibility layer. Electron remains the supported release runtime until parity is complete. */
 (function () {
   'use strict';
-  // Match Electron: suppress the WebView's native browser context menu.
-  document.addEventListener('contextmenu', event => event.preventDefault(), true);
   const tauri = window.__TAURI__;
   if (!tauri?.core?.invoke) return;
   const invoke = (name, args) => tauri.core.invoke('schoology_invoke', { name, args: args === undefined ? null : args });
@@ -290,18 +288,20 @@
     const root = document.documentElement;
     if (!root) return;
     // Native child webviews do not bubble right-click events to the main renderer.
+    // Suppress Chromium's HTML menu and request the OS-native Tauri menu instead.
     if (!window.__schoologyContextMenuInstalled) {
-      window.__schoologyContextMenuInstalled=true;let menu=null;
-      const close=()=>{menu?.remove();menu=null;};
-      document.addEventListener('pointerdown',e=>{if(menu&&!menu.contains(e.target))close()},true);
-      document.addEventListener('keydown',e=>{if(e.key==='Escape')close()},true);
-      document.addEventListener('contextmenu',e=>{close();e.preventDefault();const a=e.target?.closest?.('a[href]'),selection=String(window.getSelection?.()||'');const nativeInvoke=window.__TAURI__?.core?.invoke;if(nativeInvoke){nativeInvoke('schoology_invoke',{name:'show-embedded-context-menu',args:{label:nativeLabel,hasSelection:!!selection,link:a?.href||''}}).catch(()=>{});return}
-        menu=document.createElement('div');menu.setAttribute('role','menu');menu.style.cssText='position:fixed;z-index:2147483647;min-width:190px;padding:4px;background:#fff;color:#202124;border:1px solid #c8cdd2;box-shadow:0 4px 18px #0004;font:14px Arial,sans-serif;border-radius:4px';
-        const add=(label,fn,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.style.cssText='display:block;width:100%;border:0;background:transparent;color:inherit;text-align:left;padding:10px 14px;cursor:pointer;font:inherit';b.onclick=async()=>{try{await fn()}catch{}close()};menu.appendChild(b)};
-        add('Back',()=>history.back(),history.length<2);add('Forward',()=>history.forward(),history.length<2);add('Reload',()=>location.reload());add('Copy selected text',()=>navigator.clipboard.writeText(selection),!selection);
-        add('Select all',()=>{const r=document.createRange();r.selectNodeContents(document.body);const s=window.getSelection();s.removeAllRanges();s.addRange(r)});if(a)add('Open link',()=>{location.href=a.href});
-        menu.addEventListener('contextmenu',x=>x.preventDefault());document.body.appendChild(menu);menu.style.left=Math.min(e.clientX,Math.max(0,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.min(e.clientY,Math.max(0,innerHeight-menu.offsetHeight-8))+'px';
-      },true);
+      window.__schoologyContextMenuInstalled = true;
+      document.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        const anchor = event.target?.closest?.('a[href]');
+        const selection = String(window.getSelection?.() || '');
+        const nativeInvoke = window.__TAURI__?.core?.invoke;
+        if (!nativeInvoke) return;
+        nativeInvoke('schoology_invoke', {
+          name: 'show-embedded-context-menu',
+          args: { label: nativeLabel, hasSelection: !!selection, link: anchor?.href || '' }
+        }).catch(error => console.warn('Could not open native Schoology context menu:', error));
+      }, true);
     }
     // Tauri child webviews do not implement Electron's native allowpopups/preload
     // contract. Keep Schoology pages inside this view, but send non-Schoology

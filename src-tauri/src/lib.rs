@@ -1426,7 +1426,8 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
                 let select_all=MenuItem::with_id(&app,"schoology-context-select-all","Select all",true,None::<&str>).map_err(|e|e.to_string())?;
                 let open_link=MenuItem::with_id(&app,"schoology-context-open-link","Open link in browser",!link.is_empty(),None::<&str>).map_err(|e|e.to_string())?;
                 let menu=Menu::with_items(&app,&[&back,&forward,&reload,&copy,&select_all,&open_link]).map_err(|e|e.to_string())?;
-                menu.popup(&view).map_err(|e|format!("Could not show embedded webview context menu: {e}"))?;
+                let window=app.get_webview_window("main").ok_or("The Schoology main window is unavailable.")?;
+                menu.popup(window.window().clone()).map_err(|e|format!("Could not show embedded webview context menu: {e}"))?;
                 Ok(json!(true))
             }
             #[cfg(any(target_os = "android", target_os = "ios"))]

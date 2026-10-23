@@ -1,5 +1,18 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.212]
+
+### Fixed
+- Strengthen iOS runtime detection using both the native bridge and iPhone/iPad user-agent signals so iOS updates use the native installation flow instead of a desktop download-progress dialog.
+- Keep the existing install confirmation and show the post-handoff message explaining that installation starts after closing Schoology or returning to the Home Screen.
+- Fix the safe-area variable used by shared embedded pages on iOS and make the Android top inset safe-area-aware.
+- Remove the duplicate Course Updates comment-count handler that replaced the interactive Reply/Like dialog.
+- Include the package version in the Android APK filename and release artifact.
+
+### Requires device validation
+- Validate the iOS installation handoff and shared-webview insets on physical iOS and Samsung Android devices.
+
+
 ## [2026.06.0-port.211]
 
 ### Fixed

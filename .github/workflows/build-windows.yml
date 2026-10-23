@@ -164,6 +164,7 @@ jobs:
       - name: Build signed installable Android APK
         run: npx tauri android build --apk
       - name: Stage Android APK
+        id: stage_android_apk
         shell: bash
         run: |
           set -euo pipefail
@@ -180,13 +181,15 @@ jobs:
           echo "Verified signed Android package: $PACKAGE_NAME"
           echo "Optimized Android APK size:"
           du -h "$APK"
+          VERSION="$(node -p 'require("./package.json").version')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           mkdir -p release-apk
-          cp "$APK" release-apk/Schoology-Android-APK.apk
+          cp "$APK" "release-apk/Schoology-Android-${VERSION}.apk"
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Android-APK
-          path: release-apk/Schoology-Android-APK.apk
+          name: Schoology-Android-${{ steps.stage_android_apk.outputs.version }}-APK
+          path: release-apk/Schoology-Android-*.apk
           if-no-files-found: error
           retention-days: 14
 

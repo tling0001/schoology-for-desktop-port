@@ -2618,6 +2618,7 @@ html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolba
 
 /* iOS: extend the web app into the system safe area and draw our own Schoology-blue status-bar inset. */
 :root{--ios-status-bar-height:env(safe-area-inset-top,0px)}
+html.iosAppSafeArea{--schoology-safe-area-top:var(--ios-status-bar-height)}
 html.iosAppSafeArea,html.iosAppSafeArea body,html.iosAppSafeArea #app{height:100%;min-height:100%;overflow:hidden}
 html.iosAppSafeArea .shell{height:100dvh!important;min-height:0!important;box-sizing:border-box!important;padding-top:var(--ios-status-bar-height)!important}
 html.iosAppSafeArea .shell>main{height:calc(100dvh - var(--ios-status-bar-height) - 56px)!important;max-height:calc(100dvh - var(--ios-status-bar-height) - 56px)!important}
@@ -2685,7 +2686,7 @@ html[data-electron-platform=darwin] .shell{padding-top:0!important}
 /* port.211: reserve native mobile status-bar space and keep embedded webviews below the app bar. */
 :root{--schoology-safe-area-top:env(safe-area-inset-top,0px)}
 html.iosAppSafeArea{--schoology-safe-area-top:env(safe-area-inset-top,0px)}
-html.androidAppSafeArea{--schoology-safe-area-top:24px}
+html.androidAppSafeArea{--schoology-safe-area-top:max(env(safe-area-inset-top,0px),24px)}
 html.androidAppSafeArea .shell{height:100dvh!important;min-height:0!important;box-sizing:border-box!important;padding-top:var(--schoology-safe-area-top)!important}
 html.androidAppSafeArea .shell>main{height:calc(100dvh - var(--schoology-safe-area-top) - 56px)!important;max-height:calc(100dvh - var(--schoology-safe-area-top) - 56px)!important}
 html.androidAppSafeArea .drawer,html.androidAppSafeArea .drawerShade{top:var(--schoology-safe-area-top)!important}

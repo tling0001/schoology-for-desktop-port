@@ -44,7 +44,8 @@ document.addEventListener('click',async event=>{
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{el.classList.remove('open');const fn=actions[i]?.action;if(fn)await fn()});return el}
 function showUpdateDialog(u){
-  const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios';
+  const iosUA=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
+  const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios'||iosUA;
   showAppDialog('Update available',`Schoology Desktop Port ${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{
     if(iosInstall){
       try{await A.installUpdate(u);showAppDialog('Installing update','App installation will start after closing Schoology or going to your Home Screen.')}
@@ -1597,7 +1598,6 @@ async function loadCourseUpdates(course,el){
    });
    el.querySelectorAll('[data-course-update-comments]').forEach(btn=>btn.onclick=()=>openUpdateCommentsModal('sections',sid,btn.dataset.courseUpdateComments,'Comments'));
    el.querySelectorAll('[data-course-update-comment-count]').forEach(btn=>btn.onclick=()=>openUpdateCommentsModal('sections',sid,btn.dataset.courseUpdateCommentCount,'Comments'));
-   el.querySelectorAll('[data-course-update-comment-count]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.courseUpdateCommentCount;if(!id)return;try{const data=await A.api({path:`sections/${sid}/updates/${id}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});const comments=data.comment||data.comments||[];showAppDialog('Comments',comments.map(c=>`${c.display_name||c.user_name||c.name||'User'}: ${c.body||c.comment||''}`).join('\n\n')||'No comments yet.')}catch(e){showAppDialog('Unable to load comments',e?.message||String(e)||'Unknown error')}});
    el.querySelectorAll('[data-course-update-like-count]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.courseUpdateLikeCount;if(!id)return;try{const data=await A.api({path:`like/${id}`,params:{}});const raw=data?.users?.user||data?.users||data?.user||[];const users=(Array.isArray(raw)?raw:[raw]).filter(Boolean);showPeopleDialog('Liked by',await hydrateDialogPeople(users),'likes')}catch(e){showAppDialog('Unable to load likes',e?.message||String(e)||'Unknown error')}});
    el.querySelectorAll('[data-update-delete]').forEach(btn=>btn.onclick=async()=>{
      if(!confirm('Delete this update?'))return;

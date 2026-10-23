@@ -4,6 +4,9 @@
   const tauri = window.__TAURI__;
   if (!tauri?.core?.invoke) return;
   const invoke = (name, args) => tauri.core.invoke('schoology_invoke', { name, args: args === undefined ? null : args });
+  // The main Schoology app intentionally has no browser right-click menu. The native
+  // context menu is handled separately inside embedded Schoology webviews only.
+  document.addEventListener('contextmenu', event => event.preventDefault(), true);
   const listeners = new Map();
   let webSessionCache = null;
   let webSessionPending = null;

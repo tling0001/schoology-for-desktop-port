@@ -1594,21 +1594,25 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_deep_link::init())
-        .on_menu_event(|app,event| {
-            let target=EMBEDDED_CONTEXT_TARGET.lock().ok().and_then(|v|v.clone());
-            let Some(label)=target else{return};
-            let Some(view)=app.get_webview(&label) else{return};
-            match event.id().as_ref() {
-                "schoology-context-back"=>{let _=view.eval("history.back()");}
-                "schoology-context-forward"=>{let _=view.eval("history.forward()");}
-                "schoology-context-reload"=>{let _=view.eval("location.reload()");}
-                "schoology-context-copy"=>{let _=view.eval("document.execCommand('copy')");}
-                "schoology-context-select-all"=>{let _=view.eval("document.execCommand('selectAll')");}
-                "schoology-context-open-link"=>{let link=EMBEDDED_CONTEXT_LINK.lock().ok().and_then(|v|v.clone());if let Some(url)=link{let _=app.opener().open_url(url,None::<&str>);}}
-                _=>{}
-            }
-        })
+        .plugin(tauri_plugin_deep_link::init());
+    // Tauri's global menu event API is desktop-only; mobile still builds the
+    // shared library but does not expose native desktop context menus.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder.on_menu_event(|app,event| {
+        let target=EMBEDDED_CONTEXT_TARGET.lock().ok().and_then(|v|v.clone());
+        let Some(label)=target else{return};
+        let Some(view)=app.get_webview(&label) else{return};
+        match event.id().as_ref() {
+            "schoology-context-back"=>{let _=view.eval("history.back()");}
+            "schoology-context-forward"=>{let _=view.eval("history.forward()");}
+            "schoology-context-reload"=>{let _=view.eval("location.reload()");}
+            "schoology-context-copy"=>{let _=view.eval("document.execCommand('copy')");}
+            "schoology-context-select-all"=>{let _=view.eval("document.execCommand('selectAll')");}
+            "schoology-context-open-link"=>{let link=EMBEDDED_CONTEXT_LINK.lock().ok().and_then(|v|v.clone());if let Some(url)=link{let _=app.opener().open_url(url,None::<&str>);}}
+            _=>{}
+        }
+    });
+    builder
         .invoke_handler(tauri::generate_handler![schoology_invoke])
         .run(tauri::generate_context!())
         .expect("error while running Schoology Desktop Port");

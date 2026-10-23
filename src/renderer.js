@@ -1108,7 +1108,7 @@ function isPdfAttachment(info){const mime=String(info?.mime||info?.filemime||inf
 function showPdfAttachmentOptions(info,downloadAction){
  document.getElementById('pdfAttachmentOptionsOverlay')?.remove();
  const overlay=document.createElement('div');overlay.id='pdfAttachmentOptionsOverlay';overlay.className='pdfAttachmentOptionsOverlay';
- const title=String(info?.filename||info?.title||'PDF document');
+ const title=String(info?.displayFilename||info?.filename||info?.title||'PDF document');
  overlay.innerHTML='<section class="pdfAttachmentOptions" role="dialog" aria-modal="true" aria-label="View or Download"><header><b>View or Download</b><button type="button" data-pdf-options-close aria-label="Close">×</button></header><div class="pdfAttachmentTitle">'+esc(title)+'</div><div class="pdfAttachmentActions"><button type="button" data-pdf-download>Download</button><button type="button" class="pdfViewAction" data-pdf-view>View</button></div></section>';
  const close=()=>overlay.remove();
  overlay.addEventListener('click',event=>{if(event.target===overlay||event.target.closest('[data-pdf-options-close]'))close()});
@@ -1120,7 +1120,7 @@ function showPdfAttachmentOptions(info,downloadAction){
 async function openSharedPdfViewer(info){
  document.getElementById('sharedPdfViewerOverlay')?.remove();
  const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay pdfViewerOpening';
- root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.filename||info?.title||'PDF document')+'</b></header><div class="sharedPdfViewerPages"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Opening PDF…</span></div></div>';
+ root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'PDF document')+'</b></header><div class="sharedPdfViewerPages"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Opening '+esc(String(info?.originalExtension||extensionFromUrl(info?.displayFilename||info?.filename)||'pdf').replace(/^\\./,'').toUpperCase())+'…</span></div></div>';
  document.body.appendChild(root);
  requestAnimationFrame(()=>root.classList.add('open'));
  const close=()=>{root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
@@ -1143,10 +1143,26 @@ async function openSharedPdfViewer(info){
    for(let number=1;number<=pdf.numPages;number++){
      const page=await pdf.getPage(number),natural=page.getViewport({scale:1}),width=Math.max(280,pages.clientWidth-24),scale=Math.min(1.6,width/natural.width),viewport=page.getViewport({scale});
      const dpr=Math.min(2,window.devicePixelRatio||1),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-     canvas.width=Math.floor(viewport.width*dpr);canvas.height=Math.floor(viewport.height*dpr);canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';canvas.setAttribute('aria-label','PDF page '+number);
+     canvas.width=Math.floor(viewport.width*dpr);canvas.height=Math.floor(viewport.height*dpr);canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';canvas.dataset.baseWidth=String(viewport.width);canvas.dataset.baseHeight=String(viewport.height);canvas.setAttribute('aria-label','PDF page '+number);
      const pageWrap=document.createElement('div');pageWrap.className='sharedPdfPage';pageWrap.appendChild(canvas);pages.appendChild(pageWrap);
      await page.render({canvasContext:ctx,viewport,transform:dpr===1?null:[dpr,0,0,dpr,0,0]}).promise;
    }
+   // Keep pinch zoom available in the built-in viewer even though app-wide browser zoom is disabled.
+   const pinch={startDistance:0,startZoom:1,zoom:1};
+   const touchDistance=touches=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
+   pages.style.touchAction='pan-x pan-y';
+   pages.addEventListener('touchstart',event=>{if(event.touches.length===2){pinch.startDistance=touchDistance(event.touches);pinch.startZoom=pinch.zoom}},{passive:true});
+   pages.addEventListener('touchmove',event=>{
+     if(event.touches.length!==2||!pinch.startDistance)return;
+     event.preventDefault();
+     pinch.zoom=Math.min(4,Math.max(1,pinch.startZoom*touchDistance(event.touches)/pinch.startDistance));
+     pages.querySelectorAll('.sharedPdfPage canvas').forEach(canvas=>{
+       const width=Number(canvas.dataset.baseWidth)||canvas.width,height=Number(canvas.dataset.baseHeight)||canvas.height;
+       canvas.style.width=(width*pinch.zoom)+'px';canvas.style.height=(height*pinch.zoom)+'px';
+       canvas.style.maxWidth=pinch.zoom>1?'none':'100%';
+     });
+   },{passive:false});
+   pages.addEventListener('touchend',event=>{if(event.touches.length<2)pinch.startDistance=0},{passive:true});
  }catch(error){const pages=root.querySelector('.sharedPdfViewerPages');if(pages)pages.innerHTML='<div class="sharedPdfViewerError"><b>Unable to view this PDF</b><p>'+esc(error?.message||String(error))+'</p><button type="button" data-pdf-viewer-back>Back</button></div>';root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close)}
 }
 function renderAttachments(a,submissionContext=null){
@@ -1301,7 +1317,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.download_path||first?.downloadPath||first?.resolveDownloadUrl||first?.url||fileUrl;convertedUrl=convertedUrl||first?.converted_download_path||first?.convertedDownloadPath||'';
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
-      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
+      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',displayFilename:filename,originalExtension:ext,mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
     }catch(e){alert('Unable to open file: '+e.message)}})();return
   });
   }catch(e){showSchoologyRequestError(e,()=>loadFolder(course,folderId,false,title));}
@@ -1596,16 +1612,36 @@ async function loadCourseUpdates(course,el){
  await loadInitial();
 }
 
-function dialogPersonId(person){return Number(person?.uid??person?.user_id??person?.userId??person?.id??person?.creater_id??person?.creator_id??person?.author_id??0)}
-function dialogPersonName(person,profile={}){return String(person?.name_display||person?.nameDisplay||person?.display_name||person?.displayName||person?.author_name||person?.user_name||person?.name||profile?.name_display||profile?.display_name||profile?.name||'Schoology user')}
-function dialogPersonAvatar(person,profile={}){return normalizeImageUrl(person?.picture_url||person?.pictureUrl||person?.picture||person?.avatar_url||person?.avatarUrl||profile?.picture_url||profile?.pictureUrl||profile?.picture||profile?.avatar_url||profile?.avatarUrl||'')}
+function dialogPersonId(person){
+ const nested=person?.user||person?.author||person?.creator||person?.profile_info||person?.profile||{};
+ const linked=person?.links?.user?.href||person?.links?.creator?.href||person?.links?.author?.href||'';
+ const linkedId=String(linked).match(/(?:users|user)\/(\d+)/i)?.[1];
+ return Number(person?.uid??person?.creater_id??person?.creator_id??person?.user_id??person?.userId??person?.author_id??person?.authorId??nested?.uid??nested?.user_id??nested?.id??linkedId??person?.id??0);
+}
+function dialogPersonName(person,profile={}){
+ const nested=person?.user||person?.author||person?.creator||person?.profile_info||person?.profile||{};
+ const hydrated=profile?.user||profile?.profile_info||profile?.profile||profile||{};
+ const candidates=[person?.name_display,person?.nameDisplay,person?.display_name,person?.displayName,person?.author_name,person?.user_name,nested?.name_display,nested?.display_name,nested?.name,hydrated?.name_display,hydrated?.nameDisplay,hydrated?.display_name,hydrated?.displayName,hydrated?.name];
+ const name=candidates.find(value=>typeof value==='string'&&value.trim()&&!/^(?:schoology(?: user)?)$/i.test(value.trim()));
+ return String(name||'Schoology user');
+}
+function dialogPersonAvatar(person,profile={}){
+ const nested=person?.user||person?.author||person?.creator||person?.profile_info||person?.profile||{};
+ const hydrated=profile?.user||profile?.profile_info||profile?.profile||profile||{};
+ return normalizeImageUrl(person?.picture_url||person?.pictureUrl||person?.picture||person?.avatar_url||person?.avatarUrl||nested?.picture_url||nested?.pictureUrl||nested?.picture||nested?.avatar_url||nested?.avatarUrl||hydrated?.picture_url||hydrated?.pictureUrl||hydrated?.picture||hydrated?.avatar_url||hydrated?.avatarUrl||'');
+}
 async function hydrateDialogPeople(records){
  const rows=(Array.isArray(records)?records:[records]).filter(Boolean),profiles={};
- const ids=[...new Set(rows.map(dialogPersonId).filter(id=>id>0))];
+ const ids=[...new Set(rows.map(dialogPersonId).filter(id=>Number.isFinite(id)&&id>0))];
  await Promise.all(ids.map(async id=>{
-   const row=rows.find(p=>dialogPersonId(p)===id)||{};
-   if(dialogPersonName(row,{})!=='Schoology user'&&dialogPersonAvatar(row,{}))return;
-   try{const response=await A.api({path:'users/'+id,params:{picture_size:'sm'}});profiles[id]=response?.user||response?.data?.user||response?.data||response||{}}catch{}
+   const row=rows.find(person=>dialogPersonId(person)===id)||{};
+   const name=dialogPersonName(row,{}),avatar=dialogPersonAvatar(row,{});
+   if(name!=='Schoology user'&&avatar)return;
+   try{
+     const response=await A.api({path:'users/'+id,params:{picture_size:'sm'}});
+     const candidates=[response?.user,response?.data?.user,response?.users?.user,response?.data?.users?.user,response?.data,response];
+     profiles[id]=candidates.find(value=>value&&typeof value==='object'&&!Array.isArray(value)&&(value.name_display||value.display_name||value.name||value.picture_url||value.pictureUrl||value.picture||value.profile_info))||{};
+   }catch{}
  }));
  return rows.map(person=>({person,profile:profiles[dialogPersonId(person)]||{},id:dialogPersonId(person)}));
 }

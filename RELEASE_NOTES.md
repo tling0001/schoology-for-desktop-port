@@ -1,5 +1,38 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.205]
+
+### Fixed
+- Resolve comment authors and profile pictures in the shared post-comments dialog using the official comment creator ID and tolerate nested user/profile response shapes.
+- Apply explicit dark-theme surfaces, borders, text, and scrim to the shared Comments/Liked by dialog.
+- Locate Android Gradle release build types in both Groovy and Kotlin DSL generated files, while ignoring braces inside quoted strings and comments during block matching.
+- Preserve the original filename and extension in View/Download dialogs for office files opened through converted PDFs; label the PDF viewer's opening state with the original extension.
+- Add touch-based pinch zoom to the built-in PDF viewer without re-enabling pinch zoom across the rest of the iOS app.
+
+### Changed
+- Bump the port version to 2026.06.0-port.205.
+
+## [2026.06.0-port.205]
+
+### Fixed
+- Resolve comment authors and profile pictures in the shared post-comments dialog using the official comment creator ID and tolerate nested user/profile response shapes.
+- Apply explicit dark-theme surfaces, borders, text, and scrim to the shared Comments/Liked by dialog.
+- Locate Android Gradle release build types in both Groovy and Kotlin DSL generated files, while ignoring braces inside quoted strings and comments during block matching.
+
+### Changed
+- Bump the port version to 2026.06.0-port.205.
+
+## [2026.06.0-port.205]
+
+### Fixed
+- Resolve comment authors and profile pictures in the shared post-comments dialog using the official comment creator ID and tolerate nested user/profile response shapes.
+- Apply explicit dark-theme surfaces, borders, text, and scrim to the shared Comments/Liked by dialog.
+- Locate Android Gradle release build types in both Groovy and Kotlin DSL generated files, while ignoring braces inside quoted strings and comments during block matching.
+
+### Changed
+- Bump the port version to 2026.06.0-port.205.
+
+
 ## [2026.06.0-port.204]
 
 ### Fixed

@@ -36,14 +36,30 @@ let source = fs.readFileSync(gradleFile, 'utf8');
 if (source.includes('schoologyRelease')) throw new Error('Android Gradle signing configuration was already inserted; refusing to duplicate it.');
 function findBlock(text, regex, from = 0) {
   regex.lastIndex = from;
-  const match = regex.exec(text);
-  if (!match) return null;
-  const open = text.indexOf('{', match.index);
-  if (open < 0) return null;
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === '{') depth++;
-    else if (text[i] === '}' && --depth === 0) return { start: match.index, open, close: i };
+  let match;
+  while ((match = regex.exec(text))) {
+    const start = match.index;
+    const open = text.indexOf('{', start);
+    if (open < 0) return null;
+    // Skip braces inside strings and comments in generated Gradle files.
+    let depth = 0, quote = '', escaped = false, lineComment = false, blockComment = false;
+    for (let i = open; i < text.length; i++) {
+      const ch = text[i], next = text[i + 1];
+      if (lineComment) { if (ch === '\n') lineComment = false; continue; }
+      if (blockComment) { if (ch === '*' && next === '/') { blockComment = false; i++; } continue; }
+      if (quote) {
+        if (escaped) { escaped = false; continue; }
+        if (ch === '\\') { escaped = true; continue; }
+        if (ch === quote) quote = '';
+        continue;
+      }
+      if (ch === '/' && next === '/') { lineComment = true; i++; continue; }
+      if (ch === '/' && next === '*') { blockComment = true; i++; continue; }
+      if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+      if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) return { start, open, close: i };
+    }
+    return null;
   }
   return null;
 }
@@ -75,7 +91,7 @@ const signingBlock = isKotlin
 `;
 source = source.slice(0, buildTypes.start) + signingBlock + source.slice(buildTypes.start);
 const updatedBuildTypes = findBlock(source, /\bbuildTypes\s*\{/g, android.open);
-const release = updatedBuildTypes && findBlock(source, /\brelease\s*\{/g, updatedBuildTypes.open);
+const release = updatedBuildTypes && findBlock(source, /(?:\brelease\s*\{|\b(?:getByName|named)\s*\(\s*["']release["']\s*\)\s*\{)/g, updatedBuildTypes.open);
 if (!release || release.close > updatedBuildTypes.close) throw new Error('Could not safely locate the Android release build type for signing.');
 source = source.slice(0, release.close) + (isKotlin
   ? '\n            signingConfig = signingConfigs.getByName("schoologyRelease")\n'

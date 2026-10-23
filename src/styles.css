@@ -2668,3 +2668,15 @@ html[data-electron-platform=darwin] .shell{padding-top:0!important}
 .sharedPdfPage canvas{max-width:none!important;flex:0 0 auto!important}
 
 .gradeStudentAvatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+
+/* v210: keep PDF canvases at their rendered zoom size so zoomed pages can scroll. */
+.sharedPdfPage{width:max-content;min-width:100%;max-width:none}
+.sharedPdfPage canvas{max-width:none!important}
+
+/* v210: wide-screen Inbox and Sent columns share the available width evenly. */
+.messagesSplitLayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0;height:100%;min-height:0;overflow:hidden}
+.messagesSplitColumn{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--theme-border,#d8dde3)}
+.messagesSplitColumn:last-child{border-right:0}
+.messagesSplitHeading{flex:0 0 auto;padding:14px 16px;font-weight:600;border-bottom:1px solid var(--theme-border,#d8dde3);color:var(--theme-text,#20252a)}
+.messagesSplitColumn .messageList{flex:1;min-height:0;overflow:auto}

@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.221]
+
+### Fixed
+- Embed the exact official Android `ic_speech_bubble_spacefront` and `ic_like_spacefront` assets in the renderer so post counter icons no longer depend on broken relative paths.
+- Route post comment actions into a shared composer; the comments-view plus button opens that same composer.
+- Bring person-profile updates into the shared post-action presentation and normalize homepage preferences from the official mobile/me response.
+- Add close transitions to app and shared-comment dialogs, respecting reduced motion and iOS safe areas.
+
+### Requires device validation
+- Verify comment posting, homepage preference, mobile dialog layout/animations, and native embedded-webview behavior on Windows and iOS.
+
+
 ## [2026.06.0-port.220]
 
 ### Fixed

@@ -1,5 +1,16 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.225]
+
+### Fixed
+- Make the upload-submission chooser fullscreen and safe-area-aware on narrow screens.
+- Restyle Create Text Submission to match the Android toolbar: dark-blue header, embedded trash icon at left, send icon at right, and the draft checkbox aligned to the right below the editor.
+- Remove the extra Cancel and Submit buttons from the text editor body and route discard/send through the toolbar actions.
+- Add closing transitions for upload and text-submission dialogs while respecting reduced-motion preferences.
+
+### Requires device validation
+- Verify iPhone safe-area/fullscreen behavior, toolbar icon sizing, draft submission behavior, and the upload chooser on a physical device.
+
 ## [2026.06.0-port.224]
 
 ### Fixed

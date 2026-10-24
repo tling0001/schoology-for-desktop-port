@@ -1,5 +1,19 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.227]
+
+### Fixed
+- Render post comments through one shared comment-row component with profile navigation, official Android like-count artwork, robust like state, and a Reply action that opens the inline composer.
+- Normalize nested and single-object message responses so inbox, sent, and thread views handle the Schoology API response shape consistently.
+- Normalize recipient search responses and derive outgoing recipient IDs from selected recipient chips before sending.
+- Reply to the most recent other participant in a conversation when the newest message was sent by the signed-in user.
+- Route HTTP(S) links in message threads through the app's Schoology-link/external-link handling.
+- Size message refresh/reply icons consistently with Android action-bar icons.
+
+### Requires device validation
+- Verify message sending, replies, refresh, links, comment replies, and like/unlike actions with a live Schoology account.
+
+
 ## [2026.06.0-port.226]
 
 ### Fixed

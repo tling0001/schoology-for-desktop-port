@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.215]
+
+### Fixed
+- Restore full-size pointer-interactive styling for the Tauri shared webview custom element, which differs from Electron's native `webview` tag.
+
+### Requires device validation
+- Confirm taps/clicks work in embedded Quiz, Account Info, and other shared-webview pages across supported platforms.
+
+
 ## [2026.06.0-port.214]
 
 ### Fixed

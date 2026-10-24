@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.226]
+
+### Fixed
+- Use one shared post-card renderer across Recent Activity, course updates, school updates, group updates, and profile updates so author rows, rich post bodies, attachments, polls, timestamps, and action controls stay consistent.
+
+### Requires device validation
+- Verify shared post-card parity and all feed-specific author, context, like, comment, and delete actions with a live Schoology account.
+
+
 ## [2026.06.0-port.225]
 
 ### Fixed

@@ -1719,11 +1719,12 @@ async function showLikeUsers(path){
  catch(e){showAppDialog('Unable to load likes',e?.message||String(e)||'Unknown error')}
 }
 function showUpdateCommentsDialog(realm,realmId,updateId){openUpdateCommentsModal(realm,realmId,updateId,'Comments')}
-function renderSharedCommentRow(comment,updateId,allComments=[]) {
+function renderSharedCommentRow(comment,updateId,allComments=[],hydratedRow=null) {
  const id=comment.id??comment.comment_id??comment.commentId??'';
  const parent=Number(comment.parent_id??comment.parentId??0)||0;
  const author=comment.user||comment.author||comment.profile||comment.creator||{};
- const authorId=dialogPersonId(comment),name=dialogPersonName(comment,author),avatar=dialogPersonAvatar(comment,author);
+ const hydratedProfile=hydratedRow?.profile&&Object.keys(hydratedRow.profile).length?hydratedRow.profile:author;
+ const authorId=hydratedRow?.id||dialogPersonId(comment),name=dialogPersonName(comment,hydratedProfile),avatar=dialogPersonAvatar(comment,hydratedProfile);
  const liked=[comment.user_like_action,comment.user_liked,comment.userLiked,comment.liked,comment.is_liked,comment.isLiked].some(v=>v===true||v===1||v==='1'||String(v).toLowerCase()==='true');
  const likes=Number(comment.likes??comment.like_count??comment.likeCount??0)||0;
  const replies=allComments.filter(reply=>String(reply.parent_id??reply.parentId??0)===String(id));
@@ -1735,7 +1736,8 @@ function renderSharedCommentRow(comment,updateId,allComments=[]) {
 async function loadUpdateCommentsPanel(realm,realmId,updateId,panel){
  if(!panel)return;panel.hidden=false;panel.innerHTML='<div class="loading">Loading comments…</div>';
  try{const data=await A.api({path:`${realm}/${realmId}/updates/${updateId}/comments`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const comments=data.comment||data.comments||[];const orderedComments=[],appendChildren=(parentId)=>comments.filter(c=>String(c.parent_id||c.parentId||0)===String(parentId)).forEach(c=>{orderedComments.push(c);appendChildren(c.id||c.comment_id||c.commentId)});appendChildren(0);comments.forEach(c=>{if(!orderedComments.includes(c))orderedComments.push(c)});
- panel.innerHTML='<div class="updateCommentsList">'+(orderedComments.map(comment=>renderSharedCommentRow(comment,updateId,comments)).join('')||'<div class="empty">No comments yet.</div>')+'</div><div class="updateCommentComposer" hidden><textarea id="update-comment-'+esc(updateId)+'" placeholder="Write a comment…"></textarea><button type="button" data-post-update-comment="'+esc(updateId)+'">Post comment</button></div>';
+ const hydratedComments=await hydrateDialogPeople(orderedComments);
+  panel.innerHTML='<div class="updateCommentsList">'+(orderedComments.map((comment,index)=>renderSharedCommentRow(comment,updateId,comments,hydratedComments[index])).join('')||'<div class="empty">No comments yet.</div>')+'</div><div class="updateCommentComposer" hidden><textarea id="update-comment-'+esc(updateId)+'" placeholder="Write a comment…"></textarea><button type="button" data-post-update-comment="'+esc(updateId)+'">Post comment</button></div>';
  hydrateMediaImages(panel).catch(()=>{});
  panel.querySelectorAll('.updateComment[data-parent-id]:not([data-parent-id="0"])').forEach(reply=>{reply.hidden=true;});
  panel.querySelectorAll('[data-comment-replies-toggle]').forEach(button=>button.onclick=()=>{const id=button.dataset.commentRepliesToggle,rows=[...panel.querySelectorAll('.updateComment[data-parent-id]')].filter(row=>row.dataset.parentId===id),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));rows.forEach(row=>row.hidden=expanded);button.textContent=`${expanded?'⌄':'⌃'} ${rows.length} ${rows.length===1?'reply':'replies'}`;});

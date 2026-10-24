@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.228]
+
+### Fixed
+- Hydrate commenter profiles before rendering shared post comments so rows can show real display names and profile photos when the comments endpoint returns only user IDs.
+
+### Requires device validation
+- Verify comment names, avatars, replies, and like-count artwork with a live Schoology account.
+
+
 ## [2026.06.0-port.227]
 
 ### Fixed

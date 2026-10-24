@@ -2598,8 +2598,8 @@ html,body,#app,.shell{box-shadow:none!important}
 /* v203: native window controls stay above splash/login and track pushed-drawer layouts. */
 html[data-window-controls-overlay="true"] #tauriWindowControls{z-index:2147483647!important}
 html[data-electron-platform=darwin][data-window-controls-overlay="true"] #tauriWindowControls{top:0!important;height:56px!important}
-@media(max-width:1499px){body:has(.shell>.drawer.open) #tauriWindowControls{display:none!important}}
-@media(min-width:1500px){body:has(.shell>.drawer.open) #tauriWindowControls{left:340px!important}}
+@media(max-width:1499px){html[data-electron-platform=darwin][data-window-controls-overlay="true"] body:has(.shell>.drawer.open) #tauriWindowControls{display:none!important}}
+@media(min-width:1500px){html[data-electron-platform=darwin][data-window-controls-overlay="true"] body:has(.shell>.drawer.open) #tauriWindowControls{left:340px!important}}
 html[data-window-controls-overlay="true"] .toolbar{grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important}
 html[data-window-controls-overlay="true"] .toolbar::after{width:var(--tauri-window-controls-width,138px)!important}
 html[data-electron-platform=darwin] .shell>.toolbar{padding-left:var(--tauri-window-controls-width,138px)!important}

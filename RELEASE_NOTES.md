@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.216]
+
+### Fixed
+- Show the official Schoology reaction icon beside update like counts and add a speech-bubble icon beside comment counts.
+
+
 ## [2026.06.0-port.215]
 
 ### Fixed

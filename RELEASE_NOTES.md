@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.218]
+
+### Fixed
+- Avoid duplicate reaction icons beside update like counts by reusing the shared official-icon styling.
+
+
 ## [2026.06.0-port.217]
 
 ### Fixed

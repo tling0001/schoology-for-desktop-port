@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.214]
+
+### Fixed
+- Resolve group discussion Post To labels using the active group name rather than its numeric ID.
+- Read additional Schoology poll vote-count and selected-state fields so poll results can render before the current user votes.
+- Resolve update-comment author names and avatar URLs from nested author/profile records, and improve comments-panel scrolling and action-button visibility.
+- Improve the visual separation and sizing of Inbox/Sent split headings without changing the homepage Upcoming split.
+
+### Requires device validation
+- Verify comment avatars/replies and live poll counts with Schoology accounts, and confirm shared-webview interaction behavior on desktop and mobile.
+
+
 ## [2026.06.0-port.213]
 
 ### Fixed

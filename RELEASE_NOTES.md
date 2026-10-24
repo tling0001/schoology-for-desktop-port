@@ -1,5 +1,18 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.213]
+
+### Fixed
+- Add Android universal APK discovery to the update checker and hand the downloaded APK to Android Package Installer with the correct package MIME type.
+- Route launch-time update notifications through the same install-confirmation dialog as Settings, deferring the prompt until startup has dismissed the splash instead of auto-installing.
+- Render poll options and vote state on activity/update cards, add the comment-composer action to update comment dialogs, and align like-count dialog titles with the official Android wording.
+- Match the course update composer to the official Android post layout with file/resource attachments only, center the splash spinner directly beneath the responsive logo, fix wide-screen drawer sizing, include upcoming events in selected calendar-day lists, and improve touch targets for post/comment actions.
+- Use the official Schoology Android smiley-like asset and admin badge styling.
+
+### Requires device validation
+- Verify Android APK download/progress and Package Installer handoff on a physical Android device; validate poll voting, comment interactions, and admin badge placement against live Schoology accounts.
+
+
 ## [2026.06.0-port.212]
 
 ### Fixed

@@ -880,6 +880,7 @@ fn update_asset_suffixes() -> Vec<&'static str> {
         "windows" => vec!["_x64-setup.exe", "-x64-setup.exe", "Setup-x64.exe"],
         "macos" => vec![".dmg"],
         "linux" => vec!["amd64.deb", "x86_64.rpm"],
+        "android" => vec![".apk"],
         "ios" => vec!["-iOS-AdHoc.plist"],
         _ => vec![],
     }
@@ -1164,6 +1165,12 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
         app.opener().open_path(path.to_string_lossy().as_ref(), None::<&str>)
             .map_err(|e| format!("Could not open the update package: {e}"))?;
         return Ok(json!(true));
+    }
+    #[cfg(target_os = "android")]
+    {
+        app.opener().open_path(path.to_string_lossy().as_ref(), Some("application/vnd.android.package-archive"))
+            .map_err(|e| format!("Could not open the Android package installer: {e}"))?;
+        return Ok(json!({"openedInstaller":true,"path":path.to_string_lossy()}));
     }
     #[allow(unreachable_code)]
     Err("Automatic installation is not supported on this platform.".into())

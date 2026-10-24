@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.219]
+
+### Fixed
+- Reuse one shared post-action renderer across Recent Activity, course updates, group updates, and school profile updates, keeping reaction icons beside like counts instead of Like text and joining each count to its corresponding action.
+- Use the official Schoology back and add icons in the shared update-comments app bar.
+- Correct the narrow-screen update-comments dialog to use the full viewport without a bottom gap and preserve safe-area-aware scrolling.
+- Apply dark-mode surfaces and text to polls, post action buttons, comment rows, and comment dialogs.
+- Match Inbox/Sent split headings to the Home Upcoming pane's 48px Schoology-blue header style.
+
+### Requires device validation
+- Verify post counts, comment actions, dark mode, and dialog scrolling on iPhone and Windows. No local platform builds were run.
+
 ## [2026.06.0-port.218]
 
 ### Fixed

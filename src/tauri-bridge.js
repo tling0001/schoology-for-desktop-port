@@ -11,6 +11,8 @@
   let webSessionCache = null;
   let webSessionPending = null;
   const embeddedViews = new Set();
+  // Explicitly detach native child surfaces whenever the renderer leaves its embedded-page state.
+  window.addEventListener('schoology-close-embedded-webviews', () => { for (const view of [...embeddedViews]) { try { view.remove(); } catch (_) {} } });
   let currentThemeMode = 'system';
   let forceDarkMode = false;
   const resolvedDark = () => forceDarkMode || currentThemeMode === 'dark' || (currentThemeMode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -346,7 +348,7 @@
         nativeInvoke('schoology_invoke', {
           name: 'show-embedded-context-menu',
           args: { label: nativeLabel, hasSelection: !!selection, link: anchor?.href || '' }
-        }).catch(error => { console.warn('Could not open native Schoology context menu:', error); showFallbackMenu(); });
+        }).then(result => { if (result !== true) showFallbackMenu(); }).catch(error => { console.warn('Could not open native Schoology context menu:', error); showFallbackMenu(); });
       }, true);
     }
     // Tauri child webviews do not implement Electron's native allowpopups/preload

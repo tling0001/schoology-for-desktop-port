@@ -1,5 +1,16 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.223]
+
+### Fixed
+- Ensure embedded Tauri child webviews are explicitly detached when the renderer exits embedded-page state, including navigation through the toolbar or drawer.
+- Fall back to the embedded context menu if the native context-menu command reports that it did not display a menu.
+- Correct the embedded post counter image payloads using the official Android speech-bubble asset and a valid embedded like image.
+
+### Requires device validation
+- Re-test shared webview visibility, click access after leaving a webview, and right-click menus on Windows.
+
+
 ## [2026.06.0-port.222]
 
 ### Fixed

@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.217]
+
+### Fixed
+- Keep the custom window-control overlay visible on Windows/Linux when the drawer opens; only apply drawer-specific hiding/offset behavior on macOS when the overlay is enabled.
+
+
 ## [2026.06.0-port.216]
 
 ### Fixed

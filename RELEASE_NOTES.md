@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.222]
+
+### Fixed
+- Nest replies directly beneath parent comments, indent reply rows, and add expandable reply-count controls while hiding reply actions in the post comments view.
+- Make homepage Recent Activity comment actions open the shared composer rather than the comments viewer.
+- Center active tabs within horizontally scrollable tab strips without overscrolling, using smooth movement unless reduced motion is enabled.
+- Move detached native embedded webviews offscreen and resize them before hiding/closing to reduce stale blank surfaces intercepting clicks.
+
+### Requires device validation
+- Verify threaded comments and tab movement on narrow screens, and retest native embedded-webview closing/context-menu behavior.
+
+
 ## [2026.06.0-port.221]
 
 ### Fixed

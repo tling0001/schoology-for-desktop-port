@@ -2795,3 +2795,7 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
  #sharedCommentComposerDialog .sharedCommentComposerBody{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 }
 :root[data-reduced-motion="true"] .assignmentCommentDialogOverlay,:root[data-reduced-motion="true"] .assignmentCommentDialog,:root[data-reduced-motion="true"] .appDialogOverlay,:root[data-reduced-motion="true"] .appDialog{transition:none!important;transform:none!important}
+
+/* port.222: tab edge centering and expandable reply rows. */
+.updateComment[data-parent-id]:not([data-parent-id="0"]){margin-left:22px}
+.updateCommentRepliesToggle[aria-expanded="true"]{font-weight:600}

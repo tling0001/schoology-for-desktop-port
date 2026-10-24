@@ -522,9 +522,9 @@
           // parent window. Closing it in JS first can make get_webview(label) fail,
           // leaving a stale native surface over the renderer and stealing clicks.
           void (async () => {
-            try { await view.hide(); } catch (_) {}
             try { await view.setPosition(new tauri.dpi.LogicalPosition(-10000, -10000)); } catch (_) {}
             try { await view.setSize(new tauri.dpi.LogicalSize(1, 1)); } catch (_) {}
+            try { await view.hide(); } catch (_) {}
             let hostClosed = false;
             if (label) {
               try { hostClosed = (await invoke('close-embedded-webview', { label })) === true; }

@@ -1,5 +1,12 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.230]
+
+### Fixed
+- Keep shared post author avatars visible after media hydration.
+- Preserve the school-updates comment panel target while switching its card to the shared post renderer.
+
+
 ## [2026.06.0-port.229]
 
 ### Fixed

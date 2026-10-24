@@ -1579,7 +1579,7 @@ async function loadCourseUpdates(course,el){
        ${renderAttachments(u.attachments||u.attachment||u.files||{})}
        ${renderUpdatePoll(u,id)}
        <div class="activityMeta">${esc(formatSchoologyDate(u.created||u.timestamp||u.last_updated||u.lastUpdated||''))}</div>
-       <div class="activityActions"><button data-course-update-comments="${esc(id)}">Comment</button>${comments?`<button data-course-update-comment-count="${esc(id)}" aria-label="${esc(comments)} comments">${esc(comments)}</button>`:'' }<button data-course-update-like="${esc(id)}" data-liked="${liked?'1':'0'}">${liked?'Unlike':'Like'}</button>${Number(likes||0)>0?`<button data-course-update-like-count="${esc(id)}" aria-label="${esc(likes)} likes">${esc(likes)}</button>`:''}</div>
+       <div class="activityActions"><button data-course-update-comments="${esc(id)}">Comment</button>${comments?`<button data-course-update-comment-count="${esc(id)}" aria-label="${esc(comments)} comments"><svg class="updateCommentCountIcon" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3.5h14v10H9l-4 3v-3H3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>${esc(comments)}</button>`:'' }<button data-course-update-like="${esc(id)}" data-liked="${liked?'1':'0'}">${liked?'Unlike':'Like'}</button>${Number(likes||0)>0?`<button data-course-update-like-count="${esc(id)}" aria-label="${esc(likes)} likes"><img class="updateLikeCountIcon" src="../assets/ic_like_spacefront.png" alt="">${esc(likes)}</button>`:''}</div>
        <div class="updateCommentsPanel" id="course-update-comments-${esc(id)}" hidden></div>
      </article>`;
    }).join('');

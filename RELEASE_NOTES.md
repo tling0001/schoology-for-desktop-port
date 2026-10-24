@@ -1,5 +1,18 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.224]
+
+### Fixed
+- Replace the malformed like-count PNG data with the exact official Android ic_like_spacefront.png asset and prevent counter icons from clipping in shared post actions.
+- Interpret comment like flags robustly so a previously liked comment opens as Unlike, including string-valued API flags.
+- Render plain-text HTTP(S) URLs in message threads as clickable links.
+- Normalize message-recipient ID fields and send recipient_ids as the comma-separated string used by the official Android message model.
+- Match the shared post-comment composer to the Android app bar: discard icon, Comment title, and send action without redundant Cancel/Post buttons below the editor.
+- Add fullscreen, safe-area-aware narrow-screen message composition and closing transitions for message and people dialogs.
+
+### Requires device validation
+- Verify post/comment icon visibility, comment like state, message recipient sending, clickable links, and message dialogs on physical devices.
+
 ## [2026.06.0-port.223]
 
 ### Fixed

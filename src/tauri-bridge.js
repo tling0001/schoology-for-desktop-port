@@ -1,4 +1,4 @@
-/* Tauri compatibility layer. Electron remains the supported release runtime until parity is complete. */
+/* Native Tauri compatibility bridge for the Schoology application renderer. */
 (function () {
   'use strict';
   const tauri = window.__TAURI__;

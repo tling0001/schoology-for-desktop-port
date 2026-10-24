@@ -1,8 +1,8 @@
 const app=document.getElementById('app');
 const A=window.schoology;
 if(!A){
-  app.innerHTML='<div class="fatal"><h2>Schoology</h2><p>The application interface could not initialize.</p><p>The Electron authentication bridge did not load.</p></div>';
-  throw new Error('Schoology preload bridge is unavailable');
+  app.innerHTML='<div class="fatal"><h2>Schoology</h2><p>The application interface could not initialize.</p><p>The Schoology Tauri bridge did not load.</p></div>';
+  throw new Error('Schoology Tauri bridge is unavailable');
 }
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
 let qrStream=null;
@@ -1556,13 +1556,13 @@ function installCourseLayoutWatcher(){
   courseLayoutMediaQuery=mq;
 }
 
-async function renderSharedPostActions({id,comments=0,likes=0,liked=false,commentAttr,commentCountAttr,likeAttr,likeCountAttr}){
+function renderSharedPostActions({id,comments=0,likes=0,liked=false,commentAttr,commentCountAttr,likeAttr,likeCountAttr}){
  const value=esc(id??''),commentTotal=Number(comments)||0,likeTotal=Number(likes)||0,isLiked=!!liked;
  const action=(name)=>`${name}="${value}"`;
  return `<div class="activityActions sharedPostActions"><button type="button" ${action(commentAttr)}>Comment</button>${commentTotal>0?`<button type="button" class="postCountButton commentCountButton" ${action(commentCountAttr)} aria-label="${esc(commentTotal)} comments"><svg class="updateCommentCountIcon" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3.5h14v10H9l-4 3v-3H3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span>${esc(commentTotal)}</span></button>`:''}<button type="button" ${action(likeAttr)} data-liked="${isLiked?'1':'0'}">${isLiked?'Unlike':'Like'}</button>${likeTotal>0?`<button type="button" class="postCountButton likeCountButton" ${action(likeCountAttr)} aria-label="${esc(likeTotal)} likes"><img class="updateLikeCountIcon" src="../assets/ic_like_spacefront.png" alt=""><span>${esc(likeTotal)}</span></button>`:''}</div>`;
 }
 
-function loadCourseUpdates(course,el){
+async function loadCourseUpdates(course,el){
  const sid=course.id||course.section_id||course.sectionId;
  const uid=state.auth?.userId||state.auth?.user?.id;
  if(!sid)throw new Error('Course section ID is missing.');

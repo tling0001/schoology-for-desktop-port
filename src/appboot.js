@@ -13,7 +13,7 @@
     hideSplash();
     if(window.schoologyShowError && document.querySelector('.shell')){ try{window.schoologyShowError(new Error(detail));return;}catch{} }
     if(!app)return;
-    app.innerHTML='<div class="fatal"><h2>'+title+'</h2><p>'+detail+'</p><p style="font-size:12px;word-break:break-word">If this persists, the application renderer or Electron preload bridge failed to initialize.</p></div>';
+    app.innerHTML='<div class="fatal"><h2>'+title+'</h2><p>'+detail+'</p><p style="font-size:12px;word-break:break-word">If this persists, the Schoology Tauri bridge or application renderer failed to initialize.</p></div>';
   }
   window.addEventListener('error',function(e){
     const msg=e&&e.error&&e.error.stack ? e.error.stack : (e&&e.message||'Unknown renderer error');
@@ -26,9 +26,8 @@
     console.error('Schoology renderer promise error:',msg);
     showError('Schoology could not start',msg);
   });
-  // Electron normally exposes the preload bridge before page scripts run. Give
-  // startup a short grace period before showing a fatal error, rather than treating
-  // a transient initialization delay as a permanently missing bridge.
+  // The Tauri compatibility bridge is injected before appboot.js in packaged builds.
+  // Give startup a short grace period before reporting a missing bridge.
   let bridgeAttempts=0;
   function loadRendererWhenReady(){
     if(!window.schoology){

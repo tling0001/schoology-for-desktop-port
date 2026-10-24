@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.220]
+
+### Fixed
+- Fix the renderer syntax error that prevented iOS startup by restoring the asynchronous course-updates loader declaration and making the shared post-action renderer synchronous.
+- Replace obsolete Electron preload-bridge wording with Tauri-specific startup diagnostics.
+
+### Requires device validation
+- Verify a clean iOS launch and confirm startup diagnostics no longer mention Electron. No local platform builds were run.
+
 ## [2026.06.0-port.219]
 
 ### Fixed

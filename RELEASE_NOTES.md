@@ -1,5 +1,12 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.229]
+
+### Fixed
+- Handle single-message objects without confusing a message's text body with a nested message-list envelope.
+- Preserve fallback message/body content when a post's primary body field is empty, and normalize single-object comment responses before building the shared comments view.
+
+
 ## [2026.06.0-port.228]
 
 ### Fixed

@@ -64,7 +64,10 @@ window.closeDrawerThen=function closeDrawerThen(fn){const drawer=document.getEle
 function normalizeMessageRows(response) {
  const payload=response?.data??response?.response??response??{};
  let raw=payload?.message??payload?.messages??payload?.data?.message??payload?.data?.messages??[];
- if(raw&&typeof raw==='object'&&!Array.isArray(raw))raw=raw.message??raw.messages??[raw];
+ if(raw&&typeof raw==='object'&&!Array.isArray(raw)){
+   const nested=raw.message??raw.messages;
+   raw=Array.isArray(nested)?nested:(nested&&typeof nested==='object'?[nested]:[raw]);
+ }
  return Array.isArray(raw)?raw:[];
 }
 
@@ -1571,7 +1574,7 @@ function installCourseLayoutWatcher(){
 
 function renderSharedPostCard({update={},id,author='Schoology',avatar='',authorId='',authorAttr='data-author-id',contextLabel='',contextAttr='data-activity-group-id',contextId='',cardClass='',badge='',comments=0,likes=0,liked=false,commentAttr='data-shared-post-comments',commentCountAttr='data-shared-post-comment-count',likeAttr='data-shared-post-like',likeCountAttr='data-shared-post-like-count',deleteButton='',commentsPanelId=''}) {
  const postId=id??update.id??update.update_id??update.updateId??'';
- const body=update.body??update.message??update.description??update.title??'';
+ const body=update.body||update.message||update.description||update.title||'';
  const date=formatSchoologyDate(update.created??update.timestamp??update.created_at??update.last_updated??update.lastUpdated??'');
  const authorMarkup=authorAttr?'<button class="activityUser activityAuthorLink" '+authorAttr+'="'+esc(authorId||'')+'">'+esc(author)+'</button>':'<b class="activityUser">'+esc(author)+'</b>';
  const contextMarkup=contextLabel?'<span class="activityContextArrow" aria-hidden="true">›</span><button class="activityGroupLink" '+contextAttr+'="'+esc(contextId||'')+'">'+esc(contextLabel)+'</button>':'';
@@ -1735,7 +1738,7 @@ function renderSharedCommentRow(comment,updateId,allComments=[],hydratedRow=null
 
 async function loadUpdateCommentsPanel(realm,realmId,updateId,panel){
  if(!panel)return;panel.hidden=false;panel.innerHTML='<div class="loading">Loading comments…</div>';
- try{const data=await A.api({path:`${realm}/${realmId}/updates/${updateId}/comments`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const comments=data.comment||data.comments||[];const orderedComments=[],appendChildren=(parentId)=>comments.filter(c=>String(c.parent_id||c.parentId||0)===String(parentId)).forEach(c=>{orderedComments.push(c);appendChildren(c.id||c.comment_id||c.commentId)});appendChildren(0);comments.forEach(c=>{if(!orderedComments.includes(c))orderedComments.push(c)});
+ try{const data=await A.api({path:`${realm}/${realmId}/updates/${updateId}/comments`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const rawComments=data?.comment??data?.comments??data?.data?.comment??data?.data?.comments??[];const comments=Array.isArray(rawComments)?rawComments:(rawComments&&typeof rawComments==='object'?[rawComments]:[]);const orderedComments=[],appendChildren=(parentId)=>comments.filter(c=>String(c.parent_id||c.parentId||0)===String(parentId)).forEach(c=>{orderedComments.push(c);appendChildren(c.id||c.comment_id||c.commentId)});appendChildren(0);comments.forEach(c=>{if(!orderedComments.includes(c))orderedComments.push(c)});
  const hydratedComments=await hydrateDialogPeople(orderedComments);
   panel.innerHTML='<div class="updateCommentsList">'+(orderedComments.map((comment,index)=>renderSharedCommentRow(comment,updateId,comments,hydratedComments[index])).join('')||'<div class="empty">No comments yet.</div>')+'</div><div class="updateCommentComposer" hidden><textarea id="update-comment-'+esc(updateId)+'" placeholder="Write a comment…"></textarea><button type="button" data-post-update-comment="'+esc(updateId)+'">Post comment</button></div>';
  hydrateMediaImages(panel).catch(()=>{});

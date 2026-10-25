@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.234]
+
+### Fixed
+- Animate dismissal of the likes/people and PDF attachment option dialogs, while preserving the existing reduced-motion immediate-close behavior.
+
+
 ## [2026.06.0-port.233]
 
 ### Fixed

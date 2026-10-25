@@ -2847,3 +2847,6 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .messageActionButton .officialEmbeddedIcon{width:24px!important;height:24px!important;max-width:24px!important;max-height:24px!important;object-fit:contain!important}
 .messageThreadBody a{color:var(--theme-blue,#1769aa);text-decoration:underline;overflow-wrap:anywhere}
 :root[data-theme="dark"] .updateCommentAuthorButton{color:var(--theme-text,#e6e8eb)}
+
+.peopleListDialogOverlay.closing,.pdfAttachmentOptionsOverlay.closing{opacity:0;pointer-events:none}
+.peopleListDialogOverlay.closing .peopleListDialog,.pdfAttachmentOptionsOverlay.closing .pdfAttachmentOptions{transform:translateY(8px) scale(.98);opacity:0}

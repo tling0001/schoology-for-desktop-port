@@ -1771,17 +1771,7 @@ function openUpdateCommentsModal(realm,realmId,updateId,title='Comments'){
  loadUpdateCommentsPanel(realm,realmId,updateId,wrap.querySelector('#updateCommentsModalPanel'));
 }
 async function loadCourseUpdateComments(sectionId,updateId,panel){
- if(!panel)return;
- panel.hidden=false;panel.innerHTML='<div class="loading">Loading comments…</div>';
- try{
-   const x=await A.api({path:`sections/${sectionId}/updates/${updateId}/comments`,params:{start:0,limit:50,with_attachments:'TRUE',richtext:1}});
-   const arr=x.comment||x.comments||[];
-   panel.innerHTML=`<div class="updateCommentsList">${arr.map(c=>`<div class="updateComment"><b>${esc(c.display_name||c.user_name||'Schoology')}</b><div>${c.body||c.comment||''}</div><small>${esc(formatSchoologyDate(c.created||c.timestamp||''))}</small></div>`).join('')||'<div class="empty">No comments yet.</div>'}<div class="updateCommentComposer"><textarea placeholder="Write a comment…" id="update-comment-${esc(updateId)}"></textarea><button data-post-update-comment="${esc(updateId)}">Post</button></div></div>`;
-   panel.querySelector('[data-post-update-comment]')?.addEventListener('click',async()=>{
-     const ta=panel.querySelector('textarea'),body=ta?.value.trim();if(!body)return;
-     try{await A.api({path:`sections/${sectionId}/updates/${updateId}/comments`,method:'POST',params:{comment:body,parent_id:0},json:true});await loadCourseUpdateComments(sectionId,updateId,panel)}catch(e){alert('Unable to post comment: '+e.message)}
-   });
- }catch(e){panel.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}
+ return loadUpdateCommentsPanel('sections',sectionId,updateId,panel);
 }
 
 function openCourseUpdateComposer(course){

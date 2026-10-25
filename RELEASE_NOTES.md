@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.232]
+
+### Fixed
+- Route course-update comments through the same shared comment renderer and composer used by other Schoology update feeds, including profile hydration, replies, like/unlike, and likes lists.
+
+
 ## [2026.06.0-port.231]
 
 ### Fixed

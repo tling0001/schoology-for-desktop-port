@@ -1,5 +1,10 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.242]
+
+### Fixed
+- Put post-comment lists inside the same shared comments-view container used by assignment, discussion, and event comments while preserving post-specific reply and composer behavior.
+
 ## [2026.06.0-port.241]
 
 ### Fixed

@@ -1,5 +1,10 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.243]
+
+### Fixed
+- Match the embedded link attachment SVG path exactly to the official Android 2026.06.0 vector resource.
+
 ## [2026.06.0-port.242]
 
 ### Fixed

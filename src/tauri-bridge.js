@@ -597,7 +597,7 @@
       }
       async loadURL(url) {
         this._url = String(url);
-        this._hasLoadedPage = false;
+        if(!this.nativeView)this._hasLoadedPage = false;
         this._ltiNavigation = this.hasAttribute('data-lti') && this.getAttribute('data-lti') !== 'false';
         this._settingSrc = true;
         this.setAttribute('src', this._url);
@@ -709,8 +709,6 @@
             if (rawEvent && typeof rawEvent === 'object') rawEvent = Object.keys(rawEvent)[0] || '';
             const eventName = String(rawEvent).toLowerCase().replace(/[^a-z]/g, '');
             if (eventName.includes('started') || eventName === 'start') {
-              this._hasLoadedPage = false;
-              this._syncHandler();
               this.loading = true;
               this.dispatchEvent(new Event('did-start-loading'));
               return;
@@ -734,6 +732,7 @@
           this._hasLoadedPage = true;
           await this._syncBounds();
           this._syncHandler();
+          requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));
         } else {
           await this._syncBounds();
           await this.nativeView.navigate(this._url);

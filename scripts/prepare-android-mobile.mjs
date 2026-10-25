@@ -23,6 +23,12 @@ fs.writeFileSync(providerPaths, `<?xml version="1.0" encoding="utf-8"?>
 </paths>
 `);
 
+if (!xml.includes('android.permission.REQUEST_INSTALL_PACKAGES')) {
+  const applicationStart = xml.indexOf('<application');
+  if (applicationStart < 0) throw new Error('AndroidManifest.xml has no application element.');
+  xml = xml.slice(0, applicationStart) + '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n' + xml.slice(applicationStart);
+}
+
 if (!xml.includes('androidx.core.content.FileProvider')) {
   const applicationClose = xml.lastIndexOf('</application>');
   if (applicationClose < 0) throw new Error('AndroidManifest.xml has no closing application element.');
@@ -47,6 +53,8 @@ fs.writeFileSync(path.join(nativePluginDir, 'SchoologyInstallerPlugin.kt'), `pac
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -64,8 +72,15 @@ class SchoologyInstallerPlugin(private val activity: Activity) : Plugin(activity
     fun installApk(invoke: Invoke) {
         try {
             val args = invoke.parseArgs(InstallApkArgs::class.java)
-            val intent = Intent(Intent.ACTION_VIEW)
-                .setDataAndType(Uri.parse(args.uri), "application/vnd.android.package-archive")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.packageManager.canRequestPackageInstalls()) {
+                val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.applicationContext.startActivity(settingsIntent)
+                invoke.reject("Allow Schoology to install apps from this source in Android settings, then choose Install update again.")
+                return
+            }
+            val intent = Intent(Intent.ACTION_INSTALL_PACKAGE)
+                .setData(Uri.parse(args.uri))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             activity.applicationContext.startActivity(intent)

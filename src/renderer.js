@@ -46,7 +46,7 @@ function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=
 function showUpdateDialog(u){
   const iosUA=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
   const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios'||iosUA;
-  showAppDialog('Update available',`Schoology Desktop Port ${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{
+  showAppDialog('Update available',`Schoology ${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{
     if(iosInstall){
       try{await A.installUpdate(u);showAppDialog('Installing update','App installation will start after closing Schoology or going to your Home Screen.')}
       catch(e){showAppDialog('Unable to open installation link',e.message||String(e))}
@@ -56,7 +56,7 @@ function showUpdateDialog(u){
     const msg=dlg?.querySelector('.appDialogMessage');
     if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="updateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="updateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';
     const off=window.schoology?.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('updateDownloadProgressBar'),txt=document.getElementById('updateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.total?`Downloading… ${d.percent||0}%`:'Downloading…';});
-    try{await A.installUpdate(u);off?.()}catch(e){off?.();dlg?.classList.remove('open');showAppDialog('Unable to install update',e.message||String(e))}
+    try{await A.installUpdate(u);off?.();dlg?.classList.remove('open')}catch(e){off?.();dlg?.classList.remove('open');showAppDialog('Unable to install update',e?.message||String(e))}
   }}]);
 }
 
@@ -234,51 +234,44 @@ async function showJoinGroupDialog(){
   requestAnimationFrame(()=>wrap.querySelector('#joinGroupCode')?.focus());
 }
 
+let homePostableUpdateDestinations=[];
+let homePostableUpdatePromise=Promise.resolve([]);
 async function getPostableUpdateDestinations(){
-  const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)return [];
-  try{
-    const pair=await Promise.all([A.api({path:'users/'+uid+'/sections',params:{limit:100}}),A.api({path:'users/'+uid+'/groups',params:{limit:100}})]);
-    const sections=pair[0]?.section||pair[0]?.sections||[],groups=pair[1]?.group||pair[1]?.groups||[];
-    const destinations=[...sections.map(x=>({realm:'sections',id:x.id||x.section_id,label:x.section_title||x.course_title||x.title||'Course'})),...groups.map(x=>({realm:'groups',id:x.id||x.group_id,label:x.name||x.title||'Group'}))].filter(x=>x.id!=null);
-    if(!destinations.length)return [];
-    const paths=destinations.map(x=>'/v1/'+x.realm+'/'+x.id+'/updates');
-    const result=await A.api({path:'multioptions',method:'POST',params:{request:paths}});
-    const rows=result?.response||result?.responses||result?.data||[];
-    const list=Array.isArray(rows)?rows:Object.entries(rows).map(([location,body])=>({location,body}));
-    const allowed=new Set();
-    for(const row of list){const body=row?.body??row?.response??row?.data??'';if(/\bpost\b/i.test(typeof body==='string'?body:JSON.stringify(body))){const loc=String(row?.location||'');const dest=destinations.find(d=>loc.includes('/'+d.realm+'/'+d.id+'/updates'));if(dest)allowed.add(dest.realm+':'+dest.id)}}
-    return destinations.filter(d=>allowed.has(d.realm+':'+d.id));
-  }catch(error){console.warn('Unable to check update posting permissions:',error?.message||error);return []}
+ const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)return [];
+ try{
+  const pair=await Promise.all([A.api({path:'users/'+uid+'/sections',params:{limit:100}}),A.api({path:'users/'+uid+'/groups',params:{limit:100}})]);
+  const sections=pair[0]?.section||pair[0]?.sections||[],groups=pair[1]?.group||pair[1]?.groups||[];
+  const destinations=[...sections.map(source=>({realm:'sections',id:source.id||source.section_id,label:source.section_title||source.course_title||source.title||'Course',source})),...groups.map(source=>({realm:'groups',id:source.id||source.group_id,label:source.name||source.title||'Group',source}))].filter(x=>x.id!=null);
+  if(!destinations.length)return [];
+  const paths=destinations.map(x=>'/v1/'+x.realm+'/'+x.id+'/updates');
+  const result=await A.api({path:'multioptions',method:'POST',params:{request:paths}});
+  const rows=Array.isArray(result?.response)?result.response:(Array.isArray(result?.responses)?result.responses:[]);
+  const bodies={};for(const row of rows){if(row?.location){const body=row.body??'';bodies[String(row.location)]=(typeof body==='string'?body:JSON.stringify(body)).toLowerCase()}}
+  return destinations.filter(d=>/\bpost\b/.test(bodies['/v1/'+d.realm+'/'+d.id+'/updates']||''));
+ }catch(error){console.warn('Unable to check update posting permissions:',error?.message||error);return []}
 }
-async function showCreateUpdateDialog(){
-  const destinations=await getPostableUpdateDestinations();
-  if(!destinations.length){showAppDialog('Unable to post update','Your account does not have permission to post updates in any available course or group.');return}
-  document.getElementById('createUpdateDialog')?.remove();
-  const wrap=document.createElement('div');wrap.id='createUpdateDialog';wrap.className='assignmentCommentDialogOverlay';
-  wrap.innerHTML='<section class="androidCreatePostDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button id="createUpdateCancel" class="androidDialogIcon" aria-label="Cancel">'+officialIcon('ic_action_discard_icon.png','Cancel')+'</button><div class="androidDialogTitle">Post Update</div><button id="createUpdateSend" class="androidDialogIcon" aria-label="Post">'+officialIcon('ic_action_send_icon.png','Post')+'</button></header><div class="androidCreatePostBody"><label class="androidFieldLabel" for="createUpdateDestination">Post to</label><select id="createUpdateDestination" class="settingSelect"></select><textarea id="createUpdateBody" placeholder="Write an update…"></textarea><div id="createUpdateStatus" class="androidCreatePostStatus"></div></div></section>';
-  const select=wrap.querySelector('#createUpdateDestination');
-  select.innerHTML=destinations.map(d=>'<option value="'+esc(d.realm+':'+d.id)+'">'+esc(d.label)+'</option>').join('');
-  document.body.appendChild(wrap);
-  const close=()=>wrap.remove();
-  wrap.querySelector('#createUpdateCancel')?.addEventListener('click',close);
-  wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
-  wrap.querySelector('#createUpdateSend')?.addEventListener('click',async()=>{
-    const body=wrap.querySelector('#createUpdateBody')?.value.trim(),status=wrap.querySelector('#createUpdateStatus'),button=wrap.querySelector('#createUpdateSend');
-    if(!body){status.textContent='Write an update before posting.';return}
-    const [realm,id]=String(select.value||'').split(':');if(!realm||!id){status.textContent='Choose where to post this update.';return}
-    button.disabled=true;status.textContent='Posting…';
-    try{await A.api({path:realm+'/'+id+'/updates',method:'POST',params:{body},json:true});close();loadTab()}
-    catch(error){button.disabled=false;status.textContent='Unable to post update: '+(error?.message||String(error))}
-  });
-  requestAnimationFrame(()=>wrap.querySelector('#createUpdateBody')?.focus());
+function showHomeUpdateDestinationPicker(){
+ const destinations=homePostableUpdateDestinations;
+ if(!destinations.length){showAppDialog('Unable to post update','Your account does not have permission to post updates in any available course or group.');return}
+ document.getElementById('homeUpdateDestinationPicker')?.remove();
+ const wrap=document.createElement('div');wrap.id='homeUpdateDestinationPicker';wrap.className='assignmentCommentDialogOverlay';
+ wrap.innerHTML='<section class="androidCreatePostDialog homeUpdateDestinationDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button type="button" class="androidDialogIcon" aria-label="Close">'+officialBackIcon()+'</button><strong class="androidDialogTitle">Post Update</strong></header><div class="androidCreatePostBody"><div class="androidFieldLabel">Post To</div><div class="homeUpdateDestinationList"></div></div></section>';
+ const list=wrap.querySelector('.homeUpdateDestinationList');
+ list.innerHTML=destinations.map((d,i)=>'<button type="button" class="homeUpdateDestination" data-destination="'+i+'"><span>'+esc(d.label)+'</span><span aria-hidden="true">›</span></button>').join('');
+ const close=()=>wrap.remove();wrap.querySelector('[aria-label="Close"]')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+ list.querySelectorAll('[data-destination]').forEach(button=>button.addEventListener('click',()=>{
+  const d=destinations[Number(button.dataset.destination)];if(!d)return;close();
+  if(d.realm==='sections'){const previous=state.courseCanPostUpdates;state.courseCanPostUpdates=true;try{openCourseUpdateComposer(d.source)}finally{state.courseCanPostUpdates=previous}}
+  else{const previousGroup=state.currentGroup,previousPermission=state.groupCanPostUpdates;state.groupCanPostUpdates=true;try{openGroupUpdateComposer(d.id,d.source)}finally{state.currentGroup=previousGroup;state.groupCanPostUpdates=previousPermission}}
+ }));
 }
 
 function showHomeCreateMenu(){
   document.getElementById('homeCreateMenu')?.remove();const plus=document.getElementById('homeCreatePlus');if(!plus)return;const r=plus.getBoundingClientRect();
-  const m=document.createElement('div');m.id='homeCreateMenu';m.className='assignmentActionMenu';m.innerHTML=`<button id="createHomeDiscussion"><span>Discussion</span></button><button id="createHomeEvent"><span>Event</span></button>`;document.body.appendChild(m);m.style.top=(r.bottom+6)+'px';m.style.right=(window.innerWidth-r.right)+'px';
+  const m=document.createElement('div');m.id='homeCreateMenu';m.className='assignmentActionMenu';m.innerHTML=`<button id="createHomeDiscussion"><span>Discussion</span></button><button id="createHomeEvent"><span>Event</span></button>${homePostableUpdateDestinations.length?'<button id="createHomeUpdate"><span>Update</span></button>':''}`;document.body.appendChild(m);m.style.top=(r.bottom+6)+'px';m.style.right=(window.innerWidth-r.right)+'px';
   document.getElementById('createHomeDiscussion')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('discussion','',null)});
   document.getElementById('createHomeEvent')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('event','',null)});
-  void getPostableUpdateDestinations().then(destinations=>{if(!destinations.length||!m.isConnected)return;const button=document.createElement('button');button.id='createHomeUpdate';button.innerHTML='<span>Update</span>';m.insertBefore(button,m.firstChild);button.addEventListener('click',()=>{m.remove();showCreateUpdateDialog()})});
+  document.getElementById('createHomeUpdate')?.addEventListener('click',()=>{m.remove();showHomeUpdateDestinationPicker()});
   setTimeout(()=>document.addEventListener('mousedown',function f(e){if(!m.contains(e.target)&&e.target!==plus){m.remove();document.removeEventListener('mousedown',f)}},0),0);
 }
 function showCreatePostDialog(kind,realm,realmId){
@@ -595,7 +588,7 @@ function syncToolbar(){
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';header.classList.toggle('toolbarAccountInfo',state.embeddedTheme==='account');header.classList.toggle('toolbarLti',state.embeddedTheme==='lti');
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
-  if(state.tab==='home'&&!state.courseView&&!state.assignmentView&&!state.embeddedTitle){slot.innerHTML=`<button id="homeCreatePlus" class="iconButton toolbarImageButton" aria-label="Create">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('homeCreatePlus')?.addEventListener('click',showHomeCreateMenu);return;}
+  if(state.tab==='home'&&!state.courseView&&!state.assignmentView&&!state.embeddedTitle){slot.innerHTML=`<button id="homeCreatePlus" class="iconButton toolbarImageButton" aria-label="Create">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('homeCreatePlus')?.addEventListener('click',async()=>{await homePostableUpdatePromise;showHomeCreateMenu()});return;}
   if(state.tab==='calendar'&&!state.courseView&&!state.embeddedTitle){if(state.calendarCanCreate){slot.innerHTML=`<button id="calendarCreatePlus" class="iconButton toolbarImageButton" aria-label="Create event">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('calendarCreatePlus')?.addEventListener('click',()=>showCreatePostDialog('event','',null));}return;}
   if(state.eventView){
     slot.innerHTML=`<button id="eventCommentPlus" class="iconButton toolbarImageButton" aria-label="Post comment">${officialIcon('ic_action_new.png','')}</button>`;
@@ -1274,7 +1267,7 @@ function renderAttachments(a,submissionContext=null){
     if(!url)return;
     const mime=f.filemime||f.fileMIME||'application/octet-stream';
     const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
-    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-pdf-view-url="${esc(viewUrl)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon">${officialOrAssetIcon(mimeIconForFilename(title,mime),'')}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon">${officialOrAssetIcon('ic_action_download.png','')}</span></button>`);
+    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-pdf-view-url="${esc(viewUrl)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon">${officialOrAssetIcon(mimeIconForFilename(title,mime),'')}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon">${officialLinkIcon()}</span></button>`);
     if (submissionContext?.allowAnnotation && f?.id && (String(mime).toLowerCase().includes('pdf') || /\.pdf$/i.test(title))) {
       out.push(`<button type="button" class="activityAttachment annotationLaunchButton" data-annotate-pdf data-annotate-url="${esc(url)}" data-annotate-file-id="${esc(f.id)}" data-annotate-file-type="${esc(f.fileType||f.file_type||mime)}" data-annotate-name="${esc(title)}" data-annotate-section-id="${esc(submissionContext.sectionId||'')}" data-annotate-assignment-id="${esc(submissionContext.assignmentId||submissionContext.gradeItemId||'')}"><span class="attachmentFileIcon">✎</span><span class="attachmentFileText"><b>Annotate PDF</b><small>${esc(title)}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
     }
@@ -1549,12 +1542,14 @@ async function showPageNative(realm,realmId,pageId,title='Page'){
 }
 async function showEmbeddedWeb(url,title,options={}){
  const c=document.getElementById('content');if(!c)return;
+ try{url=new URL(String(url||''),options.baseUrl||(state.canadianInstance?'https://app.schoologyca.com/':'https://app.schoology.com/')).href}catch{throw new Error('This link does not contain a valid web address.')}
+ if(!/^https?:/i.test(url))throw new Error('Only HTTP and HTTPS pages can be opened in the shared webview.');
  if(state.canadianInstance)url=String(url||'').replace(/app\.schoology\.com/gi,'app.schoologyca.com').replace(/api\.schoology\.com/gi,'api.schoologyca.com');
  const externalLinks=typeof options.externalLinks==='boolean'?options.externalLinks:!(options.quiz||options.assessment||options.accountInfo);
  // Ordinary external destinations should open in the user's browser, not turn
  // the shared webview into a general-purpose browser. Quiz and Account Info are
  // intentionally the only regular pages that keep their navigation embedded.
- if(!options.quiz&&!options.assessment&&!options.accountInfo&&options.openInitialExternalInBrowser!==false){
+ if(!options.quiz&&!options.assessment&&!options.accountInfo&&!options.lti&&options.openInitialExternalInBrowser!==false){
    try{const initial=new URL(String(url||''));const h=initial.hostname.toLowerCase();const schoolHost=h==='lms.lausd.net'||h==='schoology.com'||h.endsWith('.schoology.com')||h==='schoologyca.com'||h.endsWith('.schoologyca.com');if(['http:','https:'].includes(initial.protocol)&&!schoolHost){const handled=await routeSchoologyLink(initial.href);if(handled)return;const result=await A.openExternal(initial.href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result);return;}}catch(error){if(error instanceof TypeError){/* Relative or non-HTTP destinations continue into the webview. */}else{showAppDialog('Unable to open link',error.message||String(error));return;}}
  }
  if(options.routeSchoology!==false){try{const u=new URL(String(url||''));if((u.hostname.toLowerCase()==='lms.lausd.net'||u.hostname.toLowerCase().endsWith('.schoology.com')||u.hostname.toLowerCase()==='schoologyca.com'||u.hostname.toLowerCase().endsWith('.schoologyca.com'))&&/^\/course(?:s)?\/\d+\/materials\/gp\/\d+\/?$/i.test(u.pathname)){if(await routeSchoologyLink(u.href))return;}}catch{}}
@@ -1567,7 +1562,7 @@ async function showEmbeddedWeb(url,title,options={}){
  w.addEventListener('did-finish-load',()=>{if(mainNavigation>0){setLoading(false);initialPageLoaded=true}});
 
  w.addEventListener('did-navigate',e=>{if(e.isMainFrame){loadingStartedAt=Date.now();setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200);}});
- w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription)}});
+ w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription);const page=c.querySelector('.embeddedPage');if(page&&!page.querySelector('.embeddedWebviewError')){const error=document.createElement('div');error.className='embeddedWebviewError';error.innerHTML='<b>Unable to load this page</b><span></span><button type="button">Retry</button>';error.querySelector('span').textContent=e.errorDescription||e.message||'The website could not be loaded.';error.querySelector('button').addEventListener('click',()=>showEmbeddedWeb(url,title,options).catch(err=>showAppDialog('Unable to open page',err?.message||String(err))));page.appendChild(error)}}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},8000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
  w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(externalLinks&&initialPageLoaded&&!isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(A.openExternal(u)).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(options.lti&&isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
@@ -1871,7 +1866,7 @@ function openCourseUpdateComposer(course){
  wrap.querySelector('#cancelCourseUpdate')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
  wrap.querySelector('#courseUpdateAttachFile')?.addEventListener('click',async()=>{try{const picked=await A.pickFile?.();if(!picked)return;const filePath=typeof picked==='string'?picked:(picked.path||picked.filePath);if(!filePath)throw new Error('The selected file has no local path.');const id=await A.uploadSchoologyFile({filePath,mime:typeof picked==='object'?picked.mime:''});attachments.files.push(String(id));const row=document.createElement('div');row.className='messageAttachedItem';row.textContent=(typeof picked==='object'&&(picked.name||picked.fileName))||filePath.split(/[\\/]/).pop();wrap.querySelector('#courseUpdateAttachmentList')?.appendChild(row)}catch(error){showAppDialog('Unable to attach file',error?.message||String(error))}});
  wrap.querySelector('#courseUpdateAttachResource')?.addEventListener('click',async()=>{try{await chooseSchoologyResource(resource=>{const id=resource.template_id??resource.templateID??resource.resource_id??resource.resourceId??resource.template?.id??resource.id;if(id==null)throw new Error('This resource does not have a usable Schoology resource ID.');attachments.resources.push(String(id));const row=document.createElement('div');row.className='messageAttachedItem';row.textContent=resourceTitle(resource);wrap.querySelector('#courseUpdateAttachmentList')?.appendChild(row)},'Attach Resource')}catch(error){showAppDialog('Unable to attach resource',error?.message||String(error))}});
- wrap.querySelector('#submitCourseUpdate')?.addEventListener('click',async()=>{const body=wrap.querySelector('#courseUpdateBody')?.value.trim(),button=wrap.querySelector('#submitCourseUpdate'),status=wrap.querySelector('#courseUpdateStatus');if(!body){status.textContent='Write an update before posting.';return}button.disabled=true;status.textContent='Posting…';try{const params={body};if(attachments.files.length)params['file-attachment']={id:attachments.files};if(attachments.resources.length)params.attachments=attachments.resources.map(resource=>({resource:Number(resource)}));await A.api({path:`sections/${sid}/updates`,method:'POST',params,signBody:true});close();await loadCourseTab(course,'updates')}catch(error){button.disabled=false;status.textContent='';showAppDialog('Unable to post update',error?.message||String(error))}});
+ wrap.querySelector('#submitCourseUpdate')?.addEventListener('click',async()=>{const body=wrap.querySelector('#courseUpdateBody')?.value.trim(),button=wrap.querySelector('#submitCourseUpdate'),status=wrap.querySelector('#courseUpdateStatus');if(!body){status.textContent='Write an update before posting.';return}button.disabled=true;status.textContent='Posting…';try{const params={body};if(attachments.files.length)params['file-attachment']={id:attachments.files};if(attachments.resources.length)params.attachments=attachments.resources.map(resource=>({resource:Number(resource)}));await A.api({path:`sections/${sid}/updates`,method:'POST',params,signBody:true});close();if(state.courseView==='course'&&state.selectedCourse&&String(state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId)===String(sid))await loadCourseTab(course,'updates');else if(state.tab==='home')await loadHomeTab()}catch(error){button.disabled=false;status.textContent='';showAppDialog('Unable to post update',error?.message||String(error))}});
  requestAnimationFrame(()=>wrap.querySelector('#courseUpdateBody')?.focus());
 }
 
@@ -2276,11 +2271,12 @@ if(tab==='upcoming'){const q=await A.api({path:`schools/${schoolId}/events`,para
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
 }
 
-function openGroupUpdateComposer(groupId){
+function openGroupUpdateComposer(groupId,groupOverride=null){
   if(!state.groupCanPostUpdates||!groupId)return;
+  const targetGroup=groupOverride||state.currentGroup;
   document.getElementById('groupUpdateComposer')?.remove();
   const wrap=document.createElement('div');wrap.id='groupUpdateComposer';wrap.className='assignmentCommentDialogOverlay';
-  const groupName=state.currentGroup?.name||state.currentGroup?.title||'Group';
+  const groupName=targetGroup?.name||targetGroup?.title||'Group';
   wrap.innerHTML=`<section class="androidCreatePostDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button id="cancelGroupUpdate" class="androidDialogIcon" aria-label="Cancel">${officialIcon('ic_action_discard_icon.png','Cancel')}</button><div class="androidDialogTitle">Post Update</div><button id="submitGroupUpdate" class="androidDialogIcon" aria-label="Post">${officialIcon('ic_action_send_icon.png','Post')}</button></header><div class="androidCreatePostBody"><label class="androidFieldLabel">Post To</label><div class="androidPostToField">${esc(groupName)}</div><textarea id="groupUpdateBody" placeholder="Write an update…" rows="3"></textarea><div class="messageAttachmentChoices createPostAttachmentChoices"><button id="groupUpdateAttachFile" type="button">${officialOrAssetIcon('ic_action_ic_menu_folder.png','File')}File</button><button id="groupUpdateAttachResource" type="button">${officialOrAssetIcon('ic_attach_resourcesv3.png','')}Resources</button></div><div id="groupUpdateAttachmentList"></div><div id="groupUpdateStatus" class="androidCreatePostStatus"></div></div></section>`;
   document.body.appendChild(wrap);
   const attachments={files:[],resources:[]};
@@ -2289,7 +2285,7 @@ function openGroupUpdateComposer(groupId){
   wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
   wrap.querySelector('#groupUpdateAttachFile')?.addEventListener('click',async()=>{try{const picked=await A.pickFile?.();if(!picked)return;const filePath=typeof picked==='string'?picked:(picked.path||picked.filePath);if(!filePath)throw new Error('The selected file has no local path.');const id=await A.uploadSchoologyFile({filePath,mime:typeof picked==='object'?picked.mime:''});attachments.files.push(String(id));const row=document.createElement('div');row.className='messageAttachedItem';row.textContent=(typeof picked==='object'&&(picked.name||picked.fileName))||filePath.split(/[\\/]/).pop();wrap.querySelector('#groupUpdateAttachmentList')?.appendChild(row)}catch(error){showAppDialog('Unable to attach file',error?.message||String(error))}});
   wrap.querySelector('#groupUpdateAttachResource')?.addEventListener('click',async()=>{try{await chooseSchoologyResource(resource=>{const id=resource.template_id??resource.templateID??resource.resource_id??resource.resourceId??resource.template?.id??resource.id;if(id==null)throw new Error('This resource does not have a usable Schoology resource ID.');attachments.resources.push(String(id));const row=document.createElement('div');row.className='messageAttachedItem';row.textContent=resourceTitle(resource);wrap.querySelector('#groupUpdateAttachmentList')?.appendChild(row)},'Attach Resource')}catch(error){showAppDialog('Unable to attach resource',error?.message||String(error))}});
-  wrap.querySelector('#submitGroupUpdate')?.addEventListener('click',async()=>{const body=wrap.querySelector('#groupUpdateBody')?.value.trim(),button=wrap.querySelector('#submitGroupUpdate'),status=wrap.querySelector('#groupUpdateStatus');if(!body){status.textContent='Write an update before posting.';return}button.disabled=true;status.textContent='Posting…';try{const params={body};if(attachments.files.length)params['file-attachment']={id:attachments.files};if(attachments.resources.length)params.attachments=attachments.resources.map(resource=>({resource:Number(resource)}));await A.api({path:`groups/${groupId}/updates`,method:'POST',params,signBody:true});close();if(state.currentGroup)await showGroup(state.currentGroup,'updates')}catch(error){button.disabled=false;status.textContent='';showAppDialog('Unable to post update',error?.message||String(error))}});
+  wrap.querySelector('#submitGroupUpdate')?.addEventListener('click',async()=>{const body=wrap.querySelector('#groupUpdateBody')?.value.trim(),button=wrap.querySelector('#submitGroupUpdate'),status=wrap.querySelector('#groupUpdateStatus');if(!body){status.textContent='Write an update before posting.';return}button.disabled=true;status.textContent='Posting…';try{const params={body};if(attachments.files.length)params['file-attachment']={id:attachments.files};if(attachments.resources.length)params.attachments=attachments.resources.map(resource=>({resource:Number(resource)}));await A.api({path:`groups/${groupId}/updates`,method:'POST',params,signBody:true});close();if(state.currentGroup===targetGroup)await showGroup(targetGroup,'updates');else if(state.tab==='home')await loadHomeTab()}catch(error){button.disabled=false;status.textContent='';showAppDialog('Unable to post update',error?.message||String(error))}});
   requestAnimationFrame(()=>wrap.querySelector('#groupUpdateBody')?.focus());
 }
 async function showGroup(group,activeTab='updates'){
@@ -2321,9 +2317,9 @@ async function showGroup(group,activeTab='updates'){
     gc.innerHTML='<div class="loading groupTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
     try{
       if(tab==='members'){
-        const response=await A.api({path:`groups/${gid}/members`,params:{start:0,limit:200}});
-        const raw=response?.member||response?.members||response?.enrollment||response?.enrollments||response?.user||response?.users||response?.data?.member||response?.data?.members||response?.data?.enrollment||[];
-        const entries=Array.isArray(raw)?raw:(raw?.member||raw?.items||raw?.data||[]);
+        const response=await A.api({path:`groups/${gid}/enrollments`,params:{start:0,limit:200,enrollment_status:1}});
+        const raw=response?.enrollment||response?.enrollments||response?.data?.enrollment||response?.member||response?.members||response?.user||response?.users||response?.data?.member||response?.data?.members||[];
+        const entries=Array.isArray(raw)?raw:(raw?.enrollment||raw?.enrollments||raw?.member||raw?.items||raw?.data||[]);
         const people=entries.map(entry=>{
           const person=entry?.user||entry?.member||entry?.profile||entry||{};
           const id=person.id??person.uid??person.user_id??person.userId??entry?.uid??entry?.user_id??entry?.userId??'';
@@ -2849,7 +2845,7 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     document.getElementById('testDesktopNotification')?.addEventListener('click',async e=>{const button=e.currentTarget;button.disabled=true;try{await A.testDesktopNotification();showAppDialog('Test notification sent','If you did not see a Windows notification, check Windows Settings → System → Notifications and make sure Schoology is allowed.');}catch(error){showAppDialog('Unable to show test notification',error?.message||String(error));}finally{button.disabled=false;}});
     document.getElementById('reducedMotionToggle')?.addEventListener('change',async e=>{const next=!!e.target.checked;try{state.reducedMotion=await A.setReducedMotion?.(next)===true;document.documentElement.dataset.reducedMotion=state.reducedMotion?'true':'false'}catch(err){e.target.checked=state.reducedMotion;showAppDialog('Unable to update reduced motion',err?.message||String(err))}});
     document.getElementById('accountInfo')?.addEventListener('click',async()=>{try{await A.prepareWebSession();state.embeddedReturn={tab:'settings',title:'Settings'};showEmbeddedWeb('https://app.schoology.com/settings/account','Account Info',{allowBrowser:false,accountInfo:true})}catch(e){alert(e.message)}});
-    document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology Desktop Port release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
+    document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
     document.getElementById('tryLiquidGlass')?.addEventListener('click',async()=>{const b=document.getElementById('tryLiquidGlass');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.downloadLiquidGlass();const dlg=showAppDialog('Downloading Schoology Liquid Glass',`Downloading ${u.version?`v${esc(u.version)}`:'the latest release'}…`,[]);const msg=dlg?.querySelector('.appDialogMessage');if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="liquidGlassDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="liquidGlassDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';const off=A.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('liquidGlassDownloadProgressBar'),txt=document.getElementById('liquidGlassDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.percent!=null?`Downloading… ${d.percent}%`:'Downloading…';});try{await A.installUpdate(u);off?.()}catch(e){off?.();dlg?.classList.remove('open');showAppDialog('Unable to install Schoology Liquid Glass',e.message||String(e))}}catch(e){showAppDialog('Unable to download Schoology Liquid Glass',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
     document.getElementById('tryExpressive')?.addEventListener('click',async()=>{const b=document.getElementById('tryExpressive');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.downloadExpressive();const dlg=showAppDialog('Downloading Schoology Expressive',`Downloading ${u.version?`v${esc(u.version)}`:'the latest release'}…`,[]);const msg=dlg?.querySelector('.appDialogMessage');if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="expressiveDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="expressiveDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';const off=A.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('expressiveDownloadProgressBar'),txt=document.getElementById('expressiveDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.percent!=null?`Downloading… ${d.percent}%`:'Downloading…';});try{await A.installUpdate(u);off?.()}catch(e){off?.();dlg?.classList.remove('open');showAppDialog('Unable to install Schoology Expressive',e.message||String(e))}}catch(e){showAppDialog('Unable to download Schoology Expressive',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
     document.getElementById('windowChromeOverlayToggle')?.addEventListener('change',async e=>{const checked=!!e.target.checked;try{await A.setWindowChromeMode(checked)}catch(err){e.target.checked=!checked;showAppDialog('Unable to change window controls',err.message||String(err))}});
@@ -2869,6 +2865,7 @@ async function renderUpcomingInto(c){
 async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;c.innerHTML='<div class="homeUpcomingHeader">Upcoming</div><div class="homeUpcomingScroll"><div class="homeUpcomingList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></div>';await renderUpcomingInto(c)}
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
+ homePostableUpdatePromise=getPostableUpdateDestinations().then(destinations=>(homePostableUpdateDestinations=destinations)).catch(error=>{console.warn('Unable to preload Home update permissions:',error?.message||error);homePostableUpdateDestinations=[];return []});
  c.classList.remove('dashboardContentActive','embeddedContentActive','recentActivityScroll');
  c.style.position='';c.style.left='';c.style.right='';c.style.top='';c.style.bottom='';c.style.height='';c.style.minHeight='';c.style.maxHeight='';c.style.overflow='';c.style.padding='';c.style.margin='';c.style.flex='';
  animateTab(c,state.homeTabDirection||'forward');
@@ -2952,6 +2949,7 @@ async function loadHomeTab(){
     await renderUpcomingInto(document.getElementById('homeUpcomingList'));
   }
  }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
+ await homePostableUpdatePromise;
 }
 
 function stopQR(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}qrBusy=false}
@@ -3004,7 +3002,7 @@ async function startQR(){
         const data=await decodeFrame(ctx,canvas.width,canvas.height);
         if(data){
           qrBusy=true;stopQR();state.loading=true;state.error='';render();
-          try{state.auth=await A.loginQR(data);await afterLogin()}catch(e){qrBusy=false;state.loading=false;state.error=e.message||'Sorry, your code isn’t working. Please try again.';state.screen='qr';render();startQR();return}
+          try{state.auth=await A.loginQR(data);await afterLogin()}catch(e){qrBusy=false;state.loading=false;state.error=String(e?.message||e||'Sorry, your code isn’t working. Please try again.');state.screen='qr';render();startQR();return}
         }
       }
       requestAnimationFrame(tick);

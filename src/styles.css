@@ -4,11 +4,11 @@
 
 
 /* Official Android Schoology loading screen recreated from the supplied source layout. */
-.androidSplash{height:100vh;width:100%;background:#44505d;display:block;overflow:hidden;}
-/* Center the Schoology mark on the viewport itself; the spinner sits below it. */
-.androidSplashLogo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:442px;max-width:72vw;height:auto;display:block;margin:0;}
-.androidSplashSpinner{position:absolute;left:50%;top:calc(50% + min(110px, 36vw) + 12px);transform:translateX(-50%);width:72px;height:72px;display:block;}
-@media(max-height:560px){.androidSplashLogo{max-width:58vw;max-height:32vh;object-fit:contain}.androidSplashSpinner{top:calc(50% + 70px);width:48px;height:48px}}
+.androidSplash{height:100vh;width:100%;background:#44505d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;}
+/* Center the logo and spinner as one group so the spinner always stays directly below the mark. */
+.androidSplashLogo{position:static;left:auto;top:auto;transform:none;width:442px;max-width:72vw;max-height:68vh;height:auto;display:block;flex:0 1 auto;object-fit:contain;margin:0;}
+.androidSplashSpinner{position:static;left:auto;top:auto;transform:none;width:72px;height:72px;display:block;flex:0 0 auto;}
+@media(max-height:560px){.androidSplashLogo{max-width:58vw;max-height:32vh;object-fit:contain}.androidSplashSpinner{width:48px;height:48px}}
 @media(max-width:700px){.androidSplashSpinner{width:48px;height:48px}}
 @media(max-width:700px) and (max-height:560px){.androidSplashSpinner{width:32px;height:32px}}
 
@@ -2734,6 +2734,13 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .dashboardHybrid schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto}
 .embeddedPage{position:relative;isolation:isolate;overflow:hidden}
 .embeddedPage schoology-webview:focus{outline:none}
+.embeddedWebviewError{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:28px;background:var(--theme-surface,#fff);color:var(--theme-text,#263238);text-align:center}
+.embeddedWebviewError span{max-width:560px;overflow-wrap:anywhere;color:var(--theme-secondary,#64727d);font-size:13px}
+.embeddedWebviewError button{border:0;border-radius:5px;background:#0072ce;color:#fff;padding:10px 18px;cursor:pointer}
+.homeUpdateDestinationDialog{max-width:480px}
+.homeUpdateDestinationList{display:flex;flex-direction:column;max-height:min(60vh,520px);overflow:auto}
+.homeUpdateDestination{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:14px 4px;border:0;border-bottom:1px solid var(--theme-border,#d7dde2);background:transparent;color:var(--theme-text,#263238);text-align:left;cursor:pointer}
+.homeUpdateDestination span:last-child{font-size:24px;color:var(--theme-secondary,#687680)}
 
 
 /* port.216: align Schoology's reaction and comment-count icons with their labels. */

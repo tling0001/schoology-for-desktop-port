@@ -1657,5 +1657,5 @@ pub fn run() {
     builder
         .invoke_handler(tauri::generate_handler![schoology_invoke])
         .run(tauri::generate_context!())
-        .expect("error while running Schoology Desktop Port");
+        .expect("error while running Schoology");
 }

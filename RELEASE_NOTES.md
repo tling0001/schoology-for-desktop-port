@@ -1,5 +1,18 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.249]
+
+### Fixed
+- Normalize relative links before opening the shared native webview, keep HTTPS LTI destinations embedded, keep the native child visible across later navigations, retry bounds after layout settles, and show a retry panel when navigation fails.
+- Preload Home update-posting permissions alongside Home content so the plus menu does not insert the Update option late; launch the existing attachment-capable course/group composer after destination selection.
+- Load group members from the group enrollment endpoint using the course enrollment response model.
+- Preserve native QR-login errors instead of replacing string errors with a generic message.
+- Use the Schoology arrow affordance instead of download icons across shared attachments.
+- Keep the splash spinner directly beneath the logo as one centered group while retaining desktop spinner sizing.
+- Request Android install-packages permission and use ACTION_INSTALL_PACKAGE to launch the package installer after an update download.
+- Replace visible “Schoology Desktop Port” branding with “Schoology”.
+
+
 ## [2026.06.0-port.248]
 
 ### Fixed

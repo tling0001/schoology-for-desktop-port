@@ -326,11 +326,11 @@ async fn login_school_browser(app: &AppHandle, state: &HostState, info: &Value) 
 async fn handle_deep_link(app: AppHandle, url_text: String) {
     let parsed = match Url::parse(&url_text) { Ok(url) => url, Err(_) => return };
     if parsed.scheme() == "schoology" && parsed.host_str().unwrap_or_default().eq_ignore_ascii_case("external_login_callback") {
-        let received = parsed.query_pairs().find(|(key, _)| key == "request_token").map(|(_, value)| value.into_owned()).unwrap_or_default();
+        let received = parsed.query_pairs().find(|(key, _)| key == "request_token" || key == "oauth_token").map(|(_, value)| value.into_owned()).unwrap_or_default();
         let state = app.state::<HostState>();
         let pending = {
             let mut guard = match state.pending_login.lock() { Ok(guard) => guard, Err(_) => return };
-            if guard.as_ref().is_some_and(|p| !received.is_empty() && p.request_token == received) { guard.take() } else { None }
+            if guard.as_ref().is_some_and(|p| received.is_empty() || p.request_token == received) { guard.take() } else { None }
         };
         if let Some(pending) = pending {
             let result = exchange_token(&app, &state, &pending.credential).await;
@@ -436,10 +436,10 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
         return Err("Only Schoology/LAUSD pages and HTTPS destinations inside an LTI assignment can be embedded.".into());
     }
     let parent = app.get_window("main").ok_or("The main Schoology window is unavailable.")?;
-    let x = info.get("x").and_then(Value::as_f64).unwrap_or(0.0).max(0.0);
-    let y = info.get("y").and_then(Value::as_f64).unwrap_or(0.0).max(0.0);
-    let width = info.get("width").and_then(Value::as_f64).unwrap_or(1.0).max(1.0);
-    let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).max(1.0);
+    let x = info.get("x").and_then(Value::as_f64).unwrap_or(-10000.0).clamp(-10000.0, 100000.0);
+    let y = info.get("y").and_then(Value::as_f64).unwrap_or(-10000.0).clamp(-10000.0, 100000.0);
+    let width = info.get("width").and_then(Value::as_f64).unwrap_or(1.0).clamp(1.0, 100000.0);
+    let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).clamp(1.0, 100000.0);
     let user_agent = info.get("userAgent").and_then(Value::as_str).unwrap_or(ANDROID_UA).to_owned();
     let initialization_script = info.get("initializationScript").and_then(Value::as_str).unwrap_or("").to_owned();
     #[cfg(target_os = "windows")]
@@ -1592,6 +1592,7 @@ pub fn run() {
         .setup(|app| {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
+                #[cfg(not(target_os = "macos"))]
                 let overlay = read_json(app.handle(), "window-chrome.json", json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false);
                 #[cfg(not(target_os = "macos"))]
                 if overlay {

@@ -233,11 +233,52 @@ async function showJoinGroupDialog(){
   wrap.querySelector('#joinGroupSubmit')?.addEventListener('click',async()=>{const code=wrap.querySelector('#joinGroupCode')?.value.trim();const st=wrap.querySelector('#joinGroupStatus');if(!code){st.textContent='Enter an access code.';return}try{st.textContent='Joining…';const x=await A.api({path:'groups/accesscode',method:'POST',json:true,params:{access_code:code}});const status=String(x?.status||x?.enrollment?.status||'').toLowerCase();st.textContent=status==='pending'?'Group request sent.':status==='active'?'You joined the group.':'Group request submitted.';setTimeout(()=>{close();loadCourseSubmenu()},500)}catch(e){st.textContent='Unable to join group: '+e.message}});
   requestAnimationFrame(()=>wrap.querySelector('#joinGroupCode')?.focus());
 }
+
+async function getPostableUpdateDestinations(){
+  const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)return [];
+  try{
+    const pair=await Promise.all([A.api({path:'users/'+uid+'/sections',params:{limit:100}}),A.api({path:'users/'+uid+'/groups',params:{limit:100}})]);
+    const sections=pair[0]?.section||pair[0]?.sections||[],groups=pair[1]?.group||pair[1]?.groups||[];
+    const destinations=[...sections.map(x=>({realm:'sections',id:x.id||x.section_id,label:x.section_title||x.course_title||x.title||'Course'})),...groups.map(x=>({realm:'groups',id:x.id||x.group_id,label:x.name||x.title||'Group'}))].filter(x=>x.id!=null);
+    if(!destinations.length)return [];
+    const paths=destinations.map(x=>'/v1/'+x.realm+'/'+x.id+'/updates');
+    const result=await A.api({path:'multioptions',method:'POST',params:{request:paths}});
+    const rows=result?.response||result?.responses||result?.data||[];
+    const list=Array.isArray(rows)?rows:Object.entries(rows).map(([location,body])=>({location,body}));
+    const allowed=new Set();
+    for(const row of list){const body=row?.body??row?.response??row?.data??'';if(/\bpost\b/i.test(typeof body==='string'?body:JSON.stringify(body))){const loc=String(row?.location||'');const dest=destinations.find(d=>loc.includes('/'+d.realm+'/'+d.id+'/updates'));if(dest)allowed.add(dest.realm+':'+dest.id)}}
+    return destinations.filter(d=>allowed.has(d.realm+':'+d.id));
+  }catch(error){console.warn('Unable to check update posting permissions:',error?.message||error);return []}
+}
+async function showCreateUpdateDialog(){
+  const destinations=await getPostableUpdateDestinations();
+  if(!destinations.length){showAppDialog('Unable to post update','Your account does not have permission to post updates in any available course or group.');return}
+  document.getElementById('createUpdateDialog')?.remove();
+  const wrap=document.createElement('div');wrap.id='createUpdateDialog';wrap.className='assignmentCommentDialogOverlay';
+  wrap.innerHTML='<section class="androidCreatePostDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button id="createUpdateCancel" class="androidDialogIcon" aria-label="Cancel">'+officialIcon('ic_action_discard_icon.png','Cancel')+'</button><div class="androidDialogTitle">Post Update</div><button id="createUpdateSend" class="androidDialogIcon" aria-label="Post">'+officialIcon('ic_action_send_icon.png','Post')+'</button></header><div class="androidCreatePostBody"><label class="androidFieldLabel" for="createUpdateDestination">Post to</label><select id="createUpdateDestination" class="settingSelect"></select><textarea id="createUpdateBody" placeholder="Write an update…"></textarea><div id="createUpdateStatus" class="androidCreatePostStatus"></div></div></section>';
+  const select=wrap.querySelector('#createUpdateDestination');
+  select.innerHTML=destinations.map(d=>'<option value="'+esc(d.realm+':'+d.id)+'">'+esc(d.label)+'</option>').join('');
+  document.body.appendChild(wrap);
+  const close=()=>wrap.remove();
+  wrap.querySelector('#createUpdateCancel')?.addEventListener('click',close);
+  wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  wrap.querySelector('#createUpdateSend')?.addEventListener('click',async()=>{
+    const body=wrap.querySelector('#createUpdateBody')?.value.trim(),status=wrap.querySelector('#createUpdateStatus'),button=wrap.querySelector('#createUpdateSend');
+    if(!body){status.textContent='Write an update before posting.';return}
+    const [realm,id]=String(select.value||'').split(':');if(!realm||!id){status.textContent='Choose where to post this update.';return}
+    button.disabled=true;status.textContent='Posting…';
+    try{await A.api({path:realm+'/'+id+'/updates',method:'POST',params:{body},json:true});close();loadTab()}
+    catch(error){button.disabled=false;status.textContent='Unable to post update: '+(error?.message||String(error))}
+  });
+  requestAnimationFrame(()=>wrap.querySelector('#createUpdateBody')?.focus());
+}
+
 function showHomeCreateMenu(){
   document.getElementById('homeCreateMenu')?.remove();const plus=document.getElementById('homeCreatePlus');if(!plus)return;const r=plus.getBoundingClientRect();
   const m=document.createElement('div');m.id='homeCreateMenu';m.className='assignmentActionMenu';m.innerHTML=`<button id="createHomeDiscussion"><span>Discussion</span></button><button id="createHomeEvent"><span>Event</span></button>`;document.body.appendChild(m);m.style.top=(r.bottom+6)+'px';m.style.right=(window.innerWidth-r.right)+'px';
   document.getElementById('createHomeDiscussion')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('discussion','',null)});
   document.getElementById('createHomeEvent')?.addEventListener('click',()=>{m.remove();showCreatePostDialog('event','',null)});
+  void getPostableUpdateDestinations().then(destinations=>{if(!destinations.length||!m.isConnected)return;const button=document.createElement('button');button.id='createHomeUpdate';button.innerHTML='<span>Update</span>';m.insertBefore(button,m.firstChild);button.addEventListener('click',()=>{m.remove();showCreateUpdateDialog()})});
   setTimeout(()=>document.addEventListener('mousedown',function f(e){if(!m.contains(e.target)&&e.target!==plus){m.remove();document.removeEventListener('mousedown',f)}},0),0);
 }
 function showCreatePostDialog(kind,realm,realmId){
@@ -1146,22 +1187,36 @@ async function openSharedAttachmentViewer(info){if(isImageAttachment(info)){awai
 async function openSharedImageViewer(info){
  document.getElementById('sharedPdfViewerOverlay')?.remove();
  const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay pdfViewerOpening sharedImageViewer';
- root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'Image')+'</b></header><div class="sharedImageViewerBody"><div class="sharedPdfViewerLoading">Loading image…</div></div>';
+ root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'Image')+'</b><span class="sharedImageZoomLabel" aria-live="polite">100%</span></header><div class="sharedImageViewerBody"><div class="sharedPdfViewerLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading image…</span></div></div>';
  document.body.appendChild(root);requestAnimationFrame(()=>root.classList.add('open'));
- let closed=false;const close=()=>{if(closed)return;closed=true;root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
+ let closed=false,zoom=1,translateX=0,translateY=0,pinchStart=0,pinchZoom=1,dragStart=null;
+ const body=root.querySelector('.sharedImageViewerBody'),zoomLabel=root.querySelector('.sharedImageZoomLabel');
+ const keyZoom=event=>{if(!root.isConnected||!event.ctrlKey)return;if(['+','=','Add'].includes(event.key)){event.preventDefault();setImageZoom(zoom+0.2)}else if(['-','_','Subtract'].includes(event.key)){event.preventDefault();setImageZoom(zoom-0.2)}else if(event.key==='0'){event.preventDefault();setImageZoom(1,true)}};
+ const close=()=>{if(closed)return;closed=true;document.removeEventListener('keydown',keyZoom,true);root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
  root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close);
+ const applyImageZoom=()=>{const image=root.querySelector('.sharedImageViewerImage');if(!image)return;image.style.transform='translate('+translateX+'px,'+translateY+'px) scale('+zoom+')';if(zoomLabel)zoomLabel.textContent=Math.round(zoom*100)+'%'};
+ const setImageZoom=(next,resetPan=false)=>{zoom=Math.max(1,Math.min(5,next));if(resetPan||zoom===1){translateX=0;translateY=0}applyImageZoom()};
+ document.addEventListener('keydown',keyZoom,true);
+ body.addEventListener('wheel',event=>{if(!event.ctrlKey)return;event.preventDefault();setImageZoom(zoom+(event.deltaY<0?0.15:-0.15))},{passive:false});
+ body.addEventListener('pointerdown',event=>{if(zoom<=1||event.button!==0)return;dragStart={x:event.clientX,y:event.clientY,tx:translateX,ty:translateY};body.setPointerCapture?.(event.pointerId)});
+ body.addEventListener('pointermove',event=>{if(!dragStart)return;translateX=dragStart.tx+event.clientX-dragStart.x;translateY=dragStart.ty+event.clientY-dragStart.y;applyImageZoom()});
+ const stopDrag=()=>{dragStart=null};body.addEventListener('pointerup',stopDrag);body.addEventListener('pointercancel',stopDrag);
+ body.addEventListener('touchstart',event=>{if(event.touches.length===2){event.preventDefault();pinchStart=Math.hypot(event.touches[0].clientX-event.touches[1].clientX,event.touches[0].clientY-event.touches[1].clientY);pinchZoom=zoom}},{passive:false});
+ body.addEventListener('touchmove',event=>{if(event.touches.length===2&&pinchStart>0){event.preventDefault();const distance=Math.hypot(event.touches[0].clientX-event.touches[1].clientX,event.touches[0].clientY-event.touches[1].clientY);setImageZoom(pinchZoom*distance/pinchStart)}},{passive:false});
+ body.addEventListener('touchend',event=>{if(event.touches.length<2)pinchStart=0});
  try{
   const imageUrl=info?.viewUrl||info?.url;if(!imageUrl)throw new Error('Schoology did not provide an image URL.');
   const file=await A.annotationRequest({url:imageUrl,binary:true});if(!file?.base64)throw new Error('Schoology did not return image data.');
   if(closed||!root.isConnected)return;
   const mime=imageAttachmentMime(info);
-  root.querySelector('.sharedImageViewerBody').innerHTML='<img class="sharedImageViewerImage" alt="'+esc(info?.displayFilename||info?.filename||info?.title||'Attachment image')+'" src="data:'+esc(mime)+';base64,'+file.base64+'">';
- }catch(error){if(closed||!root.isConnected)return;root.querySelector('.sharedImageViewerBody').innerHTML='<div class="sharedPdfViewerError"><b>Unable to view this image</b><p>'+esc(error?.message||String(error))+'</p><button type="button" data-pdf-viewer-back>Back</button></div>';root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close)}
+  body.innerHTML='<img class="sharedImageViewerImage" alt="'+esc(info?.displayFilename||info?.filename||info?.title||'Attachment image')+'" src="data:'+esc(mime)+';base64,'+file.base64+'">';
+  setImageZoom(1,true);
+ }catch(error){document.removeEventListener('keydown',keyZoom,true);if(closed||!root.isConnected)return;body.innerHTML='<div class="sharedPdfViewerError"><b>Unable to view this image</b><p>'+esc(error?.message||String(error))+'</p><button type="button" data-pdf-viewer-back>Back</button></div>';root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close)}
 }
 async function openSharedPdfViewer(info){
  document.getElementById('sharedPdfViewerOverlay')?.remove();
  const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay pdfViewerOpening';
- root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'PDF document')+'</b></header><div class="sharedPdfViewerPages"></div>'
+ root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'PDF document')+'</b></header><div class="sharedPdfViewerPages"><div class="sharedPdfViewerLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading PDF…</span></div></div>'
  document.body.appendChild(root);
  requestAnimationFrame(()=>root.classList.add('open'));
  let removeZoomKeys=()=>{};let zoomTimer=0;const close=()=>{removeZoomKeys();clearTimeout(zoomTimer);root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
@@ -1601,7 +1656,7 @@ function renderSharedPostCard({update={},id,author='Schoology',avatar='',authorI
  const body=update.body||update.message||update.description||update.title||update.update_body||update.updateBody||update.richtext_body||update.richtextBody||update.update?.body||update.update?.message||update.template_fields?.body||'';
  const date=formatSchoologyDate(update.created??update.timestamp??update.created_at??update.last_updated??update.lastUpdated??'');
  const authorMarkup=authorAttr?'<button class="activityUser activityAuthorLink" '+authorAttr+'="'+esc(authorId||'')+'">'+esc(author)+'</button>':'<b class="activityUser">'+esc(author)+'</b>';
- const contextMarkup=contextLabel?'<span class="activityContextArrow" aria-hidden="true">›</span><button class="activityGroupLink" '+contextAttr+'="'+esc(contextId||'')+'">'+esc(contextLabel)+'</button>':'';
+ const contextMarkup=contextLabel?'<span class="activityContextArrow" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path fill="#8c8c8c" d="M6.5 12l4-4-4-4-1 1 3 3-3 3z"/></svg></span><button class="activityGroupLink" '+contextAttr+'="'+esc(contextId||'')+'">'+esc(contextLabel)+'</button>':'';
  return '<article class="androidActivityCard sharedPostCard '+esc(cardClass)+'" data-update-card="'+esc(postId)+'"><div class="activityHeader">'+(avatar?'<img class="activityAvatar" data-media-image-url="'+esc(avatar)+'" alt="">':'<span class="activityAvatar">'+esc(String(author||'S').charAt(0))+'</span>')+authorMarkup+contextMarkup+(badge||'')+(deleteButton||'')+'</div><div class="activityBody">'+body+'</div>'+renderAttachments(update.attachments||update.attachment||update.files||{})+renderUpdatePoll(update,postId)+'<div class="activityMeta">'+esc(date)+'</div>'+renderSharedPostActions({id:postId,comments,likes,liked,commentAttr,commentCountAttr,likeAttr,likeCountAttr})+(commentsPanelId?'<div class="updateCommentsPanel" id="'+esc(commentsPanelId)+'" hidden></div>':'')+'</article>';
 }
 

@@ -442,6 +442,7 @@
         this._unlistenPageLoad = null;
         this._settingSrc = false;
         this._ltiNavigation = false;
+        this._hasLoadedPage = false;
       }
       static get observedAttributes() { return ['src']; }
       attributeChangedCallback(name, oldValue, newValue) {
@@ -466,7 +467,8 @@
         };
         window.addEventListener('schoology-tauri-theme-changed', this._themeHandler);
         this.style.display = 'block';
-        this.style.position = 'relative';
+        this.style.position = 'absolute';
+        this.style.inset = '0';
         this.style.width = '100%';
         this.style.height = '100%';
         this.style.minWidth = '1px';
@@ -568,7 +570,7 @@
         if (!view || !this.isConnected || this._closingNativeView) return;
         const rect=this.getBoundingClientRect(),style=getComputedStyle(this);
         let left=rect.left,top=rect.top,right=rect.right,bottom=rect.bottom;
-        let visible=!this.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&style.visibility!=='collapse'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0;
+        let visible=this._hasLoadedPage&&!this.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&style.visibility!=='collapse'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0;
         // A native child surface is not clipped by CSS overflow, transforms, or scroll containers.
         // Intersect its rectangle with every clipping ancestor and the viewport before positioning it.
         for(let ancestor=this.parentElement;visible&&ancestor;ancestor=ancestor.parentElement){
@@ -595,6 +597,7 @@
       }
       async loadURL(url) {
         this._url = String(url);
+        this._hasLoadedPage = false;
         this._ltiNavigation = this.hasAttribute('data-lti') && this.getAttribute('data-lti') !== 'false';
         this._settingSrc = true;
         this.setAttribute('src', this._url);
@@ -617,10 +620,10 @@
             await invoke('create-embedded-webview', {
               label,
               url: this._url,
-              x: Math.max(0, rect.left),
-              y: Math.max(0, rect.top),
-              width: Math.max(1, rect.width),
-              height: Math.max(1, rect.height),
+              x: -10000,
+              y: -10000,
+              width: 1,
+              height: 1,
               userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
               initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
               forceDark: dark,
@@ -706,11 +709,14 @@
             if (rawEvent && typeof rawEvent === 'object') rawEvent = Object.keys(rawEvent)[0] || '';
             const eventName = String(rawEvent).toLowerCase().replace(/[^a-z]/g, '');
             if (eventName.includes('started') || eventName === 'start') {
+              this._hasLoadedPage = false;
+              this._syncHandler();
               this.loading = true;
               this.dispatchEvent(new Event('did-start-loading'));
               return;
             }
             if (eventName.includes('finished') || eventName === 'finish') {
+              this._hasLoadedPage = true;
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
@@ -725,9 +731,15 @@
           // child briefly, and could leave it covering content if layout was late.
           await this._syncBounds();
           await this.nativeView.navigate(this._url);
+          this._hasLoadedPage = true;
+          await this._syncBounds();
           this._syncHandler();
         } else {
+          await this._syncBounds();
           await this.nativeView.navigate(this._url);
+          this._hasLoadedPage = true;
+          await this._syncBounds();
+          this._syncHandler();
         }
       }
       getURL() { return this._url; }

@@ -1,5 +1,10 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.240]
+
+### Fixed
+- Embed the official Android link vector directly in the renderer for shared link attachments, and use an embedded attachment-resource icon for message embeds instead of depending on icon file paths.
+
 ## [2026.06.0-port.239]
 
 ### Fixed

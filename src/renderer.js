@@ -97,9 +97,10 @@ function renderMessageAttachments(a){
  const shared=renderAttachments({files:{file:list},links:{link:ll}});
  const embeds=a?.embeds?.embed||a?.embeds||[];
  const ee=Array.isArray(embeds)?embeds:(embeds?.embed||[]);
- const embedHtml=ee.filter(e=>e&&(e.embed_code||e.embedCode)).map(e=>'<button type="button" class="activityAttachment embedAttachment" data-embed-html="'+esc(e.embed_code||e.embedCode)+'"><span class="attachmentFileIcon">'+(officialOrAssetIcon('ic_action_web_content.png','')||'▧')+'</span><span class="attachmentFileText"><b>Embedded content</b><small>Open embedded content</small></span><span class="attachmentDownloadIcon">›</span></button>').join('');
+ const embedHtml=ee.filter(e=>e&&(e.embed_code||e.embedCode)).map(e=>'<button type="button" class="activityAttachment embedAttachment" data-embed-html="'+esc(e.embed_code||e.embedCode)+'"><span class="attachmentFileIcon">'+(officialIcon('ic_attach_resourcesv3.png','Embedded content')||'▧')+'</span><span class="attachmentFileText"><b>Embedded content</b><small>Open embedded content</small></span><span class="attachmentDownloadIcon">›</span></button>').join('');
  return shared+(embedHtml?'<div class="activityMedia messageEmbeddedAttachments">'+embedHtml+'</div>':'');
 }
+function officialLinkIcon(){return "<svg class='officialLinkIcon' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><path fill='#8c8c8c' d='M12.8 15.8l1.5 1.5-3.1 3.1c-1 1.1-2.4 1.6-3.8 1.6s-2.8-.5-3.8-1.6c-2.1-2.1-2.1-5.5 0-7.7l3.1-3.1 1.5 1.5-3.1 3.1c-1.3 1.3-1.3 3.3 0 4.6 1.3 1.3 3.3 1.3 4.6 0l3.1-3zM20.4 3.6c-2.1-2.1-5.5-2.1-7.7 0l-3 3 1.5 1.5L14.3 5c1.3-1.3 3.3-1.3 4.6 0 1.3 1.3 1.3 3.3 0 4.6l-3.1 3.1 1.5 1.5 3.1-3.1c2.1-2.1 2.1-5.5 0-7.5zM17.4 8.2l-1.5-1.5-9.2 9.2 1.5 1.5 9.2-9.2z'/></svg>"}
 function officialBackIcon(){return "<svg class='officialBackIcon' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><path fill='currentColor' d='M22 10.9H6.2l5.7-5.7-1.5-1.5L2 12l8.4 8.4l1.5-1.5l-5.7-5.7H22V10.9z'/></svg>"}
 
 (function installSynchronousBackIconRepair(){
@@ -1205,7 +1206,7 @@ function renderAttachments(a,submissionContext=null){
       out.push(`<button type="button" class="activityAttachment annotationLaunchButton" data-annotate-pdf data-annotate-url="${esc(url)}" data-annotate-file-id="${esc(f.id)}" data-annotate-file-type="${esc(f.fileType||f.file_type||mime)}" data-annotate-name="${esc(title)}" data-annotate-section-id="${esc(submissionContext.sectionId||'')}" data-annotate-assignment-id="${esc(submissionContext.assignmentId||submissionContext.gradeItemId||'')}"><span class="attachmentFileIcon">✎</span><span class="attachmentFileText"><b>Annotate PDF</b><small>${esc(title)}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
     }
   };
-  const addLink=(url,title)=>{if(url)out.push(`<button type="button" class="activityAttachment linkAttachment" data-open-url="${esc(url)}"><span class="attachmentFileIcon">${officialOrAssetIcon('ic_action_link.png','')||officialIcon('ic_action_link.png','Link')}</span><span class="attachmentFileText"><b>${esc(title||url)}</b><small>Link</small></span><span class="attachmentDownloadIcon">›</span></button>`)};
+  const addLink=(url,title)=>{if(url)out.push(`<button type="button" class="activityAttachment linkAttachment" data-open-url="${esc(url)}"><span class="attachmentFileIcon">${officialLinkIcon()}</span><span class="attachmentFileText"><b>${esc(title||url)}</b><small>Link</small></span><span class="attachmentDownloadIcon">›</span></button>`)};
   const walk=(v)=>{
     if(!v)return;
     if(Array.isArray(v)){v.forEach(walk);return}

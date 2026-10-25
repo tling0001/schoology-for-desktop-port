@@ -2904,3 +2904,5 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .updateCommentActions [data-update-comment-like]:has(+ [data-update-comment-like-count]:not([hidden])){border-top-right-radius:0!important;border-bottom-right-radius:0!important;margin-right:-7px!important}
 .updateCommentActions [data-update-comment-like-count]:not([hidden]){border-top-left-radius:0!important;border-bottom-left-radius:0!important;border-left:0!important}
 .unifiedCommentsView .updateCommentActions [hidden],.updateCommentsPanel .updateCommentActions [hidden],#updateCommentsModalPanel .updateCommentActions [hidden]{display:none!important}
+
+.activityAttachment.linkAttachment .officialLinkIcon{width:26px;height:26px;display:block;flex:0 0 26px}

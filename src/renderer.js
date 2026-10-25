@@ -1824,7 +1824,7 @@ async function loadCourseTab(course,tab){
     admin:person.admin
    })).filter(person=>person.id);
    people.sort((a,b)=>String(a.name_last).localeCompare(String(b.name_last))||String(a.name_first).localeCompare(String(b.name_first)));
-   renderPeopleDirectoryInto(el,people,{placeholder:'Search course members',onRefresh:()=>loadCourseTab(course,'members'),onSelect:person=>{state.profileUser=person;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()}});
+   renderPeopleDirectoryInto(el,people,{placeholder:'Search course members',onRefresh:()=>loadCourseTab(course,'members'),onSelect:person=>openProfileById(person.id,person.name_display||[person.name_first,person.name_last].filter(Boolean).join(' ')||'Profile')});
    return;
  }
  if(tab==='upcoming'){

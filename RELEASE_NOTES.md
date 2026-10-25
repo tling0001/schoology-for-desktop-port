@@ -1,5 +1,10 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.244]
+
+### Fixed
+- Open a course member's profile through the standard profile-navigation path so Back returns to the course Members tab instead of losing the course context.
+
 ## [2026.06.0-port.243]
 
 ### Fixed

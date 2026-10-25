@@ -1856,7 +1856,7 @@ function renderPeopleDirectoryInto(container,people,{placeholder='Search school 
  let last='';
  const rows=arr.map((u,i)=>{
   const lastName=String(u.name_last||u.last_name||'');
-  const firstName=String(u.name_display_start||u.nameDisplayStart||u.name_display||u.nameDisplay||u.name_first||u.first_name||u.name||'');
+  const firstName=String(u.name_display_start||u.nameDisplayStart||u.name_first||u.first_name||u.name||'');
   const preferred=String(u.name_first_preferred||u.nameFirstPreferred||'');
   const letter=(lastName.charAt(0)||'#').toUpperCase();
   let heading='';if(letter!==last){last=letter;heading='<div class="peopleSectionHeader">'+esc(letter)+'</div>'}

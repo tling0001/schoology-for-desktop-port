@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.238]
+
+### Fixed
+- Apply the shared Android-style comment avatar size, author color, body indentation, and Reply/Like action alignment to post comment panels as well as the unified assignment, discussion, and event comment pages.
+- Keep course member names normalized to first/last-name fields rather than duplicating the display name.
+
 ## [2026.06.0-port.237]
 
 ### Added

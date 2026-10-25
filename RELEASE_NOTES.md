@@ -1,5 +1,10 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.239]
+
+### Fixed
+- Visually join each comment's Like and like-count controls to match the connected controls used on posts, while keeping the count hidden when zero.
+
 ## [2026.06.0-port.238]
 
 ### Fixed

@@ -2899,3 +2899,8 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .updateCommentsPanel .androidCommentContent,#updateCommentsModalPanel .androidCommentContent{padding:0!important;line-height:1.45!important;overflow-wrap:anywhere}
 .updateCommentsPanel .updateCommentActions,#updateCommentsModalPanel .updateCommentActions{display:flex!important;align-items:center!important;gap:7px!important;margin-top:7px!important}
 .updateCommentsPanel .updateCommentActions [data-update-comment-reply],#updateCommentsModalPanel .updateCommentActions [data-update-comment-reply]{margin-right:auto!important}
+
+/* Like and count controls behave as one connected control in every comment view. */
+.updateCommentActions [data-update-comment-like]:has(+ [data-update-comment-like-count]:not([hidden])){border-top-right-radius:0!important;border-bottom-right-radius:0!important;margin-right:-7px!important}
+.updateCommentActions [data-update-comment-like-count]:not([hidden]){border-top-left-radius:0!important;border-bottom-left-radius:0!important;border-left:0!important}
+.unifiedCommentsView .updateCommentActions [hidden],.updateCommentsPanel .updateCommentActions [hidden],#updateCommentsModalPanel .updateCommentActions [hidden]{display:none!important}

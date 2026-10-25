@@ -1,5 +1,20 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.235]
+
+### Fixed
+- Normalize post action and people-count button heights on Windows and keep course-material folder navigation sticky while scrolling.
+- Preserve the PDF zoom focal point during pinch zoom and zoom around the center of the visible viewport for Ctrl/Cmd +/- and wheel zoom.
+- Render course updates with explicit full shared-post body, attachment, poll, and metadata styling, and normalize nested update payloads.
+- Use the embedded Schoology discard icon in the text-submission title bar.
+- Unify assignment, discussion, and event comments with the shared comment row and action-button renderer used by post comments, including profile links, reply, like/unlike, and likes lists.
+- Keep transient notification API polling failures from showing a blocking desktop-notifications dialog during startup.
+- Route Android APK opening through the URL-opening API with the package MIME type to avoid the path-only opener argument error.
+
+### Requires device validation
+- Verify PDF focal-point behavior on Windows, Android, and iOS; verify APK installation on Android; and check comments/replies against a live Schoology account.
+
+
 ## [2026.06.0-port.234]
 
 ### Fixed

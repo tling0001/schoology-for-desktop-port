@@ -2850,3 +2850,14 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 
 .peopleListDialogOverlay.closing,.pdfAttachmentOptionsOverlay.closing{opacity:0;pointer-events:none}
 .peopleListDialogOverlay.closing .peopleListDialog,.pdfAttachmentOptionsOverlay.closing .pdfAttachmentOptions{transform:translateY(8px) scale(.98);opacity:0}
+
+/* Keep paired post action/count controls equal-height in Windows WebView. */
+.sharedPostActions>button,.sharedPostActions>.postCountButton{box-sizing:border-box!important;min-height:36px!important;height:36px!important;align-self:center!important;line-height:20px!important;padding-top:7px!important;padding-bottom:7px!important;vertical-align:middle!important}
+.sharedPostActions>.postCountButton{display:inline-flex!important;align-items:center!important;justify-content:center!important}
+#sectionProfileContent .materialBackRow{position:sticky;top:0;z-index:6;flex:none;background:var(--theme-surface,#fff)}
+.courseMainPane .sectionFullUpdate.sharedPostCard{display:block!important;padding:13px 16px!important;margin:0!important;border-bottom:1px solid var(--theme-border,#d7dce0)!important;background:var(--theme-surface,#fff)!important}
+.courseMainPane .sectionFullUpdate .activityBody{display:block!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;padding:10px 2px 7px!important;line-height:1.45!important}
+.courseMainPane .sectionFullUpdate .activityMeta{display:block!important;padding-left:0!important;margin-top:8px!important}
+.courseMainPane .sectionFullUpdate .activityAttachment,.courseMainPane .sectionFullUpdate .updatePoll{display:block!important}
+.unifiedCommentsView .updateComment{margin:0!important;padding:12px 12px 12px 0!important;border-bottom:1px solid var(--theme-border,#e0e4e7)!important}
+.unifiedCommentsView .updateComment .activityActions{padding-left:0!important;gap:7px!important}

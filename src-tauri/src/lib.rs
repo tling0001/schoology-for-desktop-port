@@ -1168,7 +1168,8 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
     }
     #[cfg(target_os = "android")]
     {
-        app.opener().open_path(path.to_string_lossy().as_ref(), Some("application/vnd.android.package-archive"))
+        let package_uri = format!("file://{}", path.to_string_lossy());
+        app.opener().open_url(&package_uri, Some("application/vnd.android.package-archive"))
             .map_err(|e| format!("Could not open the Android package installer: {e}"))?;
         return Ok(json!({"openedInstaller":true,"path":path.to_string_lossy()}));
     }

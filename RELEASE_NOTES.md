@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.233]
+
+### Fixed
+- Send replies with the original thread subject, selected numeric recipient IDs, and the documented `keep_unread=false` query flag, matching the official Android reply API call.
+- Prevent reply submission when the other participant cannot be resolved instead of sending an empty recipient list.
+
+### Requires device validation
+- Verify replies and new-message submission against a live Schoology account.
+
+
 ## [2026.06.0-port.232]
 
 ### Fixed

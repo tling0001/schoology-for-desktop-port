@@ -1,5 +1,13 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.236]
+
+### Fixed
+- Keep comment like actions and like counts synchronized in both shared post comments and the unified assignment, discussion, and event comment view.
+- Match Android comment action order with Reply on the left and Like/like count on the right; enlarge comment avatars and align comment text with the author name.
+- Render links attached to posts and messages through the shared attachment card with the official link icon, shared hover/press feedback, and the same open-link action.
+- Apply consistent light-mode hover and pressed feedback to message rows, poll options, settings options, upcoming items, and shared attachments.
+
 ## [2026.06.0-port.235]
 
 ### Fixed

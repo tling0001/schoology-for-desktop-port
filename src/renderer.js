@@ -721,7 +721,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
  const landscape=window.matchMedia('(min-width: 1000px)').matches;
- const baseTabs=[['materials','Materials'],['updates','Updates']];
+ const baseTabs=[['materials','Materials'],['updates','Updates'],['members','Members']];
  let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
@@ -744,7 +744,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const schoolId=sectionDetail?.school_id??sectionDetail?.schoolId??'';
  const schoolEl=document.getElementById('courseSchoolName');if(schoolEl&&school){const safeSchoolId=Number(schoolId||0);schoolEl.innerHTML=safeSchoolId?`<button class="courseSchoolLink" data-course-school-id="${safeSchoolId}" type="button">${esc(school)}</button>`:`<span class="courseSchoolLink">${esc(school)}</span>`;const btn=schoolEl.querySelector('button');if(btn)btn.onclick=()=>{const id=Number(btn.dataset.courseSchoolId||0);if(id)openSchoolProfile(id,btn.textContent||'School')}}
  const canGradebook=!!navPerms?.sectionGradesPut,canGrades=!!navPerms?.userGradesGet,attendanceEnabled=!!navPerms?.attendanceGet;
- const tabs=[['materials','Materials'],['updates','Updates'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
+ const tabs=[['materials','Materials'],['updates','Updates'],['members','Members'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
  if(effectiveTab==='grades'&&canGradebook)effectiveTab='gradebook';if(effectiveTab==='gradebook'&&!canGradebook)effectiveTab=canGrades?'grades':'materials';if(effectiveTab==='attendance'&&!attendanceEnabled)effectiveTab='materials';
  const tabBar=document.querySelector('.sectionProfileTabs');if(tabBar)tabBar.innerHTML=tabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('');
  document.querySelectorAll('[data-course-tab]').forEach(b=>b.onclick=()=>{const id=b.dataset.courseTab;state.courseTab=id;state.toolbarTitle=b.textContent||'Course';document.querySelectorAll('[data-course-tab]').forEach(x=>x.classList.toggle('active',x===b));state.folderStack=[];state.currentFolderId=0;syncToolbar();const tabContent=document.getElementById('sectionProfileContent');if(tabContent)tabContent.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';loadCourseTab(course,id).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});});
@@ -1808,6 +1808,24 @@ async function loadCourseTab(course,tab){
    await loadCourseUpdates(course,el);
    return;
  }
+ if(tab==='members'){
+   const response=await A.api({path:`sections/${sid}/enrollments`,params:{start:0,limit:200,enrollment_status:1}});
+   const raw=response?.enrollment||response?.enrollments||response?.data?.enrollment||[];
+   const enrollments=Array.isArray(raw)?raw:(raw?.enrollment||raw?.items||[]);
+   const people=enrollments.filter(person=>String(person.status??1)==='1').map(person=>({
+    id:person.uid||person.user_id||person.userId||person.user?.id||'',
+    uid:person.uid||person.user_id||person.userId||person.user?.id||'',
+    name_first:person.name_first||person.user?.name_first||'',
+    name_last:person.name_last||person.user?.name_last||'',
+    name_display:person.name_display||person.user?.name_display||person.user?.name||'',
+    name_first_preferred:person.name_first_preferred||person.user?.name_first_preferred||'',
+    picture_url:person.picture_url||person.pictureUrl||person.user?.picture_url||person.user?.pictureUrl||'',
+    admin:person.admin
+   })).filter(person=>person.id);
+   people.sort((a,b)=>String(a.name_last).localeCompare(String(b.name_last))||String(a.name_first).localeCompare(String(b.name_first)));
+   renderPeopleDirectoryInto(el,people,{placeholder:'Search course members',onRefresh:()=>loadCourseTab(course,'members'),onSelect:person=>{state.profileUser=person;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()}});
+   return;
+ }
  if(tab==='upcoming'){
    const x=await A.api({path:`sections/${sid}/events`,params:{start_date:formatApiDate(new Date()),limit:20}});
    let arr=x.event||x.events||[];
@@ -1831,6 +1849,26 @@ async function loadCourseTab(course,tab){
 }
 
 function animateTab(){ /* Restored to the Android pager's stable tab layout; no custom overlay animation. */ }
+function renderPeopleDirectoryInto(container,people,{placeholder='Search school directory',onRefresh=null,onSelect=null}={}){
+ if(!container)return;
+ const arr=Array.isArray(people)?people:[];
+ window.__schoologyPeople=arr;
+ let last='';
+ const rows=arr.map((u,i)=>{
+  const lastName=String(u.name_last||u.last_name||'');
+  const firstName=String(u.name_display_start||u.nameDisplayStart||u.name_display||u.nameDisplay||u.name_first||u.first_name||u.name||'');
+  const preferred=String(u.name_first_preferred||u.nameFirstPreferred||'');
+  const letter=(lastName.charAt(0)||'#').toUpperCase();
+  let heading='';if(letter!==last){last=letter;heading='<div class="peopleSectionHeader">'+esc(letter)+'</div>'}
+  const image=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||u.photo_url||'');
+  return heading+'<button class="peopleListItem" data-person-index="'+i+'"><img class="peopleAvatar" src="'+esc(image||'../assets/icons/profile_default_website.png')+'" alt=""><span><b>'+esc((firstName+' '+lastName).trim()||'Schoology user')+'</b>'+(preferred?'<small>'+esc(preferred)+'</small>':'')+'</span></button>';
+ }).join('');
+ container.innerHTML='<section class="peopleAndroidPage"><div class="peopleDirectoryToolbar"><label class="peopleDirectorySearch"><span aria-hidden="true">⌕</span><input class="peopleDirectorySearchInput" type="search" placeholder="'+esc(placeholder)+'" autocomplete="off"></label><button class="peopleDirectoryRefresh" type="button" aria-label="Refresh people list">↻</button></div><div class="peopleList">'+(rows||'<div class="empty">No people found.</div>')+'</div></section>';
+ const search=container.querySelector('.peopleDirectorySearchInput');
+ search?.addEventListener('input',()=>{const query=search.value.trim().toLocaleLowerCase();container.querySelectorAll('[data-person-index]').forEach(row=>{row.hidden=!!query&&!row.textContent.toLocaleLowerCase().includes(query)});container.querySelectorAll('.peopleSectionHeader').forEach(header=>{let node=header.nextElementSibling,visible=false;while(node&&!node.classList.contains('peopleSectionHeader')){if(node.matches?.('[data-person-index]')&&!node.hidden)visible=true;node=node.nextElementSibling}header.hidden=!!query&&!visible})});
+ container.querySelector('.peopleDirectoryRefresh')?.addEventListener('click',async()=>{const button=container.querySelector('.peopleDirectoryRefresh');if(!onRefresh)return;button?.classList.add('spinning');if(button)button.disabled=true;try{await onRefresh()}finally{container.querySelector('.peopleDirectoryRefresh')?.classList.remove('spinning');if(container.querySelector('.peopleDirectoryRefresh'))container.querySelector('.peopleDirectoryRefresh').disabled=false}});
+ container.querySelectorAll('[data-person-index]').forEach(button=>button.onclick=()=>{const person=arr[Number(button.dataset.personIndex)];if(person)onSelect?.(person)});
+}
 function renderUpcoming(events){
  const arr=Array.isArray(events)?events:[];
  if(!arr.length)return '<div class="empty"><h2>No upcoming events</h2></div>';
@@ -2654,12 +2692,7 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
       arr=[...seen.values()];
     }
     arr=arr.slice().sort((a,b)=>String(a.name_last||a.last_name||'').localeCompare(String(b.name_last||b.last_name||''))||String(a.name_first||a.first_name||'').localeCompare(String(b.name_first||b.first_name||'')));
-    window.__schoologyPeople=arr;
-    let last='';const rows=arr.map((u,i)=>{const lastName=String(u.name_last||u.last_name||'');const firstName=String(u.name_display_start||u.nameDisplayStart||u.name_first||u.first_name||u.name||'');const preferred=String(u.name_first_preferred||u.nameFirstPreferred||'');const letter=(lastName.charAt(0)||'#').toUpperCase();let h='';if(letter!==last){last=letter;h=`<div class="peopleSectionHeader">${esc(letter)}</div>`}const image=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||u.photo_url||'');return `${h}<button class="peopleListItem" data-person-index="${i}"><img class="peopleAvatar" src="${image||'../assets/icons/profile_default_website.png'}" alt=""><span><b>${esc(firstName)} ${esc(lastName)}</b>${preferred?`<small>${esc(preferred)}</small>`:''}</span></button>`}).join('');
-    c.innerHTML=`<section class="peopleAndroidPage"><div class="peopleDirectoryToolbar"><label class="peopleDirectorySearch"><span aria-hidden="true">⌕</span><input id="peopleDirectorySearchInput" type="search" placeholder="Search school directory" autocomplete="off"></label><button id="peopleDirectoryRefresh" class="peopleDirectoryRefresh" type="button" aria-label="Refresh school directory">↻</button></div><div class="peopleList">${rows||'<div class="empty">No people found.</div>'}</div></section>`;
-    const peopleSearch=document.getElementById('peopleDirectorySearchInput');peopleSearch?.addEventListener('input',()=>{const query=peopleSearch.value.trim().toLocaleLowerCase();document.querySelectorAll('[data-person-index]').forEach(row=>{row.hidden=!!query&&!row.textContent.toLocaleLowerCase().includes(query)});document.querySelectorAll('.peopleSectionHeader').forEach(header=>{let node=header.nextElementSibling,visible=false;while(node&&!node.classList.contains('peopleSectionHeader')){if(node.matches?.('[data-person-index]')&&!node.hidden)visible=true;node=node.nextElementSibling}header.hidden=!!query&&!visible});});
-    document.getElementById('peopleDirectoryRefresh')?.addEventListener('click',()=>{const button=document.getElementById('peopleDirectoryRefresh');button?.classList.add('spinning');loadTab().finally(()=>document.getElementById('peopleDirectoryRefresh')?.classList.remove('spinning'))});
-    document.querySelectorAll('[data-person-index]').forEach(b=>b.onclick=()=>{const u=window.__schoologyPeople[+b.dataset.personIndex];state.profileUser=u;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()});
+    renderPeopleDirectoryInto(c,arr,{placeholder:'Search school directory',onRefresh:()=>loadTab(),onSelect:person=>{state.profileUser=person;state.tab='profile';state.profileTab='updates';state.toolbarTitle='Profile';render();loadTab()}});
   }else if(state.tab==='settings'){
     c.innerHTML=`<section class="settingsPage"><div class="settingsGroup"><h2>Appearance</h2><label class="settingRow"><span><b>Theme</b><small>Choose light, dark, or follow your system appearance</small></span><select id="themeModeSelect" class="settingSelect"><option value="system" ${state.themeMode==='system'?'selected':''}>System default</option><option value="light" ${state.themeMode==='light'?'selected':''}>Light</option><option value="dark" ${state.themeMode==='dark'?'selected':''}>Dark</option></select></label><div class="settingRow settingInfoRow"><span><b>Open Schoology links in this app</b><small>This turns on automatically when you start setup—no extra checkbox is needed. Install the companion extension in Chrome to send supported Schoology links here.</small></span><span class="settingStatusPill">Automatic</span></div><button id="setupChromeLinkHandler" class="settingRow settingButton"><span><b>Set up Chrome link handling</b><small>Open the companion extension folder for Chrome</small></span><span>›</span></button></div><div class="settingsGroup"><h2>Desktop Notifications</h2><label class="settingRow"><span><b>Schoology notifications</b><small>Show a desktop notification when new Schoology activity arrives</small></span><span class="settingSwitch"><input class="settingSwitchInput" type="checkbox" id="desktopNotificationsToggle" ${state.desktopNotifications?'checked':''}><span class="settingSwitchTrack" aria-hidden="true"></span></span></label><label class="settingRow"><span><b>Notification sound</b><small>Play the system notification sound for new activity</small></span><span class="settingSwitch"><input class="settingSwitchInput" type="checkbox" id="notificationSoundToggle" ${state.notificationSound?'checked':''} ${state.desktopNotifications?'':'disabled'}><span class="settingSwitchTrack" aria-hidden="true"></span></span></label>${A.testDesktopNotification?'<button id="testDesktopNotification" class="settingRow settingButton"><span><b>Test desktop notification</b><small>Check whether Windows can display a Schoology notification</small></span><span>›</span></button>':''}</div><div class="settingsGroup"><h2>Accessibility</h2><label class="settingRow"><span><b>Reduced motion</b><small>Reduce interface animations and transitions</small></span><span class="settingSwitch"><input class="settingSwitchInput" type="checkbox" id="reducedMotionToggle" ${state.reducedMotion?'checked':''}><span class="settingSwitchTrack" aria-hidden="true"></span></span></label></div><div class="settingsGroup"><h2>Account Settings</h2><button id="accountInfo" class="settingRow settingButton"><span><b>Account Info</b></span><span>›</span></button></div><div class="settingsGroup"><button id="checkForUpdates" class="settingRow settingButton"><span><b>Check for Updates</b><small>${A.platform==='ios'?'Check for a newer iOS build':'Check for a newer Schoology desktop port'}</small></span><span>›</span></button><button id="tryLiquidGlass" class="settingRow settingButton"><span><b>Try Schoology Liquid Glass</b><small>Download the latest Schoology Liquid Glass release</small></span><span>›</span></button><button id="tryExpressive" class="settingRow settingButton"><span><b>Try Schoology Expressive</b><small>Download the latest Schoology Expressive release</small></span><span>›</span></button><label class="settingRow"><span><b>Window Controls Overlay</b><small>Place native window controls over the Schoology app bar (restart required)</small></span><span class="settingSwitch"><input class="settingSwitchInput" type="checkbox" id="windowChromeOverlayToggle" ${state.windowChromeOverlay?'checked':''}><span class="settingSwitchTrack" aria-hidden="true"></span></span></label></div><div class="settingsVersion">Version: ${esc(state.appVersion||'2026.06.0-port.163')}</div></section>`;
     document.getElementById('themeModeSelect')?.addEventListener('change',async e=>{applyTheme(e.target.value,false);try{await A.setThemeMode?.(e.target.value)}catch{}loadTab()});

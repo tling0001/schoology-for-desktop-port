@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.237]
+
+### Added
+- Add a course Members tab immediately after Updates, backed by the official Android source's `sections/{section_id}/enrollments` endpoint.
+- Reuse the same searchable, alphabetized people-directory view for the school directory and course members.
+
+### Notes
+- The official Schoology Android 2026.06.0 API interface defines section enrollments but does not define a group-members endpoint; no unverified group Members tab was added.
+
 ## [2026.06.0-port.236]
 
 ### Fixed

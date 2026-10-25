@@ -2906,3 +2906,8 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .unifiedCommentsView .updateCommentActions [hidden],.updateCommentsPanel .updateCommentActions [hidden],#updateCommentsModalPanel .updateCommentActions [hidden]{display:none!important}
 
 .activityAttachment.linkAttachment .officialLinkIcon{width:26px;height:26px;display:block;flex:0 0 26px}
+
+/* Use the shared upcoming row's real class and the actual inbox row class. */
+:root:not([data-theme="dark"]) .messageListItem:hover,:root:not([data-theme="dark"]) .upcomingAssignment:hover,:root:not([data-theme="dark"]) .calendarEventRow:hover{background:#edf3f7!important}
+:root:not([data-theme="dark"]) .messageListItem:active,:root:not([data-theme="dark"]) .upcomingAssignment:active,:root:not([data-theme="dark"]) .calendarEventRow:active{background:#e1eaf1!important}
+.messageListItem,.upcomingAssignment,.calendarEventRow{transition:background-color .12s ease}

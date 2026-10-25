@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.241]
+
+### Fixed
+- Render the calendar's Upcoming tab with the same date-grouped upcoming component used by Home, courses, groups, and school profiles, while preserving event navigation.
+- Apply light-theme hover and pressed feedback to the actual message-list and upcoming-row classes.
+
 ## [2026.06.0-port.240]
 
 ### Fixed

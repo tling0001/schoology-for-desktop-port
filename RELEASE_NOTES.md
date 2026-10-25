@@ -1,5 +1,16 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.231]
+
+### Fixed
+- Correct malformed school-profile and group-update renderer templates that prevented the JavaScript renderer from parsing at startup.
+- Normalize Schoology's official `recipient` response envelope and require a selected numeric recipient ID before sending; require a subject and message for new messages, matching the official Android compose flow.
+- Keep school-profile updates on the shared post-card renderer while preserving author navigation, likes, comments, and comment-count actions.
+
+### Requires device validation
+- Verify message creation and recipient search against a live Schoology account, and verify startup on desktop platforms.
+
+
 ## [2026.06.0-port.230]
 
 ### Fixed

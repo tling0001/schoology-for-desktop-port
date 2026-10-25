@@ -1394,13 +1394,16 @@ async function routeSchoologyLink(rawUrl){
  if(scheme)path=`/${host}${path}`;
  const webHost=u.hostname.toLowerCase();
  const isSchoolHost=webHost==='lms.lausd.net'||webHost==='schoology.com'||webHost.endsWith('.schoology.com');
- if(!scheme&&(!state.openSchoologyLinks||!isSchoolHost))return false;
+ const memberRoutePath=/^\/(?:course(?:s)?\/\d+\/members|group(?:s)?\/\d+\/members)\/?$/i.test(path);
+ if(!scheme&&(!isSchoolHost||(!state.openSchoologyLinks&&!memberRoutePath)))return false;
  // Android's ExternalLinkHandler launches schoology://link?url=... in the
  // system browser; external-document similarly tries its primary URI then its fallback.
  if(scheme&&host==='link'){
    const target=u.searchParams.get('url')||'';let destination;try{destination=new URL(target)}catch{return true}
    if(!['http:','https:'].includes(destination.protocol))return true;
-   if(state.openSchoologyLinks&&isSchoologyRoutableLink(destination.toString())){try{if(await routeSchoologyLink(destination.toString()))return true;await A.prepareWebSession();await showEmbeddedWeb(destination.toString(),'Schoology Link',{openInitialExternalInBrowser:false});return true}catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e));return true}}
+   const targetIsMembersRoute=/^\/(?:course(?:s)?\/\d+\/members|group(?:s)?\/\d+\/members)\/?$/i.test(destination.pathname.replace(/\/+$/,''));
+   const targetHost=destination.hostname.toLowerCase(),targetIsSchoolHost=targetHost==='lms.lausd.net'||targetHost==='schoology.com'||targetHost.endsWith('.schoology.com');
+   if((state.openSchoologyLinks&&isSchoologyRoutableLink(destination.toString()))||(targetIsMembersRoute&&targetIsSchoolHost)){try{if(await routeSchoologyLink(destination.toString()))return true;await A.prepareWebSession();await showEmbeddedWeb(destination.toString(),'Schoology Link',{openInitialExternalInBrowser:false});return true}catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e));return true}}
    try{await A.openExternal(destination.toString())}catch(e){showAppDialog('Unable to open external link',e.message||String(e))}return true;
  }
  if(scheme&&host==='external-document'){
@@ -1412,8 +1415,10 @@ async function routeSchoologyLink(rawUrl){
    const message=u.searchParams.get('error-message');showAppDialog('Unable to open LTI assignment',message||'Schoology could not open this LTI assignment.');return true;
  }
  // Native destinations for Schoology web URLs (both LAUSD LMS and app.schoology.com).
- const mCourseDestination=path.match(/^\/course(?:s)?\/(\d+)\/(student_grades|updates)\/?$/i);
- if(mCourseDestination){const sid=Number(mCourseDestination[1]),destination=mCourseDestination[2].toLowerCase()==='student_grades'?'grades':'updates';try{const response=await A.api({path:'sections/'+sid,params:{}});const course=response?.section||response||{id:sid};if(!course.id&&!course.section_id)course.id=sid;state.screen='app';state.tab='courses';state.currentGroup=null;state.profileUser=null;state.message=null;state.embeddedTitle=null;state.assignmentView=null;state.selectedCourse=course;render();await showCourse(course,destination);return true}catch(e){showSchoologyRequestError(e);return true}}
+ const mCourseDestination=path.match(/^\/course(?:s)?\/(\d+)\/(student_grades|updates|members)\/?$/i);
+ if(mCourseDestination){const sid=Number(mCourseDestination[1]),routeTab=mCourseDestination[2].toLowerCase(),destination=routeTab==='student_grades'?'grades':routeTab;try{const response=await A.api({path:'sections/'+sid,params:{}});const course=response?.section||response||{id:sid};if(!course.id&&!course.section_id)course.id=sid;state.screen='app';state.tab='courses';state.currentGroup=null;state.profileUser=null;state.message=null;state.embeddedTitle=null;state.assignmentView=null;state.selectedCourse=course;render();await showCourse(course,destination);return true}catch(e){showSchoologyRequestError(e);return true}}
+ const mGroupMembers=path.match(/^\/(?:group|groups)\/(\d+)\/members\/?$/i);
+ if(mGroupMembers){const gid=Number(mGroupMembers[1]);try{const response=await A.api({path:`groups/${gid}`,params:{}});const group=response?.group||response||{id:gid,name:'Group'};if(!group.id&&!group.group_id)group.id=gid;state.screen='app';state.tab='groups';state.currentGroup=group;state.selectedCourse=null;state.courseView=null;state.profileUser=null;state.message=null;state.embeddedTitle=null;state.assignmentView=null;state.toolbarTitle=group.name||group.title||'Group';render();await showGroup(group,'members');return true}catch(error){showSchoologyRequestError(error);return true}}
  const mProfileDestination=path.match(/^\/(?:user|users|profile|profiles)\/(?:view\/)?(\d+)(?:\/.*)?$/i);
  if(mProfileDestination){openProfileById(Number(mProfileDestination[1]),'Profile');return true}
  if(/^\/people\/?$/i.test(path)){if(!state.peopleEnabled){showAppDialog('People','The Schoology people directory is not available for this account.');return true}state.screen='app';state.tab='people';state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.profileUser=null;state.message=null;state.assignmentView=null;state.embeddedTitle=null;state.toolbarTitle='People';render();loadTab();return true}
@@ -1814,6 +1819,7 @@ async function loadCourseTab(course,tab){
    const raw=response?.enrollment||response?.enrollments||response?.data?.enrollment||[];
    const enrollments=Array.isArray(raw)?raw:(raw?.enrollment||raw?.items||[]);
    const people=enrollments.filter(person=>String(person.status??1)==='1').map(person=>({
+    ...person,
     id:person.uid||person.user_id||person.userId||person.user?.id||'',
     uid:person.uid||person.user_id||person.userId||person.user?.id||'',
     name_first:person.name_first||person.user?.name_first||'',
@@ -1821,10 +1827,12 @@ async function loadCourseTab(course,tab){
     name_display:person.name_display||person.user?.name_display||person.user?.name||'',
     name_first_preferred:person.name_first_preferred||person.user?.name_first_preferred||'',
     picture_url:person.picture_url||person.pictureUrl||person.user?.picture_url||person.user?.pictureUrl||'',
-    admin:person.admin
+    admin:person.admin??person.is_admin??person.isAdmin,
+    is_admin:person.is_admin??person.isAdmin,
+    role:person.role??person.role_name??person.roleName
    })).filter(person=>person.id);
    people.sort((a,b)=>String(a.name_last).localeCompare(String(b.name_last))||String(a.name_first).localeCompare(String(b.name_first)));
-   renderPeopleDirectoryInto(el,people,{placeholder:'Search course members',onRefresh:()=>loadCourseTab(course,'members'),onSelect:person=>openProfileById(person.id,person.name_display||[person.name_first,person.name_last].filter(Boolean).join(' ')||'Profile')});
+   renderPeopleDirectoryInto(el,people,{placeholder:'Search course members',membersMode:true,onRefresh:()=>loadCourseTab(course,'members'),onSelect:person=>openProfileById(person.id,person.name_display||[person.name_first,person.name_last].filter(Boolean).join(' ')||'Profile')});
    return;
  }
  if(tab==='upcoming'){
@@ -1850,25 +1858,55 @@ async function loadCourseTab(course,tab){
 }
 
 function animateTab(){ /* Restored to the Android pager's stable tab layout; no custom overlay animation. */ }
-function renderPeopleDirectoryInto(container,people,{placeholder='Search school directory',onRefresh=null,onSelect=null}={}){
+function isSchoologyAdminMember(person){
+ const truthy=value=>value===true||value===1||value==='1'||String(value??'').toLowerCase()==='true';
+ const flags=[person?.admin,person?.is_admin,person?.isAdmin,person?.group_admin,person?.groupAdmin,person?.is_group_admin,person?.isGroupAdmin,person?.owner,person?.is_owner,person?.isOwner];
+ if(flags.some(truthy))return true;
+ const roleValues=[person?.role,person?.role_name,person?.roleName,person?.role_title,person?.roleTitle,person?.position,person?.member_role,person?.memberRole];
+ return roleValues.some(value=>{const text=typeof value==='object'?String(value?.name||value?.title||value?.label||value?.role||''):String(value??'');return /(^|[\s_-])(admin|administrator|owner|group admin|course admin)([\s_-]|$)/i.test(text)||/^(admin|administrator|owner)$/i.test(text.trim())});
+}
+function renderPeopleDirectoryInto(container,people,{placeholder='Search school directory',onRefresh=null,onSelect=null,membersMode=false}={}){
  if(!container)return;
- const arr=Array.isArray(people)?people:[];
+ const arr=(Array.isArray(people)?people:[]).slice();
+ const lastNameOf=u=>String(u.name_last||u.last_name||u.lastName||'');
+ const firstNameOf=u=>String(u.name_display_start||u.nameDisplayStart||u.name_first||u.first_name||u.name||u.name_display||u.display_name||'');
+ arr.sort((a,b)=>(membersMode?(Number(isSchoologyAdminMember(b))-Number(isSchoologyAdminMember(a))):0)||lastNameOf(a).localeCompare(lastNameOf(b))||firstNameOf(a).localeCompare(firstNameOf(b)));
  window.__schoologyPeople=arr;
- let last='';
- const rows=arr.map((u,i)=>{
-  const lastName=String(u.name_last||u.last_name||'');
-  const firstName=String(u.name_display_start||u.nameDisplayStart||u.name_first||u.first_name||u.name||'');
-  const preferred=String(u.name_first_preferred||u.nameFirstPreferred||'');
-  const letter=(lastName.charAt(0)||'#').toUpperCase();
-  let heading='';if(letter!==last){last=letter;heading='<div class="peopleSectionHeader">'+esc(letter)+'</div>'}
-  const image=normalizeImageUrl(u.picture_url||u.pictureUrl||u.picture||u.photo_url||'');
-  return heading+'<button class="peopleListItem" data-person-index="'+i+'"><img class="peopleAvatar" src="'+esc(image||'../assets/icons/profile_default_website.png')+'" alt=""><span><b>'+esc((firstName+' '+lastName).trim()||'Schoology user')+'</b>'+(preferred?'<small>'+esc(preferred)+'</small>':'')+'</span></button>';
- }).join('');
- container.innerHTML='<section class="peopleAndroidPage"><div class="peopleDirectoryToolbar"><label class="peopleDirectorySearch"><span aria-hidden="true">⌕</span><input class="peopleDirectorySearchInput" type="search" placeholder="'+esc(placeholder)+'" autocomplete="off"></label><button class="peopleDirectoryRefresh" type="button" aria-label="Refresh people list">↻</button></div><div class="peopleList">'+(rows||'<div class="empty">No people found.</div>')+'</div></section>';
- const search=container.querySelector('.peopleDirectorySearchInput');
- search?.addEventListener('input',()=>{const query=search.value.trim().toLocaleLowerCase();container.querySelectorAll('[data-person-index]').forEach(row=>{row.hidden=!!query&&!row.textContent.toLocaleLowerCase().includes(query)});container.querySelectorAll('.peopleSectionHeader').forEach(header=>{let node=header.nextElementSibling,visible=false;while(node&&!node.classList.contains('peopleSectionHeader')){if(node.matches?.('[data-person-index]')&&!node.hidden)visible=true;node=node.nextElementSibling}header.hidden=!!query&&!visible})});
+ let activeFilter='all',menuOpen=false;
+ const toolbar=membersMode
+  ?'<div class="peopleMemberFilterButtons" role="group" aria-label="Filter members"><button type="button" data-member-filter="all" class="active" aria-pressed="true">All</button><button type="button" data-member-filter="members" aria-pressed="false">Members</button><button type="button" data-member-filter="admins" aria-pressed="false">Admins</button></div><button class="peopleMemberSort" type="button" aria-label="Filter members" aria-expanded="false">Sort: All <span aria-hidden="true">▾</span></button><div class="peopleMemberSortMenu" hidden role="menu"><button type="button" data-member-filter="all" role="menuitem">All</button><button type="button" data-member-filter="members" role="menuitem">Members</button><button type="button" data-member-filter="admins" role="menuitem">Admins</button></div>'
+  :'<button class="peopleDirectoryRefresh" type="button" aria-label="Refresh people list">↻</button>';
+ container.innerHTML='<section class="peopleAndroidPage '+(membersMode?'peopleMembersMode':'')+'"><div class="peopleDirectoryToolbar"><label class="peopleDirectorySearch"><span aria-hidden="true">⌕</span><input class="peopleDirectorySearchInput" type="search" placeholder="'+esc(placeholder)+'" autocomplete="off"></label>'+toolbar+'</div><div class="peopleList"></div></section>';
+ const page=container.querySelector('.peopleAndroidPage'),list=container.querySelector('.peopleList'),search=container.querySelector('.peopleDirectorySearchInput'),sortButton=container.querySelector('.peopleMemberSort'),sortMenu=container.querySelector('.peopleMemberSortMenu');
+ const renderList=()=>{
+  const query=search?.value.trim().toLocaleLowerCase()||'';
+  const visible=arr.filter(person=>{const admin=isSchoologyAdminMember(person);return (activeFilter==='all'||(activeFilter==='admins'?admin:!admin))&&(!query||[firstNameOf(person),lastNameOf(person),person.name_display,person.display_name,person.name_first_preferred].some(value=>String(value||'').toLocaleLowerCase().includes(query)))});
+  let last='',html='';
+  visible.forEach(person=>{
+   const lastName=lastNameOf(person),firstName=firstNameOf(person),preferred=String(person.name_first_preferred||person.nameFirstPreferred||''),letter=(lastName.charAt(0)||'#').toUpperCase();
+   if(letter!==last){last=letter;html+='<div class="peopleSectionHeader">'+esc(letter)+'</div>'}
+   const image=normalizeImageUrl(person.picture_url||person.pictureUrl||person.picture||person.photo_url||'');
+   const admin=membersMode&&isSchoologyAdminMember(person);
+   html+='<button class="peopleListItem '+(admin?'peopleMemberAdmin':'')+'" data-person-index="'+arr.indexOf(person)+'"><img class="peopleAvatar" src="'+esc(image||'../assets/icons/profile_default_website.png')+'" alt=""><span><b>'+esc((firstName+' '+lastName).trim()||'Schoology user')+'</b>'+(preferred?'<small>'+esc(preferred)+'</small>':'')+(admin?'<small class="peopleMemberRole">Admin</small>':'')+'</span></button>';
+  });
+  list.innerHTML=html||'<div class="empty">'+(membersMode&&activeFilter==='admins'?'No admins found.':membersMode&&activeFilter==='members'?'No members found.':'No people found.')+'</div>';
+  list.querySelectorAll('[data-person-index]').forEach(button=>button.onclick=()=>{const person=arr[Number(button.dataset.personIndex)];if(person)onSelect?.(person)});
+ };
+ const setFilter=filter=>{
+  activeFilter=['all','members','admins'].includes(filter)?filter:'all';menuOpen=false;
+  if(sortButton){sortButton.innerHTML='Sort: '+({all:'All',members:'Members',admins:'Admins'}[activeFilter])+' <span aria-hidden="true">▾</span>';sortButton.setAttribute('aria-expanded','false')}
+  if(sortMenu)sortMenu.hidden=true;
+  page.querySelectorAll('[data-member-filter]').forEach(button=>{const active=button.dataset.memberFilter===activeFilter;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  renderList();
+ };
+ search?.addEventListener('input',renderList);
+ if(sortButton&&sortMenu){
+  sortButton.onclick=()=>{menuOpen=!menuOpen;sortMenu.hidden=!menuOpen;sortButton.setAttribute('aria-expanded',String(menuOpen))};
+  sortMenu.querySelectorAll('[data-member-filter]').forEach(button=>button.onclick=()=>setFilter(button.dataset.memberFilter));
+  page.querySelectorAll('.peopleMemberFilterButtons [data-member-filter]').forEach(button=>button.onclick=()=>setFilter(button.dataset.memberFilter));
+ }
  container.querySelector('.peopleDirectoryRefresh')?.addEventListener('click',async()=>{const button=container.querySelector('.peopleDirectoryRefresh');if(!onRefresh)return;button?.classList.add('spinning');if(button)button.disabled=true;try{await onRefresh()}finally{container.querySelector('.peopleDirectoryRefresh')?.classList.remove('spinning');if(container.querySelector('.peopleDirectoryRefresh'))container.querySelector('.peopleDirectoryRefresh').disabled=false}});
- container.querySelectorAll('[data-person-index]').forEach(button=>button.onclick=()=>{const person=arr[Number(button.dataset.personIndex)];if(person)onSelect?.(person)});
+ renderList();
 }
 function renderUpcoming(events){
  const arr=Array.isArray(events)?events:[];
@@ -2194,7 +2232,7 @@ async function showGroup(group,activeTab='updates'){
   let groupSchoolId=groupDetail?.school_id??groupDetail?.schoolId;
   let groupSchool='';
   if(groupSchoolId){try{const sx=await A.api({path:`schools/${groupSchoolId}`,params:{}});const sch=sx?.school||sx;groupSchool=String(sch?.title||sch?.name||'')}catch{}}
-  c.innerHTML=`<section class="groupProfilePage"><div class="groupLandscapeSplit"><section class="groupMainPane"><div class="groupTabs">${['updates','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''} ${id==='upcoming'?'groupUpcomingTab':''}" data-group-tab="${id}">${({updates:'Updates',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${group.picture_url||group.pictureUrl?`<img src="${esc(normalizeImageUrl(group.picture_url||group.pictureUrl))}" alt="">`:`<span>${esc(String(group.name||group.title||'G').charAt(0))}</span>`}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><button class="groupSchoolLink" data-group-school-id="${esc(groupSchoolId||'')}" type="button">${esc(groupSchool)}</button></div></div><div id="groupTabContent"></div></section><aside id="groupUpcomingPane" class="groupUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="groupUpcomingContent"><div class="loading groupTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside></div></section>`;
+  c.innerHTML=`<section class="groupProfilePage"><div class="groupLandscapeSplit"><section class="groupMainPane"><div class="groupTabs">${['updates','members','upcoming','discussions','albums','resources'].map((id)=>`<button class="groupTab ${activeTab===id?'active':''} ${id==='upcoming'?'groupUpcomingTab':''}" data-group-tab="${id}">${({updates:'Updates',members:'Members',upcoming:'Upcoming',discussions:'Discussions',albums:'Albums',resources:'Resources'})[id]}</button>`).join('')}</div><div class="groupHeader"><div class="groupHero">${group.picture_url||group.pictureUrl?`<img src="${esc(normalizeImageUrl(group.picture_url||group.pictureUrl))}" alt="">`:`<span>${esc(String(group.name||group.title||'G').charAt(0))}</span>`}</div><div><h1>${esc(group.name||group.title||'Group')}</h1><button class="groupSchoolLink" data-group-school-id="${esc(groupSchoolId||'')}" type="button">${esc(groupSchool)}</button></div></div><div id="groupTabContent"></div></section><aside id="groupUpcomingPane" class="groupUpcomingPane"><div class="homePaneHeader">Upcoming</div><div id="groupUpcomingContent"><div class="loading groupTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside></div></section>`;
   const gc=document.getElementById('groupTabContent');
   document.querySelector('[data-group-school-id]')?.addEventListener('click',async e=>{const b=e.currentTarget;const id=Number(b?.dataset?.groupSchoolId);if(id)openSchoolProfile(id,b.textContent||'School')});
   const loadGroupUpcoming=async()=>{const up=document.getElementById('groupUpcomingContent');if(!up)return;try{const x=await A.api({path:`groups/${gid}/events`,params:{start:formatApiDate(new Date()),limit:20}});const a=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));up.innerHTML=a.length?renderUpcoming(a):'<div class="empty upcomingEmpty"><h2>No upcoming events</h2></div>';up.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=()=>{const e=a.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const aid=e.assignment_id??e.assignmentId??e.assignment?.id;if(String(e.type||'').toLowerCase()==='assignment'&&aid){openWithPressTransition(b,()=>showAssignment(gid,aid));}else if(['assessment','assessment_v2','managed_assessment','quiz'].includes(String(e.type||'').toLowerCase())){const id=aid??e.id;openWithPressTransition(b,async()=>{await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true})})}else if(String(e.type||'').toLowerCase()==='event'&&e.id){openWithPressTransition(b,()=>showEventNative('groups',gid,e.id,e.title||'Event'));}})}catch(e){up.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}};
@@ -2202,7 +2240,18 @@ async function showGroup(group,activeTab='updates'){
     state.groupTab=tab;document.querySelectorAll('[data-group-tab]').forEach(b=>b.classList.toggle('active',b.dataset.groupTab===tab));syncToolbar();
     gc.innerHTML='<div class="loading groupTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
     try{
-      if(tab==='updates'){
+      if(tab==='members'){
+        const response=await A.api({path:`groups/${gid}/members`,params:{start:0,limit:200}});
+        const raw=response?.member||response?.members||response?.enrollment||response?.enrollments||response?.user||response?.users||response?.data?.member||response?.data?.members||response?.data?.enrollment||[];
+        const entries=Array.isArray(raw)?raw:(raw?.member||raw?.items||raw?.data||[]);
+        const people=entries.map(entry=>{
+          const person=entry?.user||entry?.member||entry?.profile||entry||{};
+          const id=person.id??person.uid??person.user_id??person.userId??entry?.uid??entry?.user_id??entry?.userId??'';
+          return {...entry,...person,id,uid:id,name_first:person.name_first||person.first_name||person.nameFirst||'',name_last:person.name_last||person.last_name||person.nameLast||'',name_display_start:person.name_display_start||person.nameDisplayStart||person.name_first||person.first_name||person.name_display||person.display_name||person.name||'',name_display:person.name_display||person.display_name||person.name||'',name_first_preferred:person.name_first_preferred||person.nameFirstPreferred||'',picture_url:person.picture_url||person.pictureUrl||person.picture||person.photo_url||'',admin:entry?.admin??entry?.is_admin??entry?.isAdmin??person.admin??person.is_admin??person.isAdmin,role:entry?.role??entry?.role_name??entry?.roleName??person.role};
+        }).filter(person=>person.id);
+        if(!Array.isArray(raw)&&!entries.length)throw new Error('The group-members response did not contain a member list.');
+        renderPeopleDirectoryInto(gc,people,{placeholder:'Search group members',membersMode:true,onSelect:person=>openProfileById(person.id,person.name_display||[person.name_first,person.name_last].filter(Boolean).join(' ')||'Profile')});
+      }else if(tab==='updates'){
         const x=await A.api({path:`groups/${gid}/updates`,params:{start:0,limit:20,with_attachments:'TRUE',richtext:1}});
         const a=x.update||x.updates||x.update_list||[];
         const ids=[...new Set(a.map(u=>u.user_id||u.uid||u.author_id||u.authorId).filter(Boolean).map(Number))], users={};

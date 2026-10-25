@@ -2871,7 +2871,7 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .unifiedCommentsView .androidCommentContent,.unifiedCommentsView .activityMedia,.unifiedCommentsView .updateComment>small,.unifiedCommentsView .updateCommentActions,.unifiedCommentsView .updateCommentRepliesToggle{margin-left:48px!important}
 .unifiedCommentsView .androidCommentContent{padding:0!important;line-height:1.45!important;overflow-wrap:anywhere}
 .unifiedCommentsView .updateCommentActions{display:flex!important;align-items:center!important;gap:7px!important;margin-top:7px!important}
-.unifiedCommentsView .updateCommentActions [data-update-comment-reply]{margin-right:auto!important}
+.unifiedCommentsView .updateCommentActions [data-update-comment-reply]{margin-right:0!important}
 .unifiedCommentsView .updateCommentActions [data-update-comment-like],.unifiedCommentsView .updateCommentActions [data-update-comment-like-count]{margin-left:0!important}
 .unifiedCommentsView .updateCommentActions [hidden]{display:none!important}
 /* Shared attachment cards have the same pointer feedback in both themes. */
@@ -2898,7 +2898,7 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .updateCommentsPanel .androidCommentContent,.updateCommentsPanel .activityMedia,.updateCommentsPanel .updateComment>small,.updateCommentsPanel .updateCommentActions,.updateCommentsPanel .updateCommentRepliesToggle,#updateCommentsModalPanel .androidCommentContent,#updateCommentsModalPanel .activityMedia,#updateCommentsModalPanel .updateComment>small,#updateCommentsModalPanel .updateCommentActions,#updateCommentsModalPanel .updateCommentRepliesToggle{margin-left:48px!important}
 .updateCommentsPanel .androidCommentContent,#updateCommentsModalPanel .androidCommentContent{padding:0!important;line-height:1.45!important;overflow-wrap:anywhere}
 .updateCommentsPanel .updateCommentActions,#updateCommentsModalPanel .updateCommentActions{display:flex!important;align-items:center!important;gap:7px!important;margin-top:7px!important}
-.updateCommentsPanel .updateCommentActions [data-update-comment-reply],#updateCommentsModalPanel .updateCommentActions [data-update-comment-reply]{margin-right:auto!important}
+.updateCommentsPanel .updateCommentActions [data-update-comment-reply],#updateCommentsModalPanel .updateCommentActions [data-update-comment-reply]{margin-right:0!important}
 
 /* Like and count controls behave as one connected control in every comment view. */
 .updateCommentActions [data-update-comment-like]:has(+ [data-update-comment-like-count]:not([hidden])){border-top-right-radius:0!important;border-bottom-right-radius:0!important;margin-right:-7px!important}
@@ -2911,3 +2911,30 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 :root:not([data-theme="dark"]) .messageListItem:hover,:root:not([data-theme="dark"]) .upcomingAssignment:hover,:root:not([data-theme="dark"]) .calendarEventRow:hover{background:#edf3f7!important}
 :root:not([data-theme="dark"]) .messageListItem:active,:root:not([data-theme="dark"]) .upcomingAssignment:active,:root:not([data-theme="dark"]) .calendarEventRow:active{background:#e1eaf1!important}
 .messageListItem,.upcomingAssignment,.calendarEventRow{transition:background-color .12s ease}
+
+/* Shared members directory: responsive All/Members/Admins controls and dark-mode section labels. */
+.peopleAndroidPage{container-type:inline-size;width:100%}
+.peopleDirectoryToolbar{position:relative;gap:8px}
+.peopleMemberFilterButtons{display:none;align-items:center;gap:6px;flex:none}
+.peopleMemberFilterButtons button,.peopleMemberSort{min-height:36px;border:1px solid var(--theme-border,#d6dde2);border-radius:8px;background:transparent;color:var(--theme-text,#263746);padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.peopleMemberFilterButtons button.active{background:var(--theme-blue,#2e66a3);border-color:var(--theme-blue,#2e66a3);color:#fff}
+.peopleMemberSort{display:inline-flex;align-items:center;gap:8px}
+.peopleMemberSortMenu{position:absolute;z-index:20;right:10px;top:calc(100% - 2px);min-width:150px;padding:5px;border:1px solid var(--theme-border,#d6dde2);border-radius:10px;background:var(--theme-surface,#fff);box-shadow:0 5px 18px rgba(0,0,0,.18)}
+.peopleMemberSortMenu[hidden]{display:none!important}
+.peopleMemberSortMenu button{display:block;width:100%;border:0;border-radius:6px;background:transparent;color:var(--theme-text,#263746);padding:10px 12px;text-align:left;font:inherit;cursor:pointer}
+.peopleMemberSortMenu button.active,.peopleMemberSortMenu button:hover{background:var(--theme-hover,#edf3f7)}
+.peopleMemberSortMenu button.active{color:var(--theme-blue,#2e66a3);font-weight:600}
+.peopleSectionHeader{color:#243746}
+.peopleMemberRole{display:inline-flex!important;align-self:flex-start;margin-top:3px!important;border-radius:4px;background:#e7eef6;color:#2e66a3!important;padding:2px 6px;font-size:11px!important;font-weight:600}
+.peopleMemberAdmin .peopleAvatar{outline:2px solid var(--theme-blue,#2e66a3);outline-offset:1px}
+:root[data-theme="dark"] .peopleSectionHeader{color:#f1f4f7!important}
+:root[data-theme="dark"] .peopleMemberRole{background:#243d55;color:#a9d2ff!important}
+:root[data-theme="dark"] .peopleMemberFilterButtons button,:root[data-theme="dark"] .peopleMemberSort{border-color:var(--theme-border,#3b4652);color:var(--theme-text,#e6e8eb)}
+:root[data-theme="dark"] .peopleMemberFilterButtons button.active{color:#fff}
+:root[data-theme="dark"] .peopleMemberSortMenu{background:var(--theme-surface,#202a35);border-color:var(--theme-border,#3b4652)}
+:root[data-theme="dark"] .peopleMemberSortMenu button:hover,:root[data-theme="dark"] .peopleMemberSortMenu button.active{background:var(--theme-hover,#2b3948);color:var(--theme-blue,#9acaff)}
+@container (min-width:501px){
+ .peopleMembersMode .peopleMemberSort,.peopleMembersMode .peopleMemberSortMenu{display:none!important}
+ .peopleMembersMode .peopleMemberFilterButtons{display:flex}
+}
+.activityAuthorLink:hover,.activityAuthorLink:focus-visible,.activityUser.activityAuthorLink:hover,.activityUser.activityAuthorLink:focus-visible{text-decoration:underline!important}

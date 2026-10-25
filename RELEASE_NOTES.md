@@ -1,5 +1,13 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.245]
+
+### Added
+- Add group Members navigation, a shared searchable members directory, admin-first ordering, and responsive All/Members/Admins filters; route course and group `/members` URLs into their native tabs.
+
+### Fixed
+- Keep comment Reply and Like/count controls together, darken member section letters in dark mode, and underline post author names on hover.
+
 ## [2026.06.0-port.244]
 
 ### Fixed

@@ -612,21 +612,34 @@
           this._darkTheme = dark;
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
-          await invoke('create-embedded-webview', {
-            label,
-            url: this._url,
-            x: Math.max(0, rect.left),
-            y: Math.max(0, rect.top),
-            width: Math.max(1, rect.width),
-            height: Math.max(1, rect.height),
-            userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
-            initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
-            forceDark: dark,
-            lti: this._ltiNavigation,
-            deferNavigation: true
-          });
-          this.nativeView = await tauri.webview.Webview.getByLabel(label);
-          if (!this.nativeView) throw new Error('The native embedded Schoology webview could not be retrieved.');
+          let nativeCreated = false;
+          try {
+            await invoke('create-embedded-webview', {
+              label,
+              url: this._url,
+              x: Math.max(0, rect.left),
+              y: Math.max(0, rect.top),
+              width: Math.max(1, rect.width),
+              height: Math.max(1, rect.height),
+              userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
+              initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
+              forceDark: dark,
+              lti: this._ltiNavigation,
+              deferNavigation: true
+            });
+            nativeCreated = true;
+            this.nativeView = await tauri.webview.Webview.getByLabel(label);
+            if (!this.nativeView) throw new Error('The native embedded Schoology webview could not be retrieved.');
+          } catch (error) {
+            // The Rust child can exist even if JS cannot obtain its handle. Always
+            // detach it before surfacing the failure so it cannot intercept clicks.
+            if (nativeCreated) {
+              try { await invoke('close-embedded-webview', { label }); }
+              catch (closeError) { console.warn('Could not clean up an unbound Schoology webview:', closeError); }
+            }
+            this.nativeView = null;
+            throw error;
+          }
           if (!this.isConnected) {
             await invoke('close-embedded-webview', { label }).catch(() => {});
             this.nativeView = null;

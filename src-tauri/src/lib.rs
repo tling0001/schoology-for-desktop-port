@@ -1460,6 +1460,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             if let Some(view) = app.get_webview(label) {
                 let _ = view.set_position(LogicalPosition::new(-10000.0, -10000.0));
                 let _ = view.set_size(LogicalSize::new(1.0, 1.0));
+                let _ = view.hide();
                 view.close().map_err(|e| format!("Could not close embedded webview: {e}"))?;
                 Ok(json!(true))
             } else {
@@ -1577,7 +1578,7 @@ pub fn run() {
         });
     #[cfg(target_os = "android")]
     let builder = builder.plugin(
-        tauri::plugin::Builder::new("schoology-installer")
+        tauri::plugin::Builder::<tauri::Wry, ()>::new("schoology-installer")
             .setup(|app, api| {
                 let handle = api.register_android_plugin("com.schoologytauri.app", "SchoologyInstallerPlugin")
                     .map_err(|error| std::io::Error::other(error.to_string()))?;

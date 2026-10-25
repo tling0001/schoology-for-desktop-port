@@ -1,5 +1,13 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.247]
+
+### Fixed
+- Specify the Android installer plugin's Tauri runtime/configuration generics so the Rust compiler can infer its plugin API type.
+- Give member letter headers a dark background in dark mode.
+- Reduce the Schoology startup splash spinner to two-thirds its previous size, including the compact landscape variant.
+- Keep the native embedded webview absolutely anchored to its content host and detach the native child if JavaScript cannot retrieve its handle, preventing a blank child surface from blocking clicks after navigation.
+
 ## [2026.06.0-port.246]
 
 ### Fixed

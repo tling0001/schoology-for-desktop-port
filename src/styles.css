@@ -7,8 +7,8 @@
 .androidSplash{height:100vh;width:100%;background:#44505d;display:block;overflow:hidden;}
 /* Center the Schoology mark on the viewport itself; the spinner sits below it. */
 .androidSplashLogo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:442px;max-width:72vw;height:auto;display:block;margin:0;}
-.androidSplashSpinner{position:absolute;left:50%;top:calc(50% + min(110px, 36vw) + 12px);transform:translateX(-50%);width:72px;height:72px;display:block;}
-@media(max-height:560px){.androidSplashLogo{max-width:58vw;max-height:32vh;object-fit:contain}.androidSplashSpinner{top:calc(50% + 70px);width:48px;height:48px}}
+.androidSplashSpinner{position:absolute;left:50%;top:calc(50% + min(110px, 36vw) + 12px);transform:translateX(-50%);width:48px;height:48px;display:block;}
+@media(max-height:560px){.androidSplashLogo{max-width:58vw;max-height:32vh;object-fit:contain}.androidSplashSpinner{top:calc(50% + 70px);width:32px;height:32px}}
 
 .qrButton{display:block;width:100%;border:1px solid #fff;background:#22303e;color:#fff;border-radius:5px;padding:13px 18px;margin-top:14px;cursor:pointer}.accountTitle{font-size:18px;margin-bottom:28px}.searchStatus{text-align:center;color:#cdd3d7;padding:12px}.fatal{font-family:Arial,sans-serif;padding:32px;color:#22303e;background:#f4f5f5;height:100vh}.qr video{aspect-ratio:4/3;object-fit:cover}.androidSplash{position:fixed;inset:0;z-index:9999}
 /* Standalone Android-style startup page. */
@@ -2725,7 +2725,7 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 
 
 /* port.214: Tauri's shared webview is a distinct custom element, not Electron's <webview>. */
-.embeddedPage schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto;position:relative;z-index:1}
+.embeddedPage schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto;position:absolute;inset:0;z-index:1}
 .dashboardHybrid schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto}
 .embeddedPage{position:relative;isolation:isolate;overflow:hidden}
 .embeddedPage schoology-webview:focus{outline:none}
@@ -2927,7 +2927,7 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 .peopleSectionHeader{color:#243746}
 .peopleMemberRole{display:inline-flex!important;align-self:flex-start;margin-top:3px!important;border-radius:4px;background:#e7eef6;color:#2e66a3!important;padding:2px 6px;font-size:11px!important;font-weight:600}
 .peopleMemberAdmin .peopleAvatar{outline:2px solid var(--theme-blue,#2e66a3);outline-offset:1px}
-:root[data-theme="dark"] .peopleSectionHeader{color:#f1f4f7!important}
+:root[data-theme="dark"] .peopleSectionHeader{background:#293744!important;color:#f1f4f7!important}
 :root[data-theme="dark"] .peopleMemberRole{background:#243d55;color:#a9d2ff!important}
 :root[data-theme="dark"] .peopleMemberFilterButtons button,:root[data-theme="dark"] .peopleMemberSort{border-color:var(--theme-border,#3b4652);color:var(--theme-text,#e6e8eb)}
 :root[data-theme="dark"] .peopleMemberFilterButtons button.active{color:#fff}

@@ -7,8 +7,10 @@
 .androidSplash{height:100vh;width:100%;background:#44505d;display:block;overflow:hidden;}
 /* Center the Schoology mark on the viewport itself; the spinner sits below it. */
 .androidSplashLogo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:442px;max-width:72vw;height:auto;display:block;margin:0;}
-.androidSplashSpinner{position:absolute;left:50%;top:calc(50% + min(110px, 36vw) + 12px);transform:translateX(-50%);width:48px;height:48px;display:block;}
-@media(max-height:560px){.androidSplashLogo{max-width:58vw;max-height:32vh;object-fit:contain}.androidSplashSpinner{top:calc(50% + 70px);width:32px;height:32px}}
+.androidSplashSpinner{position:absolute;left:50%;top:calc(50% + min(110px, 36vw) + 12px);transform:translateX(-50%);width:72px;height:72px;display:block;}
+@media(max-height:560px){.androidSplashLogo{max-width:58vw;max-height:32vh;object-fit:contain}.androidSplashSpinner{top:calc(50% + 70px);width:48px;height:48px}}
+@media(max-width:700px){.androidSplashSpinner{width:48px;height:48px}}
+@media(max-width:700px) and (max-height:560px){.androidSplashSpinner{width:32px;height:32px}}
 
 .qrButton{display:block;width:100%;border:1px solid #fff;background:#22303e;color:#fff;border-radius:5px;padding:13px 18px;margin-top:14px;cursor:pointer}.accountTitle{font-size:18px;margin-bottom:28px}.searchStatus{text-align:center;color:#cdd3d7;padding:12px}.fatal{font-family:Arial,sans-serif;padding:32px;color:#22303e;background:#f4f5f5;height:100vh}.qr video{aspect-ratio:4/3;object-fit:cover}.androidSplash{position:fixed;inset:0;z-index:9999}
 /* Standalone Android-style startup page. */
@@ -580,7 +582,8 @@ html[data-electron-platform=win32] .toolbarActionSlot,html[data-electron-platfor
 html[data-electron-platform=win32] .toolbarTitle,html[data-electron-platform=linux] .toolbarTitle{padding-right:56px!important}
 
 /* v74: Android-style attachment/file rows. */
-.activityAttachment.fileAttachment,.messageAttachment{width:100%;box-sizing:border-box;display:flex;align-items:center;gap:11px;text-align:left;background:#fff;border:1px solid #e1e5e8;border-radius:8px;padding:10px 12px;color:#26343d;box-shadow:0 1px 2px rgba(0,0,0,.06);min-height:58px}.attachmentFileIcon{width:38px;height:38px;flex:0 0 38px;border-radius:6px;background:#f0f3f5;display:flex;align-items:center;justify-content:center}.attachmentFileIcon img{width:25px;height:25px;object-fit:contain}.attachmentFileText{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.attachmentFileText b{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.attachmentFileText small{font-size:11px;color:#7a858c}.attachmentDownloadIcon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex:0 0 28px}.attachmentDownloadIcon img{width:20px;height:20px;object-fit:contain}.activityAttachment:not(.fileAttachment){background:#fff;border:1px solid #e1e5e8;border-radius:8px;padding:11px 12px;color:#2e66a3}.downloadBusy{opacity:.75}.downloadBusy .attachmentDownloadIcon{opacity:.45}
+.activityAttachment.fileAttachment,.messageAttachment{width:100%;box-sizing:border-box;display:flex;align-items:center;gap:11px;text-align:left;background:#fff;border:1px solid #e1e5e8;border-radius:8px;padding:10px 12px;color:#26343d;box-shadow:0 1px 2px rgba(0,0,0,.06);min-height:58px}.attachmentFileIcon{width:38px;height:38px;flex:0 0 38px;border-radius:6px;background:#f0f3f5;display:flex;align-items:center;justify-content:center}.attachmentFileIcon img{width:25px;height:25px;object-fit:contain}.attachmentFileText{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.attachmentFileText b{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.attachmentFileText small{font-size:11px;color:#7a858c}.attachmentDownloadIcon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex:0 0 28px}.attachmentDownloadIcon img{width:20px;height:20px;object-fit:contain}
+:root:not([data-theme="dark"]) .attachmentDownloadIcon img{filter:invert(1)}.activityAttachment:not(.fileAttachment){display:flex;align-items:center;gap:11px;width:100%;box-sizing:border-box;background:#fff;border:1px solid #e1e5e8;border-radius:8px;padding:11px 12px;color:#2e66a3;box-shadow:0 1px 2px rgba(0,0,0,.06);min-height:58px}.downloadBusy{opacity:.75}.downloadBusy .attachmentDownloadIcon{opacity:.45}
 /* v74: caption controls are outside the Schoology toolbar on macOS; reserve a real Windows/Linux caption region. */
 html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:156px!important}.toolbarActionSlot{margin-left:auto;display:flex;align-items:center;gap:2px;flex:0 0 auto}.toolbarActionSlot .iconButton{flex:0 0 44px}
 /* v74: dashboard is a pixel-sized viewport, not a percentage chain. */
@@ -2511,6 +2514,8 @@ html,body,#app,.shell{box-shadow:none!important}
 .sharedPdfViewerAppBar button{width:40px;height:48px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;cursor:pointer}
 .sharedPdfViewerAppBar button svg{width:24px;height:24px}
 .sharedPdfViewerAppBar b{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:17px;font-weight:600}
+.sharedPdfViewerLoading{padding:28px 16px;text-align:center}
+.sharedPdfViewerPages>.sharedPdfViewerLoading{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--theme-text,#263238);text-align:center}
 .sharedPdfViewerPages{flex:1;min-height:0;overflow:auto;padding:12px 8px calc(20px + env(safe-area-inset-bottom));overscroll-behavior:contain;touch-action:pan-x pan-y;background:var(--theme-bg,#f4f6f8)}
 .sharedPdfPage{display:flex;justify-content:center;margin:0 auto 14px;max-width:100%}
 .sharedPdfPage canvas{display:block;max-width:100%;height:auto;box-shadow:0 2px 10px #0003;background:#fff}
@@ -2941,11 +2946,23 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 
 
 /* port.246: the shared fullscreen attachment viewer uses the PDF app bar for images too. */
-.sharedImageViewerBody{height:calc(100% - 56px);overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px;background:#111820;overscroll-behavior:contain}
-.sharedImageViewerImage{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;box-shadow:0 2px 18px rgba(0,0,0,.28);touch-action:pan-x pan-y pinch-zoom}
-.sharedImageViewerBody .sharedPdfViewerLoading{color:#fff;padding:32px;text-align:center}
+.sharedImageViewerBody{height:calc(100% - 56px);overflow:hidden;display:flex;align-items:center;justify-content:center;padding:16px;background:#111820;overscroll-behavior:contain;touch-action:none}
+.sharedImageViewerImage{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;box-shadow:0 2px 18px rgba(0,0,0,.28);transform-origin:center center;touch-action:none;user-select:none;-webkit-user-drag:none;cursor:grab}
+.sharedImageViewerImage:active{cursor:grabbing}
+.sharedImageViewerBody .sharedPdfViewerLoading{color:#fff;padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.sharedPdfViewerLoading img{display:block;width:48px;height:48px;object-fit:contain}
+.sharedImageZoomLabel{margin-left:auto;min-width:46px;text-align:right;font-size:12px;font-weight:500;color:#dbe5ed}
+.sharedPostCard .activityHeader{flex-wrap:nowrap;min-width:0;overflow:hidden}
+.sharedPostCard .activityAvatar{flex:0 0 auto}
+.sharedPostCard .activityUser,.sharedPostCard .activityAuthorLink{flex:0 1 auto;min-width:0;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sharedPostCard .activityContextArrow{display:flex;align-items:center;justify-content:center;flex:0 0 16px;width:16px;height:16px}
+.sharedPostCard .activityGroupLink{flex:0 1 auto;min-width:0;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.sharedPostCard .activityContextArrow svg{display:block;width:16px;height:16px;flex:0 0 16px}
 .peopleListItem .peopleMemberNameBlock{flex:1;min-width:0}
 .peopleMemberAdminIcon{margin-left:auto;flex:0 0 24px;width:24px;display:flex;align-items:center;justify-content:flex-end}
 .peopleMemberAdminIcon .groupAdminBadge{width:17px;height:19px;margin:0;display:block}
 .peopleAdminsSectionHeader{background:#e7edf2;color:#24445e}
 :root[data-theme="dark"] .peopleAdminsSectionHeader{background:#293744;color:#f1f4f7!important}
+
+/* Desktop splash: restore the full-size spinner and keep it below the centered logo. */
+@media(min-width:701px) and (min-height:561px){.androidSplashSpinner{width:72px!important;height:72px!important;top:calc(50% + min(110px,36vw) + 12px)!important}}

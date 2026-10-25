@@ -1,5 +1,19 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.248]
+
+### Fixed
+- Keep native shared webviews offscreen and hidden until their page finishes loading, then reveal them only inside the content viewport; reset visibility on navigation to prevent blank child surfaces from blocking the app.
+- Accept either OAuth request-token query name on the desktop Schoology browser callback and complete a pending sign-in when the callback omits the token parameter.
+- Remove the unused macOS window-overlay variable warning.
+- Restore the larger desktop/landscape splash spinner while preserving smaller mobile and compact-landscape sizing.
+- Show loading indicators while image and PDF attachments are fetched.
+- Add image viewer zoom with Ctrl +/−, Ctrl+mouse-wheel, and touch pinch; allow dragging a zoomed image.
+- Invert attachment download icons in light mode and restore the shadow/row layout for shared link attachments.
+- Add a permission-gated Update option to the Home plus menu.
+- Keep recent-activity author and course/group attribution on one line with ellipsis truncation and use the Android-style chevron between them.
+
+
 ## [2026.06.0-port.247]
 
 ### Fixed

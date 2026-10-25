@@ -2938,3 +2938,14 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
  .peopleMembersMode .peopleMemberFilterButtons{display:flex}
 }
 .activityAuthorLink:hover,.activityAuthorLink:focus-visible,.activityUser.activityAuthorLink:hover,.activityUser.activityAuthorLink:focus-visible{text-decoration:underline!important}
+
+
+/* port.246: the shared fullscreen attachment viewer uses the PDF app bar for images too. */
+.sharedImageViewerBody{height:calc(100% - 56px);overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px;background:#111820;overscroll-behavior:contain}
+.sharedImageViewerImage{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;box-shadow:0 2px 18px rgba(0,0,0,.28);touch-action:pan-x pan-y pinch-zoom}
+.sharedImageViewerBody .sharedPdfViewerLoading{color:#fff;padding:32px;text-align:center}
+.peopleListItem .peopleMemberNameBlock{flex:1;min-width:0}
+.peopleMemberAdminIcon{margin-left:auto;flex:0 0 24px;width:24px;display:flex;align-items:center;justify-content:flex-end}
+.peopleMemberAdminIcon .groupAdminBadge{width:17px;height:19px;margin:0;display:block}
+.peopleAdminsSectionHeader{background:#e7edf2;color:#24445e}
+:root[data-theme="dark"] .peopleAdminsSectionHeader{background:#293744;color:#f1f4f7!important}

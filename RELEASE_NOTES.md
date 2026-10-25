@@ -1,5 +1,13 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.246]
+
+### Fixed
+- Reflow the Messages Inbox/Sent page when resizing across the split-layout breakpoint without requiring the page to be reopened.
+- Route image attachments through the shared View or Download chooser and fullscreen attachment viewer, using the same app bar/layout as PDF viewing.
+- Open Android update APKs through a FileProvider content URI instead of an invalid private-cache file URI.
+- Group administrators in a dedicated section in the All members filter, keep filtered Admins alphabetized, and show the existing Schoology admin badge at the far right of each admin row.
+
 ## [2026.06.0-port.245]
 
 ### Added

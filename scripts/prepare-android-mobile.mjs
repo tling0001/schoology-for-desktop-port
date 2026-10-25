@@ -14,7 +14,80 @@ if (!xml.includes('android.hardware.camera')) {
   const appIndex = xml.indexOf('<application');
   xml = xml.slice(0, appIndex) + '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n' + xml.slice(appIndex);
 }
+const xmlDir = path.join(root, 'src-tauri', 'gen', 'android', 'app', 'src', 'main', 'res', 'xml');
+fs.mkdirSync(xmlDir, { recursive: true });
+const providerPaths = path.join(xmlDir, 'schoology_file_paths.xml');
+fs.writeFileSync(providerPaths, `<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="schoology_updates" path="Schoology/updates/" />
+</paths>
+`);
+
+if (!xml.includes('androidx.core.content.FileProvider')) {
+  const applicationClose = xml.lastIndexOf('</application>');
+  if (applicationClose < 0) throw new Error('AndroidManifest.xml has no closing application element.');
+  const provider = `        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="\${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/schoology_file_paths" />
+        </provider>
+`;
+  xml = xml.slice(0, applicationClose) + provider + xml.slice(applicationClose);
+}
 fs.writeFileSync(manifest, xml);
+
+const nativePluginDir = path.join(root, 'src-tauri', 'gen', 'android', 'app', 'src', 'main', 'java', 'com', 'schoologytauri', 'app');
+fs.mkdirSync(nativePluginDir, { recursive: true });
+fs.writeFileSync(path.join(nativePluginDir, 'SchoologyInstallerPlugin.kt'), `package com.schoologytauri.app
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
+import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.Invoke
+import app.tauri.plugin.Plugin
+
+@InvokeArg
+class InstallApkArgs {
+    lateinit var uri: String
+}
+
+@TauriPlugin
+class SchoologyInstallerPlugin(private val activity: Activity) : Plugin(activity) {
+    @Command
+    fun installApk(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(InstallApkArgs::class.java)
+            val intent = Intent(Intent.ACTION_VIEW)
+                .setDataAndType(Uri.parse(args.uri), "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            activity.applicationContext.startActivity(intent)
+            invoke.resolve()
+        } catch (error: Exception) {
+            invoke.reject(error.message)
+        }
+    }
+}
+`);
+
+const appGradle = path.join(root, 'src-tauri', 'gen', 'android', 'app', 'build.gradle.kts');
+if (fs.existsSync(appGradle)) {
+  let gradle = fs.readFileSync(appGradle, 'utf8');
+  if (!gradle.includes('androidx.core:core:')) {
+    const dependencyBlock = gradle.indexOf('dependencies {');
+    if (dependencyBlock < 0) throw new Error('Android app Gradle file has no dependencies block.');
+    const insertion = dependencyBlock + 'dependencies {'.length;
+    gradle = gradle.slice(0, insertion) + '\n    implementation("androidx.core:core:1.15.0")' + gradle.slice(insertion);
+    fs.writeFileSync(appGradle, gradle);
+  }
+}
 
 const valuesDir = path.join(root, 'src-tauri', 'gen', 'android', 'app', 'src', 'main', 'res', 'values');
 if (fs.existsSync(valuesDir)) {

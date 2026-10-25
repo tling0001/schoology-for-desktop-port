@@ -45,6 +45,8 @@ struct HostState {
     pending_login: Mutex<Option<PendingLogin>>,
     renderer_ready: Mutex<bool>,
     pending_deep_link: Mutex<Option<String>>,
+    #[cfg(target_os = "android")]
+    android_installer: Mutex<Option<tauri::plugin::PluginHandle<tauri::Wry>>>,
 }
 
 fn app_file(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
@@ -1168,10 +1170,17 @@ async fn install_update(app: &AppHandle, info: &Value) -> Result<Value, String> 
     }
     #[cfg(target_os = "android")]
     {
-        let package_uri = format!("file://{}", path.to_string_lossy());
-        app.opener().open_url(&package_uri, Some("application/vnd.android.package-archive"))
-            .map_err(|e| format!("Could not open the Android package installer: {e}"))?;
-        return Ok(json!({"openedInstaller":true,"path":path.to_string_lossy()}));
+        // Android forbids sharing a private-cache file:// URI with Package Installer.
+        // Use FileProvider plus a native ACTION_VIEW intent carrying FLAG_GRANT_READ_URI_PERMISSION.
+        let filename = path.file_name().and_then(|name| name.to_str())
+            .ok_or("The downloaded Android package has an invalid filename.")?;
+        let package_uri = format!("content://com.schoologytauri.app.fileprovider/schoology_updates/{filename}");
+        let state = app.state::<HostState>();
+        let installer = state.android_installer.lock().map_err(|_| "Android installer plugin state is unavailable.")?
+            .clone().ok_or("The Android installer is not initialized. Please restart Schoology and try again.")?;
+        let _: Value = installer.run_mobile_plugin_async("installApk", json!({"uri":package_uri}))
+            .await.map_err(|e| format!("Could not open the Android package installer: {e}"))?;
+        return Ok(json!({"openedInstaller":true,"uri":package_uri}));
     }
     #[allow(unreachable_code)]
     Err("Automatic installation is not supported on this platform.".into())
@@ -1566,6 +1575,18 @@ pub fn run() {
                 PermissionResponse::Deny
             }
         });
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(
+        tauri::plugin::Builder::new("schoology-installer")
+            .setup(|app, api| {
+                let handle = api.register_android_plugin("com.schoologytauri.app", "SchoologyInstallerPlugin")
+                    .map_err(|error| std::io::Error::other(error.to_string()))?;
+                let state = app.state::<HostState>();
+                *state.android_installer.lock().map_err(|_| std::io::Error::other("Android installer plugin state is unavailable."))? = Some(handle);
+                Ok(())
+            })
+            .build()
+    );
     let builder = builder
         .setup(|app| {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

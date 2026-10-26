@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.257]
+
+### Fixed
+- Avoid crashing the shared webview when the platform's Tauri WebView API does not expose `onNavigation`, including affected macOS builds.
+- Send course and group update creation requests as JSON, matching the official Schoology Android API client and avoiding unsupported-media-type responses.
+- Resolve nested discussion IDs and realm identifiers when opening discussions from Upcoming lists.
+
+### Changed
+- Bump the port version to 2026.06.0-port.257.
+
 ## [2026.06.0-port.256]
 
 ### Fixed

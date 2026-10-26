@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.256]
+
+### Fixed
+- Open discussions from homepage, course, group, and calendar Upcoming lists using the discussion ID supplied by Schoology rather than the calendar event ID.
+- Avoid Windows child WebView2 creation failures caused by per-child browser arguments requesting an incompatible environment; retain the injected Schoology theme styling.
+
+### Changed
+- Bump the port version to 2026.06.0-port.256.
+
 ## [2026.06.0-port.255]
 
 ### Fixed

@@ -268,12 +268,16 @@ function showHomeUpdateDestinationPicker(){
  const wrap=createSchoologyDialogShell({id:'homeUpdateDestinationPicker',dialogClass:'androidCreatePostDialog homeUpdateDestinationDialog',title:'Post Update',leftButtonHtml:'<button type="button" class="androidDialogIcon" aria-label="Close">'+officialBackIcon()+'</button>',bodyHtml:'<div class="androidCreatePostBody"><div class="androidFieldLabel">Post To</div><div class="homeUpdateDestinationList"></div></div>'});
  const list=wrap.querySelector('.homeUpdateDestinationList');
  list.innerHTML=destinations.map((d,i)=>'<button type="button" class="homeUpdateDestination" data-destination="'+i+'"><span>'+esc(d.label)+'</span><span aria-hidden="true">›</span></button>').join('');
- const close=()=>wrap.remove();wrap.querySelector('[aria-label="Close"]')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+ const close=()=>closeDialogAnimated(wrap);wrap.querySelector('[aria-label="Close"]')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
  list.querySelectorAll('[data-destination]').forEach(button=>button.addEventListener('click',()=>{
-  const d=destinations[Number(button.dataset.destination)];if(!d)return;close();
-  if(d.realm==='sections'){const previous=state.courseCanPostUpdates;state.courseCanPostUpdates=true;try{openCourseUpdateComposer(d.source)}finally{state.courseCanPostUpdates=previous}}
-  else{const previousGroup=state.currentGroup,previousPermission=state.groupCanPostUpdates;state.groupCanPostUpdates=true;try{openGroupUpdateComposer(d.id,d.source)}finally{state.currentGroup=previousGroup;state.groupCanPostUpdates=previousPermission}}
+  const d=destinations[Number(button.dataset.destination)];if(!d)return;
+  closeDialogAnimated(wrap,()=>{
+   if(d.realm==='sections'){const previous=state.courseCanPostUpdates;state.courseCanPostUpdates=true;try{openCourseUpdateComposer(d.source)}finally{state.courseCanPostUpdates=previous}}
+   else{const previousGroup=state.currentGroup,previousPermission=state.groupCanPostUpdates;state.groupCanPostUpdates=true;try{openGroupUpdateComposer(d.id,d.source)}finally{state.currentGroup=previousGroup;state.groupCanPostUpdates=previousPermission}}
+  });
  }));
+ document.body.appendChild(wrap);
+ requestAnimationFrame(()=>wrap.classList.add('open'));
 }
 
 function showHomeCreateMenu(){

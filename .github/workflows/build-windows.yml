@@ -103,42 +103,12 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $certPath = Join-Path $env:RUNNER_TEMP 'schoology-signing.pfx'
-          $cerPath = Join-Path $env:RUNNER_TEMP 'schoology-signing.cer'
-          $selfSignedThumbprint = $null
-          $trustedSelfSigned = $false
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -and -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
-            Write-Host 'Using the configured Windows Authenticode certificate.'
-            [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
-            $signingPassword = $env:WINDOWS_CERTIFICATE_PASSWORD
-          } else {
-            Write-Host 'No trusted certificate secrets configured; generating an ephemeral self-signed certificate for CI testing. Windows on other computers will still show the publisher as untrusted.'
-            # Generate the temporary certificate directly through .NET instead of
-            # New-SelfSignedCertificate, which can stall on hosted Windows runners.
-            $securePassword = ConvertTo-SecureString ([Guid]::NewGuid().ToString('N')) -AsPlainText -Force
-            $rsa = [System.Security.Cryptography.RSA]::Create(2048)
-            $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
-              'CN=Schoology Desktop Port CI Self-Signed',
-              $rsa,
-              [System.Security.Cryptography.HashAlgorithmName]::SHA256,
-              [System.Security.Cryptography.RSASignaturePadding]::Pkcs1
-            )
-            $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]::new($false, $false, 0, $false))
-            $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]::new([System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::DigitalSignature, $false))
-            $codeSigningOid = [System.Security.Cryptography.Oid]::new('1.3.6.1.5.5.7.3.3')
-            $eku = [System.Security.Cryptography.OidCollection]::new()
-            [void]$eku.Add($codeSigningOid)
-            $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]::new($eku, $false))
-            $certificate = $request.CreateSelfSigned([DateTimeOffset]::Now.AddMinutes(-5), [DateTimeOffset]::Now.AddDays(30))
-            $selfSignedThumbprint = $certificate.Thumbprint
-            [IO.File]::WriteAllBytes($certPath, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, $securePassword))
-            [IO.File]::WriteAllBytes($cerPath, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
-            Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
-            Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' | Out-Null
-            $trustedSelfSigned = $true
-            $signingPassword = [System.Net.NetworkCredential]::new('', $securePassword).Password
-            $rsa.Dispose()
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            Write-Host 'Windows signing certificate secrets are not configured. Skipping signing so the Windows build can complete; the resulting installer will be unsigned.'
+            exit 0
           }
+          $certPath = Join-Path $env:RUNNER_TEMP 'schoology-signing.pfx'
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
           try {
             $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' -ErrorAction SilentlyContinue |
               Sort-Object FullName -Descending | Select-Object -First 1
@@ -147,24 +117,15 @@ jobs:
               Where-Object { $_.Extension -in '.exe', '.msi' }
             if (-not $installers) { throw 'No Windows installer .exe or .msi files were produced.' }
             foreach ($installer in $installers) {
-              if ($trustedSelfSigned) {
-                # Temporary CI certificates are intentionally not timestamped.
-                & $signtool.FullName sign /fd SHA256 /f $certPath /p $signingPassword $installer.FullName
-              } else {
-                & $signtool.FullName sign /fd SHA256 /td SHA256 /tr 'http://timestamp.digicert.com' /f $certPath /p $signingPassword $installer.FullName
-              }
+              Write-Host "Signing installer: $($installer.Name)"
+              & $signtool.FullName sign /fd SHA256 /td SHA256 /tr 'http://timestamp.digicert.com' /f $certPath /p $env:WINDOWS_CERTIFICATE_PASSWORD $installer.FullName
               if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $($installer.FullName)." }
               & $signtool.FullName verify /pa /all $installer.FullName
               if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed for $($installer.FullName)." }
-              Write-Host "Authenticode signature verified on CI: $($installer.Name)"
+              Write-Host "Authenticode signature verified: $($installer.Name)"
             }
           } finally {
-            Remove-Item $certPath, $cerPath -Force -ErrorAction SilentlyContinue
-            if ($selfSignedThumbprint) {
-              Remove-Item "Cert:\CurrentUser\Root\$selfSignedThumbprint" -Force -ErrorAction SilentlyContinue
-              Remove-Item "Cert:\CurrentUser\TrustedPublisher\$selfSignedThumbprint" -Force -ErrorAction SilentlyContinue
-              Remove-Item "Cert:\CurrentUser\My\$selfSignedThumbprint" -Force -ErrorAction SilentlyContinue
-            }
+            Remove-Item $certPath -Force -ErrorAction SilentlyContinue
           }
       - name: Build macOS package with Developer ID signing
         if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'

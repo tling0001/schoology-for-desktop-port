@@ -142,7 +142,8 @@ fn signed_header(method: &str, url: &Url, token: &str, secret: &str, timestamp: 
     ];
     let mut pairs: Vec<(String, String)> = url.query_pairs().map(|(k,v)| (k.into_owned(),v.into_owned())).collect();
     pairs.extend(oauth.iter().cloned());
-    // Android QR signing URL-encodes scanned_qr_data before merging it into the normalized OAuth parameter string. The complete normalized string is then encoded again below.\n    pairs.extend(extra.iter().map(|(k,v)| ((*k).to_owned(), if *k == "scanned_qr_data" { enc(v) } else { v.clone() })));
+    // Android QR signing URL-encodes scanned_qr_data before merging it into the normalized OAuth parameter string. The complete normalized string is then encoded again below.
+    pairs.extend(extra.iter().map(|(k,v)| ((*k).to_owned(), if *k == "scanned_qr_data" { enc(v) } else { v.clone() })));
     // The official Android signer sorts decoded parameter names and then values,
     // and URL-encodes the complete normalized string rather than each pair.
     pairs.sort_by(|a,b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
@@ -1611,9 +1612,11 @@ pub fn run() {
             // On Linux, opening a schoology:// callback may launch a fresh process
             // instead of delivering on_open_url to the existing process. Consume the
             // startup URL too, otherwise browser OAuth can remain stuck on its waiting screen.
-            if let Ok(Some(url)) = app.deep_link().get_current() {
-                let startup_handle = app.handle().clone();
-                tauri::async_runtime::spawn(handle_deep_link(startup_handle, url.to_string()));
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    let startup_handle = app.handle().clone();
+                    tauri::async_runtime::spawn(handle_deep_link(startup_handle, url.to_string()));
+                }
             }
             let notification_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

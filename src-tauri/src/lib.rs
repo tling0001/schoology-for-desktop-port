@@ -454,6 +454,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let navigation_label = label.clone();
     let navigation_allow_lti_external = allow_lti_external;
     let navigation_allow_external = info.get("allowExternalNavigation").and_then(Value::as_bool).unwrap_or(true);
+    let navigation_js_hook_available = info.get("jsNavigationHookAvailable").and_then(Value::as_bool).unwrap_or(false);
     let download_app = app.clone();
     let view_label_for_download = label.clone();
     // Start on about:blank so the JS compatibility adapter can subscribe to native
@@ -469,6 +470,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
         .on_navigation(move |next| {
             if next.as_str() == "about:blank" { return true; }
             if next.scheme() == "schoology-download" {
+                if navigation_js_hook_available { return true; }
                 let query: std::collections::HashMap<String, String> = next.query_pairs().into_owned().collect();
                 let _ = navigation_app.emit("embedded-download-requested", json!({
                     "label": navigation_label,

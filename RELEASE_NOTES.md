@@ -6,6 +6,7 @@
 - Guard shared WebView page-load event registration when the native Tauri hook is unavailable.
 - Actually mount and animate the homepage Update destination picker before opening the selected course/group composer.
 - Add reverse closing motion to shared blue-title post dialogs.
+- Guard drawer-triggered window-chrome synchronization so a UI-side exception cannot break the navigation-menu toggle.
 
 ### Changed
 - Bump the port version to 2026.06.0-port.258.

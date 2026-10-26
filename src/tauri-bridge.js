@@ -643,6 +643,7 @@
               forceDark: dark,
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
+              jsNavigationHookAvailable: typeof tauri.webview.Webview.prototype?.onNavigation === 'function',
               deferNavigation: true
             });
             nativeCreated = true;

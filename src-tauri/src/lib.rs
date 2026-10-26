@@ -443,8 +443,6 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).clamp(1.0, 100000.0);
     let user_agent = info.get("userAgent").and_then(Value::as_str).unwrap_or(ANDROID_UA).to_owned();
     let initialization_script = info.get("initializationScript").and_then(Value::as_str).unwrap_or("").to_owned();
-    #[cfg(target_os = "windows")]
-    let force_dark_webview = info.get("forceDark").and_then(Value::as_bool).unwrap_or(false);
     let downloads_dir = app.path().download_dir().ok().filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(app.path().app_cache_dir().map_err(|e| e.to_string())?.join("downloads"));
     fs::create_dir_all(&downloads_dir).map_err(|e| format!("Could not prepare the downloads folder: {e}"))?;
@@ -510,8 +508,10 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 _ => true,
             }
         });
-    #[cfg(target_os = "windows")]
-    let builder = builder.additional_browser_args(if force_dark_webview { "--enable-features=OverlayScrollbar:mode/overlay,WebContentsForceDark" } else { "--enable-features=OverlayScrollbar:mode/overlay" });
+    // Keep child WebView2 creation on the same default environment options as the
+    // main Tauri webview. Per-child additional_browser_args can request a different
+    // WebView2 environment for the shared user-data folder and fail with HRESULT
+    // 0x8007139F on Windows. Schoology dark styling is applied by the injected script.
     parent.add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
         .map_err(|e| format!("Could not create the embedded Schoology webview: {e}"))?;
     Ok(json!({"label":label,"created":true}))

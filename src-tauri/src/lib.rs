@@ -1622,6 +1622,19 @@ pub fn run() {
                     }
                 }
             }
+            // Keep the full Schoology notification payload attached to native OS notifications.
+            // The Tauri notification plugin's desktop action callback is available in v2.6+.
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let notification_open_handle = app.handle().clone();
+                app.notification().on_action(move |action| {
+                    if action.action_id() != "tap" { return; }
+                    let Some(item) = action.notification()
+                        .and_then(|notification| notification.extra().get("schoologyNotification"))
+                        .cloned() else { return; };
+                    let _ = notification_open_handle.emit("schoology-notification-open", item);
+                }).map_err(|e| std::io::Error::other(format!("Could not register notification activation handler: {e}")))?;
+            }
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {

@@ -1,5 +1,13 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.254]
+
+### Fixed
+- Correct the .NET `OidCollection` type namespace in the temporary Windows self-signed certificate workflow so the signing step can proceed.
+
+### Changed
+- Bump the port version to 2026.06.0-port.254.
+
 ## [2026.06.0-port.253]
 
 ### Fixed

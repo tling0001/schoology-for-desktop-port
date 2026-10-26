@@ -3015,3 +3015,22 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
   :where(.androidSimpleDialog,.homeUpdateDestinationDialog,.schoologyResourcePickerDialog,.schoologyErrorDialog,.assignmentAttachmentDialog,.updateCommentsDialog,.composeMessageDialog){animation:none!important}
   :where(.appDialogOverlay,.assignmentCommentDialogOverlay,.assignmentSubmissionDialogOverlay,.peopleListDialogOverlay,.pdfAttachmentOptionsOverlay,.submissionComposerOverlay,.messageComposerOverlay,.messageComposeOverlay,#createPostDialog,#composeMessageDialog,.homeUpdateDestinationOverlay,.schoologyResourcePickerOverlay,.schoologyErrorDialogOverlay).closing{animation:none!important}
 }
+
+
+/* Catch legacy modal surfaces that use one-off overlay class names. */
+:where([class*="DialogOverlay"],[class*="dialogOverlay"],[class*="ModalOverlay"],[class*="modalOverlay"],#composeMessageDialog,#createPostDialog) > :first-child{
+  border-radius:8px!important;
+  overflow:hidden;
+}
+:where([class*="DialogOverlay"],[class*="dialogOverlay"],[class*="ModalOverlay"],[class*="modalOverlay"]){
+  animation:schoologyDialogFadeIn .16s ease-out;
+}
+:where([class*="DialogOverlay"],[class*="dialogOverlay"],[class*="ModalOverlay"],[class*="modalOverlay"]).closing{
+  animation:schoologySharedDialogExit .18s ease-in both;
+  pointer-events:none;
+}
+@media(max-width:800px){
+  :where([class*="DialogOverlay"],[class*="dialogOverlay"],[class*="ModalOverlay"],[class*="modalOverlay"]) > :first-child{
+    border-radius:8px!important;
+  }
+}

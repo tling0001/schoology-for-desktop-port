@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.259]
+
+### Fixed
+- Use the Tauri WebView `setUrl` API when `navigate` is unavailable, preventing shared-view navigation failures on Windows.
+- Share animated active-tab centering across group, course, and school profile tab strips.
+- Give course and group content containers a reachable bottom scroll area that accounts for the iOS safe-area inset.
+
+### Changed
+- Bump the port version to 2026.06.0-port.259.
+
 ## [2026.06.0-port.258]
 
 ### Fixed

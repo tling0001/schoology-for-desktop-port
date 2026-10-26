@@ -422,7 +422,7 @@ function bind(){
   const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
 
   const shade=document.getElementById('drawerShade'),drawer=document.getElementById('drawer');
-  const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null;syncWindowChrome()};
+  const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null;try{syncWindowChrome()}catch(error){console.warn('Could not synchronize window chrome after drawer change:',error)}};
   document.getElementById('menuButton')?.addEventListener('click',()=>setDrawer(true));
   shade?.addEventListener('click',()=>setDrawer(false));
 

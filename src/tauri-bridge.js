@@ -756,14 +756,14 @@
           // the requestAnimationFrame scheduler here used to show a 1px/zero-sized
           // child briefly, and could leave it covering content if layout was late.
           await this._syncBounds();
-          await this.nativeView.navigate(this._url);
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : Promise.reject(new Error('This Tauri WebView does not expose a supported navigation method.')));
           this._hasLoadedPage = true;
           await this._syncBounds();
           this._syncHandler();
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));
         } else {
           await this._syncBounds();
-          await this.nativeView.navigate(this._url);
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : Promise.reject(new Error('This Tauri WebView does not expose a supported navigation method.')));
           this._hasLoadedPage = true;
           await this._syncBounds();
           this._syncHandler();

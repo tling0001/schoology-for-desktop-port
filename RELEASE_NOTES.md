@@ -4,6 +4,7 @@
 
 ### Fixed
 - Open discussions from homepage, course, group, and calendar Upcoming lists using the discussion ID supplied by Schoology rather than the calendar event ID.
+- Return to the originating home tab or course after closing a native discussion view.
 - Avoid Windows child WebView2 creation failures caused by per-child browser arguments requesting an incompatible environment; retain the injected Schoology theme styling.
 
 ### Changed

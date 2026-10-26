@@ -270,7 +270,7 @@ async function authorizeQR(qr){
   const body={scanned_qr_data:qr,oauth_token:t.oauth_token};
   // Android QRCodeAuthorizer signs this endpoint with the request-token secret
   // and includes scanned_qr_data in the HMAC normalized parameter set.
-  const r=await request('POST',`https://${WEB_HOST}/oauth/qr_code_authorize_auto`,body,{sign:true,clientIdentity:true,authToken:t.oauth_token,tokenSecret:t.oauth_token_secret,qr,timeoutMs:30000});
+  const r=await request('POST',`https://${API_HOST}/v1/oauth/qr_code_authorize_auto`,body,{sign:true,clientIdentity:true,authToken:t.oauth_token,tokenSecret:t.oauth_token_secret,qr,timeoutMs:30000});
   if(r.status<200||r.status>=300)throw new Error('QR authorization failed: '+r.status+' '+r.text);
   return exchangeToken(t);
 }

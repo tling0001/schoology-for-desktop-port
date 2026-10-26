@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.258]
+
+### Fixed
+- Guard shared WebView page-load event registration when the native Tauri hook is unavailable.
+- Actually mount and animate the homepage Update destination picker before opening the selected course/group composer.
+- Add reverse closing motion to shared blue-title post dialogs.
+
+### Changed
+- Bump the port version to 2026.06.0-port.258.
+
 ## [2026.06.0-port.257]
 
 ### Fixed

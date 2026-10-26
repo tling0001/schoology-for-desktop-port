@@ -34,6 +34,19 @@
     const payload = event?.payload || {};
     window.dispatchEvent(new CustomEvent('schoology-embedded-download-finished', { detail: payload }));
   }).catch(() => {});
+  if (tauri.event?.listen) tauri.event.listen('embedded-download-requested', async event => {
+    const payload = event?.payload || {};
+    const requestedUrl = String(payload.url || '');
+    const label = String(payload.label || '');
+    try {
+      const result = await invoke('download-file', { url: requestedUrl, filename: payload.filename || 'Schoology-file', mime: payload.mime || 'application/octet-stream', webviewLabel: label, progressId: `webview-${Date.now()}` });
+      await invoke('open-downloaded-file', { path: result.path });
+    } catch (error) {
+      console.error('Schoology download failed:', error);
+      const view = [...embeddedViews].find(item => item._label === label);
+      if (view) dispatchCompatEvent(view, 'download-failed', { url: requestedUrl, errorDescription: String(error?.message || error) });
+    }
+  }).catch(() => {});
   const emit = (name, payload) => {
     for (const callback of listeners.get(name) || []) {
       try { callback(payload); } catch (error) { console.error('Schoology event callback failed:', error); }
@@ -629,6 +642,7 @@
               initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
               forceDark: dark,
               lti: this._ltiNavigation,
+              allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
               deferNavigation: true
             });
             nativeCreated = true;

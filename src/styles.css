@@ -2973,3 +2973,45 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 
 /* Desktop splash: restore the full-size spinner and keep it below the centered logo. */
 @media(min-width:701px) and (min-height:561px){.androidSplashSpinner{width:72px!important;height:72px!important;top:calc(50% + min(110px,36vw) + 12px)!important}}
+
+
+/* Shared dialog surface: consistent rounded corners and reversible motion across dialog families. */
+:where(.appDialog,.assignmentCommentDialog,.assignmentSubmissionDialog,.androidSimpleDialog,.androidCreatePostDialog,.homeUpdateDestinationDialog,.schoologyResourcePickerDialog,.schoologyErrorDialog,.assignmentAttachmentDialog,.peopleListDialog,.pdfAttachmentOptions,.composeMessageDialog,.updateCommentsDialog,.submissionComposer,.messageComposer,.messageComposeDialog,.courseUpdateComposerDialog){
+  border-radius:8px!important;
+  overflow:hidden;
+}
+:where(.appDialogOverlay,.assignmentCommentDialogOverlay,.assignmentSubmissionDialogOverlay,.peopleListDialogOverlay,.pdfAttachmentOptionsOverlay,.submissionComposerOverlay,.messageComposerOverlay,.messageComposeOverlay,#createPostDialog,#composeMessageDialog,.homeUpdateDestinationOverlay,.schoologyResourcePickerOverlay,.schoologyErrorDialogOverlay){
+  border-radius:8px;
+}
+@keyframes schoologySharedDialogEnter{
+  from{opacity:0;transform:translateY(10px) scale(.985)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes schoologySharedDialogExit{
+  from{opacity:1;transform:translateY(0) scale(1)}
+  to{opacity:0;transform:translateY(10px) scale(.985)}
+}
+/* Existing dedicated transitions remain authoritative; this supplies entrance motion
+   to legacy dialogs that previously appeared without an animation. */
+:where(.androidSimpleDialog,.homeUpdateDestinationDialog,.schoologyResourcePickerDialog,.schoologyErrorDialog,.assignmentAttachmentDialog,.updateCommentsDialog,.composeMessageDialog){
+  animation:schoologySharedDialogEnter .18s ease-out both;
+}
+:where(.appDialogOverlay,.assignmentCommentDialogOverlay,.assignmentSubmissionDialogOverlay,.peopleListDialogOverlay,.pdfAttachmentOptionsOverlay,.submissionComposerOverlay,.messageComposerOverlay,.messageComposeOverlay,#createPostDialog,#composeMessageDialog,.homeUpdateDestinationOverlay,.schoologyResourcePickerOverlay,.schoologyErrorDialogOverlay).closing{
+  animation:schoologySharedDialogExit .18s ease-in both;
+  pointer-events:none;
+}
+:where(.appDialogOverlay,.assignmentCommentDialogOverlay,.assignmentSubmissionDialogOverlay,.peopleListDialogOverlay,.pdfAttachmentOptionsOverlay,.submissionComposerOverlay,.messageComposerOverlay,.messageComposeOverlay,#createPostDialog,#composeMessageDialog,.homeUpdateDestinationOverlay,.schoologyResourcePickerOverlay,.schoologyErrorDialogOverlay).closing > :first-child{
+  animation:schoologySharedDialogExit .18s ease-in both;
+}
+@media(max-width:800px){
+  .courseLandscapePage{display:block!important;height:calc(100dvh - 56px)!important;min-height:0!important;overflow:hidden!important}
+  .courseLandscapePage>.courseMainPane{display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .courseLandscapePage .sectionProfileContent{flex:1 1 auto!important;min-height:0!important;overflow:auto!important}
+  .groupLandscapeSplit{display:flex!important;flex-direction:column!important;height:calc(100dvh - 56px)!important;min-height:0!important;overflow:hidden!important}
+  .groupLandscapeSplit>.groupMainPane{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .groupMainPane #groupTabContent{flex:1 1 auto!important;min-height:0!important;overflow:auto!important}
+}
+@media(prefers-reduced-motion:reduce){
+  :where(.androidSimpleDialog,.homeUpdateDestinationDialog,.schoologyResourcePickerDialog,.schoologyErrorDialog,.assignmentAttachmentDialog,.updateCommentsDialog,.composeMessageDialog){animation:none!important}
+  :where(.appDialogOverlay,.assignmentCommentDialogOverlay,.assignmentSubmissionDialogOverlay,.peopleListDialogOverlay,.pdfAttachmentOptionsOverlay,.submissionComposerOverlay,.messageComposerOverlay,.messageComposeOverlay,#createPostDialog,#composeMessageDialog,.homeUpdateDestinationOverlay,.schoologyResourcePickerOverlay,.schoologyErrorDialogOverlay).closing{animation:none!important}
+}

@@ -48,7 +48,7 @@ jobs:
             os: macos-26
             artifact: macos
           - platform: linux
-            os: ubuntu-22.04
+            os: ubuntu-26.04
             artifact: linux
     runs-on: ${{ matrix.os }}
     steps:
@@ -152,7 +152,7 @@ jobs:
   android:
     if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
     name: Tauri Android APK
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

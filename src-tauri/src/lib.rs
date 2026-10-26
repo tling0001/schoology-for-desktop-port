@@ -142,7 +142,7 @@ fn signed_header(method: &str, url: &Url, token: &str, secret: &str, timestamp: 
     ];
     let mut pairs: Vec<(String, String)> = url.query_pairs().map(|(k,v)| (k.into_owned(),v.into_owned())).collect();
     pairs.extend(oauth.iter().cloned());
-    pairs.extend(extra.iter().map(|(k,v)| ((*k).to_owned(),v.clone())));
+    // Android QR signing URL-encodes scanned_qr_data before merging it into the normalized OAuth parameter string. The complete normalized string is then encoded again below.\n    pairs.extend(extra.iter().map(|(k,v)| ((*k).to_owned(), if *k == "scanned_qr_data" { enc(v) } else { v.clone() })));
     // The official Android signer sorts decoded parameter names and then values,
     // and URL-encodes the complete normalized string rather than each pair.
     pairs.sort_by(|a,b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));

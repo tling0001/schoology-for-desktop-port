@@ -6,6 +6,7 @@
 - Change the shared PDF viewer's loading message to "Loading file…".
 - Keep past assignments and events available when browsing a specific calendar month.
 - Left-align tab strips only when their tabs overflow the available width.
+- Keep course updates on the existing shared post-card renderer and align its horizontal spacing with the activity feed.
 - Keep school profile tabs and school identity fixed while scrolling its content in portrait.
 - Extend fullscreen dialog, PDF viewer, and composer safe-area spacing to Android WebViews.
 - Skip Windows signing when certificate secrets are absent, avoiding the blocking self-signed fallback; installers remain unsigned until a trusted signing certificate is configured.

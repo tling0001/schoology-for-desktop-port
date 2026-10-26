@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.251]
+
+### Fixed
+- Match the official Android QR OAuth signature normalization by URL-encoding the scanned QR data before normalizing the HMAC-SHA1 parameters.
+- Process the startup deep link as well as subsequent deep-link events so Linux browser OAuth callbacks can be handled when the callback launches a fresh app process.
+- Keep course and group identity headers stationary while their tab content scrolls in portrait layouts.
+- Standardize rounded dialog surfaces, introduce a shared dialog shell/header for the homepage update destination and shared comments dialogs, and apply entrance/reverse-close motion to legacy dialog surfaces.
+- Add optional Windows Authenticode signing and verification for generated EXE/MSI installers when the signing certificate secrets are configured.
+
 ## [2026.06.0-port.250]
 
 ### Fixed

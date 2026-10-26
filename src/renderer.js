@@ -2321,8 +2321,13 @@ async function showGroup(group,activeTab='updates'){
         const raw=response?.enrollment||response?.enrollments||response?.data?.enrollment||response?.member||response?.members||response?.user||response?.users||response?.data?.member||response?.data?.members||[];
         const entries=Array.isArray(raw)?raw:(raw?.enrollment||raw?.enrollments||raw?.member||raw?.items||raw?.data||[]);
         const people=entries.map(entry=>{
-          const person=entry?.user||entry?.member||entry?.profile||entry||{};
-          const id=person.id??person.uid??person.user_id??person.userId??entry?.uid??entry?.user_id??entry?.userId??'';
+          const nestedPerson=entry?.user||entry?.member||entry?.profile;
+          const person=nestedPerson||entry||{};
+          // Group enrollment records may have their own enrollment id. When the
+          // API omits a nested user object, prefer its explicit user id/uid.
+          const id=nestedPerson
+            ? (person.id??person.uid??person.user_id??person.userId??entry?.user_id??entry?.userId??entry?.uid??'')
+            : (entry?.user_id??entry?.userId??entry?.uid??entry?.id??'');
           return {...entry,...person,id,uid:id,name_first:person.name_first||person.first_name||person.nameFirst||'',name_last:person.name_last||person.last_name||person.nameLast||'',name_display_start:person.name_display_start||person.nameDisplayStart||person.name_first||person.first_name||person.name_display||person.display_name||person.name||'',name_display:person.name_display||person.display_name||person.name||'',name_first_preferred:person.name_first_preferred||person.nameFirstPreferred||'',picture_url:person.picture_url||person.pictureUrl||person.picture||person.photo_url||'',admin:entry?.admin??entry?.is_admin??entry?.isAdmin??person.admin??person.is_admin??person.isAdmin,role:entry?.role??entry?.role_name??entry?.roleName??person.role};
         }).filter(person=>person.id);
         if(!Array.isArray(raw)&&!entries.length)throw new Error('The group-members response did not contain a member list.');

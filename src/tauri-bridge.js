@@ -725,6 +725,7 @@
             // Keep the child view alive and let the native WebView navigation policy handle routing.
             console.info('Schoology embedded webview: native onNavigation hook unavailable; using native navigation policy.');
           }
+          if (typeof this.nativeView.onPageLoad === 'function') {
           this._unlistenPageLoad = await this.nativeView.onPageLoad(async event => {
             const payload = event?.payload || event || {};
             let rawEvent = payload.event ?? payload.type ?? event?.event ?? '';
@@ -746,6 +747,11 @@
               await this.nativeView.show().catch(() => {});
             }
           });
+          } else {
+            // Some Tauri WebView builds omit onPageLoad; don't crash while wiring the shared view.
+            // The native surface is still navigated and shown below, even without renderer load events.
+            console.info('Schoology embedded webview: native onPageLoad hook unavailable; continuing without load events.');
+          }
           // Apply the measured box before exposing the native child surface. Calling
           // the requestAnimationFrame scheduler here used to show a 1px/zero-sized
           // child briefly, and could leave it covering content if layout was late.

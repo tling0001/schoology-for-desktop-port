@@ -450,6 +450,10 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let popup_app = app.clone();
     let popup_label = label.clone();
     let popup_allow_lti_external = allow_lti_external;
+    let navigation_app = app.clone();
+    let navigation_label = label.clone();
+    let navigation_allow_lti_external = allow_lti_external;
+    let navigation_allow_external = info.get("allowExternalNavigation").and_then(Value::as_bool).unwrap_or(true);
     let download_app = app.clone();
     let view_label_for_download = label.clone();
     // Start on about:blank so the JS compatibility adapter can subscribe to native
@@ -462,11 +466,25 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
         .user_agent(&user_agent)
         .initialization_script(initialization_script)
         .disable_drag_drop_handler()
-        .on_navigation(|next| {
-            // Let the renderer's cancelable will-navigate compatibility event apply
-            // its Schoology-link routing preference. The JS adapter opens unhandled
-            // external HTTP(S) destinations through the system browser.
-            next.as_str() == "about:blank" || next.scheme() == "schoology-download" || matches!(next.scheme(), "http" | "https")
+        .on_navigation(move |next| {
+            if next.as_str() == "about:blank" { return true; }
+            if next.scheme() == "schoology-download" {
+                let query: std::collections::HashMap<String, String> = next.query_pairs().into_owned().collect();
+                let _ = navigation_app.emit("embedded-download-requested", json!({
+                    "label": navigation_label,
+                    "url": query.get("url").cloned().unwrap_or_default(),
+                    "filename": query.get("filename").cloned().unwrap_or_else(|| "Schoology-file".to_owned()),
+                    "mime": query.get("mime").cloned().unwrap_or_else(|| "application/octet-stream".to_owned())
+                }));
+                return false;
+            }
+            if !matches!(next.scheme(), "http" | "https") { return false; }
+            let internal_schoology = is_schoology_or_lausd_host(next.host_str().unwrap_or_default());
+            if internal_schoology || !navigation_allow_external || (navigation_allow_lti_external && next.scheme() == "https") {
+                return true;
+            }
+            let _ = navigation_app.opener().open_url(next.as_str(), None::<&str>);
+            false
         })
         .on_new_window(move |next, _features| {
             if matches!(next.scheme(), "http" | "https") && (is_schoology_or_lausd_host(next.host_str().unwrap_or_default()) || (popup_allow_lti_external && next.scheme() == "https")) {

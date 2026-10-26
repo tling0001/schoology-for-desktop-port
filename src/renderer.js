@@ -5,6 +5,17 @@ if(!A){
   throw new Error('Schoology Tauri bridge is unavailable');
 }
 const C={graphite:'#44505d',dark:'#22303e',blue:'#2e66a3',blueText:'#3183c8',bg:'#e7ebee',light:'#f4f5f5',white:'#fff',muted:'#868e96'};
+
+function schoologyDialogHeader(leftButtonHtml,title,rightButtonHtml=''){
+  return '<header class="androidCommentDialogBar">'+leftButtonHtml+'<div class="androidDialogTitle">'+title+'</div>'+rightButtonHtml+'</header>';
+}
+function createSchoologyDialogShell({id,overlayClass='assignmentCommentDialogOverlay',dialogClass='androidCreatePostDialog',title,leftButtonHtml='',rightButtonHtml='',bodyHtml=''}){
+  const wrap=document.createElement('div');
+  wrap.id=id;
+  wrap.className=overlayClass;
+  wrap.innerHTML='<section class="'+dialogClass+'" role="dialog" aria-modal="true">'+schoologyDialogHeader(leftButtonHtml,title,rightButtonHtml)+bodyHtml+'</section>';
+  return wrap;
+}
 let qrStream=null;
 let qrBusy=false;
 let qrLastAttempt=0;
@@ -254,8 +265,7 @@ function showHomeUpdateDestinationPicker(){
  const destinations=homePostableUpdateDestinations;
  if(!destinations.length){showAppDialog('Unable to post update','Your account does not have permission to post updates in any available course or group.');return}
  document.getElementById('homeUpdateDestinationPicker')?.remove();
- const wrap=document.createElement('div');wrap.id='homeUpdateDestinationPicker';wrap.className='assignmentCommentDialogOverlay';
- wrap.innerHTML='<section class="androidCreatePostDialog homeUpdateDestinationDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button type="button" class="androidDialogIcon" aria-label="Close">'+officialBackIcon()+'</button><strong class="androidDialogTitle">Post Update</strong></header><div class="androidCreatePostBody"><div class="androidFieldLabel">Post To</div><div class="homeUpdateDestinationList"></div></div></section>';
+ const wrap=createSchoologyDialogShell({id:'homeUpdateDestinationPicker',dialogClass:'androidCreatePostDialog homeUpdateDestinationDialog',title:'Post Update',leftButtonHtml:'<button type="button" class="androidDialogIcon" aria-label="Close">'+officialBackIcon()+'</button>',bodyHtml:'<div class="androidCreatePostBody"><div class="androidFieldLabel">Post To</div><div class="homeUpdateDestinationList"></div></div>'});
  const list=wrap.querySelector('.homeUpdateDestinationList');
  list.innerHTML=destinations.map((d,i)=>'<button type="button" class="homeUpdateDestination" data-destination="'+i+'"><span>'+esc(d.label)+'</span><span aria-hidden="true">›</span></button>').join('');
  const close=()=>wrap.remove();wrap.querySelector('[aria-label="Close"]')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
@@ -1845,8 +1855,7 @@ function openSharedCommentComposer(realm,realmId,updateId,title='Comment'){
 }
 function openUpdateCommentsModal(realm,realmId,updateId,title='Comments'){
  const existing=document.getElementById('updateCommentsModal');existing?.remove();
- const wrap=document.createElement('div');wrap.id='updateCommentsModal';wrap.className='assignmentCommentDialogOverlay';
- wrap.innerHTML=`<section class="assignmentCommentDialog updateCommentsDialog" role="dialog" aria-modal="true"><header class="androidCommentDialogBar"><button type="button" class="androidDialogIcon" data-update-comments-close aria-label="Back">${officialBackIcon()}</button><strong class="androidDialogTitle">${esc(title)}</strong><button type="button" class="androidDialogIcon" data-update-comments-compose aria-label="Add comment">${officialIcon('ic_action_new.png','Add comment')}</button></header><div id="updateCommentsModalPanel" class="updateCommentsPanel"></div></section>`;
+ const wrap=createSchoologyDialogShell({id:'updateCommentsModal',dialogClass:'assignmentCommentDialog updateCommentsDialog',title:esc(title),leftButtonHtml:'<button type="button" class="androidDialogIcon" data-update-comments-close aria-label="Back">'+officialBackIcon()+'</button>',rightButtonHtml:'<button type="button" class="androidDialogIcon" data-update-comments-compose aria-label="Add comment">'+officialIcon('ic_action_new.png','Add comment')+'</button>',bodyHtml:'<div id="updateCommentsModalPanel" class="updateCommentsPanel"></div>'});
  const close=()=>closeDialogAnimated(wrap);wrap.addEventListener('click',event=>{if(event.target===wrap)close()});wrap.querySelector('[data-update-comments-close]')?.addEventListener('click',close);
  wrap.querySelector('[data-update-comments-compose]')?.addEventListener('click',()=>openSharedCommentComposer(realm,realmId,updateId,'Comment'));
  document.body.appendChild(wrap);

@@ -23,6 +23,7 @@ let loadTabGeneration=0;
 let pendingDeepLinkAfterLogin=null;
 let schoologyStartupComplete=false;
 let queuedIncomingDeepLink=null;
+let queuedNotificationOpen=null;
 let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false};
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
 function applyTheme(mode,save=false){const selected=['light','dark','system'].includes(mode)?mode:'system';state.themeMode=selected;document.documentElement.dataset.theme=resolveTheme(selected);document.documentElement.dataset.themeMode=selected;if(document.documentElement.dataset.theme==='dark')requestAnimationFrame(()=>fixDarkRichTextColors());if(save){try{Promise.resolve(A.setThemeMode?.(selected)).catch(()=>{})}catch{}}}
@@ -3089,6 +3090,7 @@ async function startSchoologyStartup(retry=false){
   }finally{
     schoologyStartupComplete=true;
     if(queuedIncomingDeepLink){const url=queuedIncomingDeepLink;queuedIncomingDeepLink=null;handleIncomingSchoologyDeepLink(url)}
+    if(queuedNotificationOpen){const notification=queuedNotificationOpen;queuedNotificationOpen=null;void handleSchoologyNotificationOpen(notification)}
     if(pendingStartupUpdate){const update=pendingStartupUpdate;pendingStartupUpdate=null;setTimeout(()=>showUpdateDialog(update),0)}
   }
 }
@@ -3100,10 +3102,42 @@ async function handleIncomingSchoologyDeepLink(url){
     await showEmbeddedWeb(url,'Schoology Link',{openInitialExternalInBrowser:false});
   }catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e))}
 }
+async function handleSchoologyNotificationOpen(notification){
+  try{
+    if(state.screen!=='app'||!state.auth){showAppDialog('Notification','Sign in to Schoology to open this notification.');return}
+    const realmRaw=String(notification?.realm||notification?.realm_name||notification?.realmName||'').toLowerCase();
+    const realm=({section:'sections',sections:'sections',group:'groups',groups:'groups',school:'schools',schools:'schools',user:'users',users:'users'})[realmRaw]||realmRaw;
+    const realmId=Number(notification?.realm_id??notification?.realmId);
+    const args=Array.isArray(notification?.body_args)?notification.body_args:[];
+    const target=args.find(arg=>arg&&arg.type&&arg.id!=null);
+    const type=String(target?.type||'').toLowerCase(),id=Number(target?.id);
+    if(target&&Number.isFinite(id)&&id>0){
+      if(type==='school'){await openSchoolProfile(id);return}
+      if(type==='user'){openProfileById(id,target.title||'Profile');return}
+      let path='';
+      if(type==='discussion'&&realmId>0&&(realm==='sections'||realm==='groups'||realm==='schools'))path=('/'+realm+'/'+realmId+'/discussions/'+id);
+      else if(type==='event'&&realmId>0&&(realm==='sections'||realm==='groups'))path=('/'+realm+'/'+realmId+'/events/'+id);
+      else if(type==='assignment'&&realmId>0&&realm==='sections')path=('/sections/'+realmId+'/assignments/'+id);
+      else if(['assessment','assessment_v2','managed_assessment'].includes(type)&&realmId>0&&realm==='sections')path=('/sections/'+realmId+'/assessments/'+id);
+      else if(type==='page'&&realmId>0&&['sections','groups','schools'].includes(realm))path=('/'+realm+'/'+realmId+'/pages/'+id);
+      else if(type==='section')path=('/course/'+id+'/updates');
+      else if(type==='group')path=('/groups/'+id+'/members');
+      if(path&&await routeSchoologyLink('schoology://'+path.replace(/^\//,'')))return;
+    }
+    if(realmId>0&&realm==='sections'){if(await routeSchoologyLink('schoology://course/'+realmId+'/updates'))return}
+    if(realmId>0&&realm==='groups'){if(await routeSchoologyLink('schoology://groups/'+realmId+'/members'))return}
+    if(realmId>0&&realm==='schools'){await openSchoolProfile(realmId);return}
+    showAppDialog('Unable to open notification','Schoology did not provide a supported destination for this notification.');
+  }catch(error){showAppDialog('Unable to open notification',error?.message||String(error))}
+}
 startSchoologyStartup();
 A.onDeepLink?.(url=>{
   if(!schoologyStartupComplete){queuedIncomingDeepLink=url;return}
   handleIncomingSchoologyDeepLink(url);
+});
+A.onNotificationOpen?.(notification=>{
+  if(!schoologyStartupComplete){queuedNotificationOpen=notification;return}
+  void handleSchoologyNotificationOpen(notification);
 });
 let pendingStartupUpdate=null;
 let notificationDiagnosticShown=false;

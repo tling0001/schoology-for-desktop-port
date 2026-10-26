@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.260]
+
+### Fixed
+- Preserve the Schoology notification payload in native notifications and route supported notification taps to the corresponding discussion, event, assignment, assessment, page, course, group, school, or profile.
+- Register desktop notification activation handling using the Tauri notification plugin's action callback.
+
+### Changed
+- Bump the port version to 2026.06.0-port.260.
+
 ## [2026.06.0-port.259]
 
 ### Fixed

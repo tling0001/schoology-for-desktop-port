@@ -95,6 +95,35 @@ jobs:
       - name: Build Tauri packages (Windows/Linux)
         if: matrix.platform != 'macos'
         run: npm run prepare:tauri && npx tauri build
+      - name: Sign Windows installer with Authenticode
+        if: matrix.platform == 'windows' && secrets.WINDOWS_CERTIFICATE_PFX_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $certPath = Join-Path $env:RUNNER_TEMP 'schoology-signing.pfx'
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
+          try {
+            $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' -ErrorAction SilentlyContinue |
+              Sort-Object FullName -Descending | Select-Object -First 1
+            if (-not $signtool) { throw 'Windows SDK signtool.exe was not found on the runner.' }
+            $installers = Get-ChildItem 'src-tauri/target/release/bundle' -Recurse -File |
+              Where-Object { $_.Extension -in '.exe', '.msi' }
+            if (-not $installers) { throw 'No Windows installer .exe or .msi files were produced.' }
+            foreach ($installer in $installers) {
+              & $signtool.FullName sign /fd SHA256 /td SHA256 /tr 'http://timestamp.digicert.com' /f $certPath /p $env:WINDOWS_CERTIFICATE_PASSWORD $installer.FullName
+              if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $($installer.FullName)." }
+              & $signtool.FullName verify /pa /all $installer.FullName
+              if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed for $($installer.FullName)." }
+            }
+          } finally {
+            Remove-Item $certPath -Force -ErrorAction SilentlyContinue
+          }
+      - name: Report unsigned Windows installer when signing secrets are not configured
+        if: matrix.platform == 'windows' && (secrets.WINDOWS_CERTIFICATE_PFX_BASE64 == '' || secrets.WINDOWS_CERTIFICATE_PASSWORD == '')
+        run: echo "Windows Authenticode signing skipped; configure WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD repository secrets."
       - name: Build macOS package with Developer ID signing
         if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
         env:

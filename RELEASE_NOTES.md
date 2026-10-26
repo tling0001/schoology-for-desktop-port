@@ -1,5 +1,15 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.252]
+
+### Fixed
+- Fix startup deep-link handling by iterating over all URLs returned by Tauri.
+- Restore QR OAuth extra parameters to the HMAC-SHA1 normalization and remove the unused-parameter warning.
+- Sign Windows installers with a temporary self-signed certificate when trusted certificate secrets are absent; the temporary certificate is trusted only on the CI runner for signature verification.
+
+### Changed
+- Bump the port version to 2026.06.0-port.252.
+
 ## [2026.06.0-port.251]
 
 ### Fixed

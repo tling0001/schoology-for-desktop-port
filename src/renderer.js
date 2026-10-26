@@ -1783,8 +1783,37 @@ document.addEventListener('click',async event=>{
  const oldCount=Number((button.querySelector('.updatePollResult')?.textContent||'').match(/^\s*(\d+)/)?.[1]||0),nextCount=Math.max(0,oldCount+(wasSelected?-1:1));button.dataset.selected=wasSelected?'0':'1';button.classList.toggle('selected',!wasSelected);button.setAttribute('aria-pressed',String(!wasSelected));const resultEl=button.querySelector('.updatePollResult');if(resultEl)resultEl.textContent=`${nextCount} · —%`;container.querySelectorAll('[data-poll-option]').forEach(b=>{if(b!==button&&!wasSelected){b.dataset.selected='0';b.classList.remove('selected');b.setAttribute('aria-pressed','false')}});const summary=container.querySelector('small');if(summary)summary.textContent='Vote recorded';
  }catch(error){showAppDialog('Unable to vote in poll',error?.message||String(error)||'Unknown error')}finally{if(button.isConnected)button.disabled=false}
 });
-function centerActiveScrollableTabs(){document.querySelectorAll('.homeTabs,.courseTabs,.groupTabs,.sectionProfileTabs,.schoolProfileTabs,.calendarTabs,.profileTabs,.assignmentTabs,.messageTabs,#discussionTabs').forEach(strip=>{const overflowing=strip.scrollWidth>strip.clientWidth+1;strip.classList.toggle('tabsOverflowing',overflowing);if(overflowing)return;const active=strip.querySelector('.active');if(!active)return;strip.scrollLeft=0})}
-if(typeof MutationObserver==='function'){let tabCenterQueued=false;const observer=new MutationObserver(()=>{if(tabCenterQueued)return;tabCenterQueued=true;requestAnimationFrame(()=>{tabCenterQueued=false;centerActiveScrollableTabs()})});observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']})}
+const SCHOOLogy_TAB_STRIPS='.homeTabs,.courseTabs,.groupTabs,.sectionProfileTabs,.schoolProfileTabs,.calendarTabs,.profileTabs,.assignmentTabs,.messageTabs,.resourcePickerTabs,.discussionTabs,#discussionTabs';
+function centerSchoologyTab(strip,tab,behavior='smooth'){
+ if(!strip||!tab||strip.clientWidth<=0)return;
+ const overflowing=strip.scrollWidth>strip.clientWidth+1;
+ strip.classList.toggle('tabsOverflowing',overflowing);
+ if(!overflowing){strip.scrollLeft=0;return}
+ const sr=strip.getBoundingClientRect(),tr=tab.getBoundingClientRect();
+ const desired=strip.scrollLeft+(tr.left-sr.left)-(strip.clientWidth-tab.offsetWidth)/2;
+ const target=Math.max(0,Math.min(Math.max(0,strip.scrollWidth-strip.clientWidth),desired));
+ if(typeof strip.scrollTo==='function')strip.scrollTo({left:target,behavior:document.documentElement.dataset.reducedMotion==='true'?'auto':behavior});else strip.scrollLeft=target;
+}
+function centerActiveScrollableTabs(){
+ document.querySelectorAll(SCHOOLogy_TAB_STRIPS).forEach(strip=>{
+  const overflowing=strip.scrollWidth>strip.clientWidth+1;
+  strip.classList.toggle('tabsOverflowing',overflowing);
+  const active=strip.querySelector('.active,[aria-selected="true"]');
+  if(active&&overflowing)centerSchoologyTab(strip,active,'smooth');
+  else if(!overflowing)strip.scrollLeft=0;
+ });
+}
+document.addEventListener('click',event=>{
+ const tab=event.target.closest?.('.homeTab,.courseTab,.groupTab,.sectionProfileTab,.schoolProfileTab,.calendarTab,.profileTab,.assignmentTab,.messageTab,.resourcePickerTabs button,.discussionTabs button,#discussionTabs button,[role="tab"]');
+ if(!tab)return;
+ requestAnimationFrame(()=>{const strip=tab.closest(SCHOOLogy_TAB_STRIPS);if(strip){const active=strip.querySelector('.active,[aria-selected="true"]')||tab;centerSchoologyTab(strip,active,'smooth')}});
+},true);
+if(typeof MutationObserver==='function'){
+ let tabCenterQueued=false;
+ const observer=new MutationObserver(()=>{if(tabCenterQueued)return;tabCenterQueued=true;requestAnimationFrame(()=>{tabCenterQueued=false;centerActiveScrollableTabs()})});
+ observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','aria-selected']});
+}
+window.addEventListener('resize',()=>requestAnimationFrame(centerActiveScrollableTabs),{passive:true});
 function showPeopleDialog(title,rows,kind='likes'){
  document.getElementById('peopleListDialogOverlay')?.remove();
  const overlay=document.createElement('div');overlay.id='peopleListDialogOverlay';overlay.className='peopleListDialogOverlay';

@@ -1,5 +1,11 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.250]
+
+### Fixed
+- Escape the generated Kotlin package-name interpolation in the Android preparation script so Node no longer evaluates `activity.packageName` and the Android build can continue.
+- Put Update first in the homepage create menu, refresh update-posting permissions when selected, and use an arrow affordance on shared file attachments.
+
 ## [2026.06.0-port.249]
 
 ### Fixed

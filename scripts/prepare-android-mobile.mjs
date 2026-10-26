@@ -73,7 +73,7 @@ class SchoologyInstallerPlugin(private val activity: Activity) : Plugin(activity
         try {
             val args = invoke.parseArgs(InstallApkArgs::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.packageManager.canRequestPackageInstalls()) {
-                val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+                val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:\${activity.packageName}"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 activity.applicationContext.startActivity(settingsIntent)
                 invoke.reject("Allow Schoology to install apps from this source in Android settings, then choose Install update again.")

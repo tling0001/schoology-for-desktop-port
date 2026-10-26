@@ -1,5 +1,19 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.255]
+
+### Fixed
+- Change the shared PDF viewer's loading message to "Loading file…".
+- Keep past assignments and events available when browsing a specific calendar month.
+- Left-align tab strips only when their tabs overflow the available width.
+- Keep school profile tabs and school identity fixed while scrolling its content in portrait.
+- Extend fullscreen dialog, PDF viewer, and composer safe-area spacing to Android WebViews.
+- Skip Windows signing when certificate secrets are absent, avoiding the blocking self-signed fallback; installers remain unsigned until a trusted signing certificate is configured.
+
+### Changed
+- Use Ubuntu 26.04 GitHub-hosted runners for the Linux build jobs.
+- Bump the port version to 2026.06.0-port.255.
+
 ## [2026.06.0-port.254]
 
 ### Fixed

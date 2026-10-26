@@ -96,13 +96,17 @@ jobs:
         if: matrix.platform != 'macos'
         run: npm run prepare:tauri && npx tauri build
       - name: Sign Windows installer with Authenticode
-        if: matrix.platform == 'windows' && secrets.WINDOWS_CERTIFICATE_PFX_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != ''
+        if: matrix.platform == 'windows'
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            Write-Host 'Windows Authenticode signing skipped; configure WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD repository secrets.'
+            exit 0
+          }
           $certPath = Join-Path $env:RUNNER_TEMP 'schoology-signing.pfx'
           [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
           try {
@@ -121,9 +125,6 @@ jobs:
           } finally {
             Remove-Item $certPath -Force -ErrorAction SilentlyContinue
           }
-      - name: Report unsigned Windows installer when signing secrets are not configured
-        if: matrix.platform == 'windows' && (secrets.WINDOWS_CERTIFICATE_PFX_BASE64 == '' || secrets.WINDOWS_CERTIFICATE_PASSWORD == '')
-        run: echo "Windows Authenticode signing skipped; configure WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD repository secrets."
       - name: Build macOS package with Developer ID signing
         if: matrix.platform == 'macos' && steps.macos_signing.outputs.ready == 'true'
         env:

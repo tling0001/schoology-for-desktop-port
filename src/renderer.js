@@ -1219,7 +1219,7 @@ async function openSharedImageViewer(info){
 async function openSharedPdfViewer(info){
  document.getElementById('sharedPdfViewerOverlay')?.remove();
  const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay pdfViewerOpening';
- root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'PDF document')+'</b></header><div class="sharedPdfViewerPages"><div class="sharedPdfViewerLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading PDF…</span></div></div>'
+ root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(info?.displayFilename||info?.filename||info?.title||'PDF document')+'</b></header><div class="sharedPdfViewerPages"><div class="sharedPdfViewerLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading file…</span></div></div>'
  document.body.appendChild(root);
  requestAnimationFrame(()=>root.classList.add('open'));
  let removeZoomKeys=()=>{};let zoomTimer=0;const close=()=>{removeZoomKeys();clearTimeout(zoomTimer);root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
@@ -1778,7 +1778,7 @@ document.addEventListener('click',async event=>{
  const oldCount=Number((button.querySelector('.updatePollResult')?.textContent||'').match(/^\s*(\d+)/)?.[1]||0),nextCount=Math.max(0,oldCount+(wasSelected?-1:1));button.dataset.selected=wasSelected?'0':'1';button.classList.toggle('selected',!wasSelected);button.setAttribute('aria-pressed',String(!wasSelected));const resultEl=button.querySelector('.updatePollResult');if(resultEl)resultEl.textContent=`${nextCount} · —%`;container.querySelectorAll('[data-poll-option]').forEach(b=>{if(b!==button&&!wasSelected){b.dataset.selected='0';b.classList.remove('selected');b.setAttribute('aria-pressed','false')}});const summary=container.querySelector('small');if(summary)summary.textContent='Vote recorded';
  }catch(error){showAppDialog('Unable to vote in poll',error?.message||String(error)||'Unknown error')}finally{if(button.isConnected)button.disabled=false}
 });
-function centerActiveScrollableTabs(){document.querySelectorAll('.homeTabs,.courseTabs,.groupTabs,.sectionProfileTabs,.schoolProfileTabs,.calendarTabs,.profileTabs,.assignmentTabs,.messageTabs,#discussionTabs').forEach(strip=>{const active=strip.querySelector('.active');if(!active||strip.scrollWidth<=strip.clientWidth+1)return;const sr=strip.getBoundingClientRect(),ar=active.getBoundingClientRect(),delta=(ar.left+ar.width/2)-(sr.left+sr.width/2);if(Math.abs(delta)>2){const max=Math.max(0,strip.scrollWidth-strip.clientWidth);strip.scrollLeft=Math.max(0,Math.min(max,strip.scrollLeft+delta))}})}
+function centerActiveScrollableTabs(){document.querySelectorAll('.homeTabs,.courseTabs,.groupTabs,.sectionProfileTabs,.schoolProfileTabs,.calendarTabs,.profileTabs,.assignmentTabs,.messageTabs,#discussionTabs').forEach(strip=>{const overflowing=strip.scrollWidth>strip.clientWidth+1;strip.classList.toggle('tabsOverflowing',overflowing);if(overflowing)return;const active=strip.querySelector('.active');if(!active)return;strip.scrollLeft=0})}
 if(typeof MutationObserver==='function'){let tabCenterQueued=false;const observer=new MutationObserver(()=>{if(tabCenterQueued)return;tabCenterQueued=true;requestAnimationFrame(()=>{tabCenterQueued=false;centerActiveScrollableTabs()})});observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']})}
 function showPeopleDialog(title,rows,kind='likes'){
  document.getElementById('peopleListDialogOverlay')?.remove();
@@ -2754,7 +2754,7 @@ async function loadTab(){
       }
       return [...merged.values()].filter(e=>{
         const d=calendarEventDate(e);
-        if(d){const day=new Date(d.getFullYear(),d.getMonth(),d.getDate());if(day<today)return false;if(forMonth&&(d.getFullYear()!==forMonth.getFullYear()||d.getMonth()!==forMonth.getMonth()))return false;}
+        if(d){const day=new Date(d.getFullYear(),d.getMonth(),d.getDate());if(!forMonth&&day<today)return false;if(forMonth&&(d.getFullYear()!==forMonth.getFullYear()||d.getMonth()!==forMonth.getMonth()))return false;}
         else if(forMonth)return false;
         return true;
       }).sort((a,b)=>{

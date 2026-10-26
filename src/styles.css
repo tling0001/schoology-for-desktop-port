@@ -3064,3 +3064,15 @@ html.androidAppSafeArea .assignmentCommentDialogOverlay .assignmentCommentDialog
 .assignmentCommentDialogOverlay.open .androidCreatePostDialog{transform:translateY(0) scale(1);opacity:1}
 .assignmentCommentDialogOverlay.closing .androidCreatePostDialog{transform:translateY(10px) scale(.99);opacity:0;pointer-events:none}
 :root[data-reduced-motion="true"] .assignmentCommentDialogOverlay .androidCreatePostDialog{transition:none!important}
+
+
+/* port.259: keep the last course/group rows reachable above the iOS home indicator. */
+@media(max-width:800px){
+  .sectionProfilePage,.groupProfilePage{height:100%!important;min-height:0!important;max-height:100%!important;box-sizing:border-box!important;overflow:hidden!important}
+  .sectionProfilePage .courseMainPane,.groupProfilePage .groupMainPane{min-height:0!important;max-height:100%!important;box-sizing:border-box!important}
+  .sectionProfilePage #sectionProfileContent,.groupProfilePage #groupTabContent{min-height:0!important;box-sizing:border-box!important;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))!important;scroll-padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+  .sectionProfilePage #sectionProfileContent>*:last-child,.groupProfilePage #groupTabContent>*:last-child{margin-bottom:max(0px,env(safe-area-inset-bottom,0px))!important}
+}
+/* One shared centering rule: overflowing strips scroll to the active tab; the strip itself remains full width. */
+.homeTabs,.courseTabs,.groupTabs,.sectionProfileTabs,.schoolProfileTabs,.calendarTabs,.profileTabs,.assignmentTabs,.messageTabs,.resourcePickerTabs,.discussionTabs,#discussionTabs{scroll-behavior:smooth;scroll-padding-inline:12px;}
+html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .courseTabs,html[data-reduced-motion="true"] .groupTabs,html[data-reduced-motion="true"] .sectionProfileTabs,html[data-reduced-motion="true"] .schoolProfileTabs,html[data-reduced-motion="true"] .calendarTabs,html[data-reduced-motion="true"] .profileTabs,html[data-reduced-motion="true"] .assignmentTabs,html[data-reduced-motion="true"] .messageTabs,html[data-reduced-motion="true"] .resourcePickerTabs,html[data-reduced-motion="true"] .discussionTabs,html[data-reduced-motion="true"] #discussionTabs{scroll-behavior:auto;}

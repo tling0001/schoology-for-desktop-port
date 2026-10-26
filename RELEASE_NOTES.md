@@ -1,5 +1,14 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.253]
+
+### Fixed
+- Avoid a hosted Windows runner hang while creating the temporary self-signed code-signing certificate by generating it with .NET directly.
+- Skip timestamp-server requests for temporary self-signed CI signatures; trusted certificates continue to use SHA-256 timestamping.
+
+### Changed
+- Bump the port version to 2026.06.0-port.253.
+
 ## [2026.06.0-port.252]
 
 ### Fixed

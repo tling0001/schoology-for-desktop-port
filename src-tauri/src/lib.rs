@@ -1608,6 +1608,13 @@ pub fn run() {
                     tauri::async_runtime::spawn(handle_deep_link(handle, url.to_string()));
                 }
             });
+            // On Linux, opening a schoology:// callback may launch a fresh process
+            // instead of delivering on_open_url to the existing process. Consume the
+            // startup URL too, otherwise browser OAuth can remain stuck on its waiting screen.
+            if let Ok(Some(url)) = app.deep_link().get_current() {
+                let startup_handle = app.handle().clone();
+                tauri::async_runtime::spawn(handle_deep_link(startup_handle, url.to_string()));
+            }
             let notification_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_secs(15)).await;

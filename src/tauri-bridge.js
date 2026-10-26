@@ -517,6 +517,7 @@
         window.removeEventListener('schoology-clear-web-session', this._clearSessionHandler);
         window.removeEventListener('schoology-tauri-theme-changed', this._themeHandler);
         embeddedViews.delete(this);
+        this._unlistenNavigation?.();
         this._unlistenPageLoad?.();
         if (this.nativeView) {
           const view = this.nativeView;
@@ -668,7 +669,8 @@
               if (!closed && failedView) { try { await failedView.close(); } catch (_) {} }
             })();
           }).catch(() => {});
-          this.nativeView.onNavigation(url => {
+          if (typeof this.nativeView.onNavigation === 'function') {
+          this._unlistenNavigation = await this.nativeView.onNavigation(url => {
             const nextUrl = String(url || this._url);
             let parsed = null;
             try { parsed = new URL(nextUrl); } catch (_) {}
@@ -702,7 +704,12 @@
             dispatchCompatEvent(this, 'did-start-navigation', { url: nextUrl, isMainFrame: true });
             this.dispatchEvent(new Event('did-start-loading'));
             return true;
-          }).catch(() => {});
+          }).catch(() => null);
+          } else {
+            // Tauri does not expose this event on every platform/version (notably some macOS builds).
+            // Keep the child view alive and let the native WebView navigation policy handle routing.
+            console.info('Schoology embedded webview: native onNavigation hook unavailable; using native navigation policy.');
+          }
           this._unlistenPageLoad = await this.nativeView.onPageLoad(async event => {
             const payload = event?.payload || event || {};
             let rawEvent = payload.event ?? payload.type ?? event?.event ?? '';

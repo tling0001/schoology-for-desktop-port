@@ -4,6 +4,7 @@
 
 ### Fixed
 - Avoid crashing the shared webview when the platform's Tauri WebView API does not expose `onNavigation`, including affected macOS builds.
+- Preserve native external-link routing and custom Schoology downloads when the JavaScript navigation hook is unavailable.
 - Send course and group update creation requests as JSON, matching the official Schoology Android API client and avoiding unsupported-media-type responses.
 - Resolve nested discussion IDs and realm identifiers when opening discussions from Upcoming lists.
 

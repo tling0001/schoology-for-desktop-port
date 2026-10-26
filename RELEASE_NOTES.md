@@ -5,6 +5,7 @@
 ### Fixed
 - Escape the generated Kotlin package-name interpolation in the Android preparation script so Node no longer evaluates `activity.packageName` and the Android build can continue.
 - Put Update first in the homepage create menu, refresh update-posting permissions when selected, and use an arrow affordance on shared file attachments.
+- Send QR authorization to the official API-host `/v1/oauth/qr_code_authorize_auto` endpoint so its HMAC-SHA1 signature is based on the same URL as the Android app.
 
 ## [2026.06.0-port.249]
 

@@ -3034,3 +3034,26 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
     border-radius:8px!important;
   }
 }
+
+/* port.255: overflowing tabs start at the left edge instead of centering an unreachable tab group. */
+.homeTabs.tabsOverflowing,.courseTabs.tabsOverflowing,.groupTabs.tabsOverflowing,.sectionProfileTabs.tabsOverflowing,.schoolProfileTabs.tabsOverflowing,.calendarTabs.tabsOverflowing,.profileTabs.tabsOverflowing,.assignmentTabs.tabsOverflowing,.messageTabs.tabsOverflowing,#discussionTabs.tabsOverflowing{justify-content:flex-start!important}
+
+/* Keep the school identity and tabs fixed while only the school profile's content scrolls in portrait. */
+@media(max-width:800px){
+  .schoolProfileNativePage{height:100%!important;min-height:0!important;overflow:hidden!important}
+  .schoolProfileLandscapeSplit{display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .schoolProfileMainPane{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .schoolProfileMainPane .schoolProfileTabs,.schoolProfileMainPane .schoolProfileHeader,.schoolProfileMainPane .schoolProfileDivider{flex:0 0 auto!important}
+  .schoolProfileMainPane .schoolProfileTabContent{flex:1 1 auto!important;min-height:0!important;overflow:auto!important;overscroll-behavior:contain!important}
+}
+
+/* Mirror iOS fullscreen safe-area handling on Android native WebViews. */
+html.androidAppSafeArea .sharedPdfViewerOverlay{padding-top:var(--schoology-safe-area-top)!important;padding-bottom:max(24px,env(safe-area-inset-bottom,0px))!important}
+html.androidAppSafeArea .appDialogOverlay{padding-top:max(24px,var(--schoology-safe-area-top))!important;padding-bottom:max(24px,env(safe-area-inset-bottom,0px))!important}
+html.androidAppSafeArea .peopleListDialogOverlay,html.androidAppSafeArea .pdfAttachmentOptionsOverlay,html.androidAppSafeArea .assignmentCommentDialogOverlay,html.androidAppSafeArea .submissionComposerOverlay,html.androidAppSafeArea .courseUpdateComposer{padding-top:var(--schoology-safe-area-top)!important;padding-bottom:max(24px,env(safe-area-inset-bottom,0px))!important}
+html.androidAppSafeArea .assignmentCommentDialogOverlay .assignmentCommentDialog,html.androidAppSafeArea .assignmentCommentDialogOverlay .androidCreatePostDialog,html.androidAppSafeArea #createPostDialog .androidCreatePostDialog,html.androidAppSafeArea .submissionComposerOverlay .submissionComposer,html.androidAppSafeArea .courseUpdateComposerInner{padding-top:max(12px,var(--schoology-safe-area-top))!important;padding-bottom:max(24px,env(safe-area-inset-bottom,0px))!important}
+@media(max-width:700px),(max-height:560px){
+  html.androidAppSafeArea #createPostDialog.createEventDialogOverlay .androidCreateEventDialog{padding-bottom:max(24px,env(safe-area-inset-bottom,0px))!important}
+  html.androidAppSafeArea #createPostDialog .androidCreateEventDialog>.androidCommentDialogBar{padding-top:var(--schoology-safe-area-top)!important;height:calc(48px + var(--schoology-safe-area-top))!important;min-height:calc(48px + var(--schoology-safe-area-top))!important;flex-basis:calc(48px + var(--schoology-safe-area-top))!important}
+  html.androidAppSafeArea #createPostDialog .androidCreateEventDialog .androidCreatePostBody{padding-bottom:max(24px,env(safe-area-inset-bottom,0px))!important}
+}

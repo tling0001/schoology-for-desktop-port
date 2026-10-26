@@ -150,6 +150,7 @@
 
   const schoology = {
     onDeepLink: callback => subscribe('schoology-deep-link', callback),
+    onNotificationOpen: callback => subscribe('schoology-notification-open', callback),
     onNotificationError: callback => subscribe('schoology-notification-error', callback),
     onNotificationPollError: callback => subscribe('schoology-notification-poll-error', callback),
     testDesktopNotification: () => invoke('test-desktop-notification'),

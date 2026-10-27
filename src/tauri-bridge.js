@@ -714,7 +714,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
                 let hostname = '';
                 try { hostname = String(await this.nativeView.eval('location.hostname') || '').toLowerCase(); } catch (_) {}
                 // Ignore the initial about:blank completion; it has no Schoology origin.
-                if (/^(?:[^.]+\\.)*schoologyca?\\.com$/.test(hostname)) {
+                if (/^(?:[^.]+\\.)*schoology(?:ca)?\\.com$/.test(hostname)) {
                   try {
                     await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, this._sessionBootstrapData, this._label));
                   } catch (error) {
@@ -775,7 +775,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               let hostname = '';
               try { hostname = String(await initialView.eval('location.hostname') || '').toLowerCase(); } catch (_) {}
               let cookiesInstalled = false;
-              if (readyState === 'complete' && /^(?:[^.]+\\.)*schoologyca?\\.com$/.test(hostname) && attempts >= 10) {
+              if (readyState === 'complete' && /^(?:[^.]+\\.)*schoology(?:ca)?\\.com$/.test(hostname) && attempts >= 10) {
                 try { await initialView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, this._sessionBootstrapData, this._label)); } catch (_) {}
                 try { cookiesInstalled = await initialView.eval('window.__schoologySessionBootstrapReady === true'); } catch (_) {}
               }

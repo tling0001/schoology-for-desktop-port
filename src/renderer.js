@@ -142,7 +142,7 @@ function schoologySidebarIcon(name,alt=''){
  const key=String(name||'');
  if(key.startsWith('ios-')){
    const image=schoologyIosSidebarIconData[key.slice(4)];
-   if(image)return '<img class="schoologyIosSidebarIcon" src="data:image/png;base64,'+image+'" alt="" aria-label="'+esc(alt)+'">';
+   if(image)return '<img class="schoologyIosSidebarIcon'+(key==='ios-members'?' schoologyIosPeopleIcon':'')+'" src="data:image/png;base64,'+image+'" alt="" aria-label="'+esc(alt)+'">';
  }
 
  const indexes={materials:0,updates:1,grades:2,members:3,upcoming:4,discussions:5,albums:6,resources:7};

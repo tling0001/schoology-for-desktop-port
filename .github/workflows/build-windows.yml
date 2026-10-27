@@ -40,21 +40,11 @@ permissions:
 
 jobs:
   build:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true && (inputs.linux_only != true || matrix.platform == 'linux') }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
     name: Tauri ${{ matrix.platform }} build
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            os: windows-latest
-            artifact: windows
-          - platform: macos
-            os: macos-26
-            artifact: macos
-          - platform: linux
-            os: ubuntu-26.04
-            artifact: linux
+      matrix: ${{ fromJSON(inputs.linux_only == true && '{"include":[{"platform":"linux","os":"ubuntu-26.04","artifact":"linux"}]}' || '{"include":[{"platform":"windows","os":"windows-latest","artifact":"windows"},{"platform":"macos","os":"macos-26","artifact":"macos"},{"platform":"linux","os":"ubuntu-26.04","artifact":"linux"}]}') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

@@ -3310,3 +3310,10 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 :root[data-theme="dark"] .courseMainPane:has(.sharedPostCard) #sectionProfileContent,
 :root[data-theme="dark"] .groupMainPane:has(.sharedPostCard) #groupTabContent,
 :root[data-theme="dark"] .schoolProfileMainPane:has(.sharedPostCard) #schoolProfileTabContent{background:var(--theme-bg)!important}
+
+:root:not([data-theme="dark"]) #schoolProfileTabContent:has(.sharedPostCard) .schoolProfileUpdates{background:#f5f6f7!important}
+:root[data-theme="dark"] #schoolProfileTabContent:has(.sharedPostCard) .schoolProfileUpdates{background:var(--theme-bg)!important}
+@media (min-width:801px) and (orientation:landscape){
+ .courseInfoSidePane .courseIdentityImageWrap,.groupInfoSidePane .groupHero,.schoolProfileInfoSidePane .schoolProfileHeaderImage{margin-bottom:0!important}
+ .courseInfoSidePane .courseIdentityCard{padding-bottom:0!important}
+}

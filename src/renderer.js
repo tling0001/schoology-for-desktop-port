@@ -1599,7 +1599,7 @@ async function showPageNative(realm,realmId,pageId,title='Page'){
  try{const x=await A.api({path:`${realm}/${realmId}/pages/${pageId}`,params:{}});const page=x?.page||x;const body=page?.body||page?.description||page?.content||'';const pageTitle=page?.title||title||'Page';c.innerHTML=`<section class="pageAndroid"><div class="pageAndroidHeader"><h1>${esc(pageTitle)}</h1></div><div class="pageAndroidBody">${body||'<span class="muted">No page content.</span>'}</div></section>`;c.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(/^https?:\/\//i.test(href)){ev.preventDefault();ev.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}}}));}catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;}
 }
 async function showEmbeddedWeb(url,title,options={}){
- const c=document.getElementById('content');if(!c)return;
+ const c=options.courseApp?document.getElementById('sectionProfileContent'):document.getElementById('content');if(!c)return;
  try{url=new URL(String(url||''),options.baseUrl||(state.canadianInstance?'https://app.schoologyca.com/':'https://app.schoology.com/')).href}catch{throw new Error('This link does not contain a valid web address.')}
  if(!/^https?:/i.test(url))throw new Error('Only HTTP and HTTPS pages can be opened in the shared webview.');
  if(state.canadianInstance)url=String(url||'').replace(/app\.schoology\.com/gi,'app.schoologyca.com').replace(/api\.schoology\.com/gi,'api.schoologyca.com');
@@ -1613,7 +1613,7 @@ async function showEmbeddedWeb(url,title,options={}){
  if(options.routeSchoology!==false){try{const u=new URL(String(url||''));if((u.hostname.toLowerCase()==='lms.lausd.net'||u.hostname.toLowerCase().endsWith('.schoology.com')||u.hostname.toLowerCase()==='schoologyca.com'||u.hostname.toLowerCase().endsWith('.schoologyca.com'))&&/^\/course(?:s)?\/\d+\/materials\/gp\/\d+\/?$/i.test(u.pathname)){if(await routeSchoologyLink(u.href))return;}}catch{}}
  try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
  c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':''));syncToolbar();
- const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" allowpopups></${embeddedTag}></section>`;
+ const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" data-open-popups-external="${options.courseApp===true}" allowpopups></${embeddedTag}></section>`;
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
  w.addEventListener('dom-ready',()=>{if(!window.__TAURI__&&mainNavigation>0)setLoading(false)});
@@ -1658,14 +1658,16 @@ async function loadCourseApps(course,targetEl){
     const appId=Number(a?.id??a?.application_id??a?.applicationId??a?.resource_app_id??a?.resourceAppId??a?.app_id??a?.appId);
     if(!href&&(!Number.isSafeInteger(appId)||appId<=0)){el.innerHTML='<div class="error apiError">This course app did not provide a launch target.</div>';return}
     try{
-      openWithPressTransition(b,()=>{});
+      const appTitle=a.title||a.name||'Course App';
+      const previousTab=state.courseTab||'materials';
+      state.embeddedReturn={tab:state.tab,homeTab:state.homeTab,title:courseToolbarTitleOf(course)||'Course',course,courseTab:previousTab};
       document.querySelectorAll('.courseAppSidebarItem').forEach(item=>item.classList.toggle('active',item===b));
       document.querySelectorAll('[data-course-tab]').forEach(item=>item.classList.remove('active'));
-      state.courseTab='courseapp';state.toolbarTitle=title;syncToolbar();
+      state.courseTab='courseapp';
       const launchResult=await A.launchCourseApp({launchUrl:href,appId:Number.isSafeInteger(appId)&&appId>0?appId:undefined,sectionId:Number(sid)});
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
-      showEmbeddedWeb(url,title,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:true,courseApp:true});
+      showEmbeddedWeb(url,appTitle,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:true,courseApp:true});
     }catch(e){el.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);

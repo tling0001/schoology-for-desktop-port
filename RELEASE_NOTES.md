@@ -1,5 +1,19 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.4]
+
+### Fixed
+- Make shared-WebView reload reliable across Tauri WebView API variants and keep Windows toolbar/window controls above embedded content.
+- Disable context menus inside shared Schoology WebViews and retry first-load session initialization after WebView2 commits cookies.
+- Open course Upcoming events and restore view/download handling for converted PowerPoint attachments.
+- Keep course updates on the shared post-card renderer, round course dashboard cards, and increase light-mode contrast behind shared posts.
+- Serialize notification payloads as strings for iOS notification extras.
+
+## [2026.10.0-port.3]
+
+### Failed build/release attempt
+- Release creation failed because the release workflow expected a port.3 notes section that was missing from the source release notes.
+
 ## [2026.10.0-port.2]
 - Render the two-comment post preview through the same shared comments renderer as the full comments dialog, retaining comment actions and oldest-to-newest ordering.
 - Rename the discussion page’s second tab to “Discussion”.

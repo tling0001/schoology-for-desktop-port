@@ -167,9 +167,11 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
       - uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools
-      - name: Install Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+            ndk;27.0.12077973
       - name: Pin the Android NDK for all Rust targets
         shell: bash
         run: |
@@ -480,6 +482,14 @@ jobs:
           sections = re.split(r"(?m)(?=^## \[)", text)
           selected = []
           found_current = False
+          def is_immediately_previous_port(candidate, current_version):
+              candidate_match = re.match(r"^(.*)-port\.(\d+)$", candidate)
+              current_match = re.match(r"^(.*)-port\.(\d+)$", current_version)
+              return bool(
+                  candidate_match and current_match
+                  and candidate_match.group(1) == current_match.group(1)
+                  and int(candidate_match.group(2)) == int(current_match.group(2)) - 1
+              )
           for section in sections:
               if not section.startswith("## ["):
                   continue
@@ -487,7 +497,10 @@ jobs:
               if not match:
                   continue
               current = match.group(1) == version
-              failed = bool(re.search(r"(?m)^### Failed build/release attempt\s*$", section))
+              failed = (
+                  bool(re.search(r"(?m)^### Failed build/release attempt\s*$", section))
+                  and is_immediately_previous_port(match.group(1), version)
+              )
               if current or failed:
                   selected.append(section.strip())
                   found_current = found_current or current

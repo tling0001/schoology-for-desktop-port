@@ -795,7 +795,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage schoologyLandscapeLayout">
-   <aside class="courseAppsSidePane courseInfoSidePane"><div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolName" class="courseSchoolName"></div></div></div><nav class="profileSidebarNav courseSidebarNav">${baseTabs.map(([id,label])=>`<button class="profileSidebarNavItem ${effectiveTab===id?"active":""}" data-course-tab="${id}"><span class="profileNavIcon" aria-hidden="true">${schoologySidebarIcon(id,label)}</span><span>${label}</span></button>`).join("")}</nav><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
+   <aside class="courseAppsSidePane courseInfoSidePane"><div class="courseLandscapeImage"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:${image?'block':'none'}" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><nav class="profileSidebarNav courseSidebarNav">${baseTabs.map(([id,label])=>`<button class="profileSidebarNavItem ${effectiveTab===id?"active":""}" data-course-tab="${id}"><span class="profileNavIcon" aria-hidden="true">${schoologySidebarIcon(id,label)}</span><span>${label}</span></button>`).join("")}</nav></aside>
    <section class="courseMainPane"><div class="sectionProfileTabs">${baseTabs.map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
     <div class="sectionProfileHeader courseIdentityCard courseIdentityMainInfo"><div class="courseIdentityImageWrap courseIdentityMainImage"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:${image?'block':'none'}" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolNameMobile" class="courseSchoolName"></div></div></div>
     <div class="sectionProfileRule"></div><div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></section>
@@ -822,7 +822,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const contentEl=document.getElementById('sectionProfileContent');if(contentEl)contentEl.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
  loadCourseTab(course,effectiveTab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
  loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
- loadCourseApps(course,document.getElementById('courseAppsSideContent')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});installCourseLayoutWatcher();
+ loadCourseApps(course,document.querySelector('.courseSidebarNav')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});installCourseLayoutWatcher();
 }
 async function schoologyAssignmentSupportsAnnotations(sectionId,assignmentId){
   if(!sectionId||!assignmentId||!A.annotationRequest)return false;
@@ -1638,17 +1638,18 @@ async function loadAttendanceTab(course){
 }
 
 async function loadCourseApps(course,targetEl){
-  const el=targetEl||document.getElementById('sectionProfileContent');if(!el)return;
+  const el=targetEl||document.querySelector('.courseSidebarNav');if(!el)return;
   const sid=course.id||course.section_id||course.sectionId;
   const x=await A.api({path:`v2/sections/${sid}/applications`,params:{}});
   const apps=x?.['@extra']||x.extra||x.data?.['@extra']||x.data?.extra||[];
-  el.innerHTML=apps.length?`${apps.map((a,i)=>{
+  el.querySelectorAll('.courseAppSidebarItem').forEach(button=>button.remove());
+  if(apps.length)el.insertAdjacentHTML('beforeend',apps.map((a,i)=>{
     const title=a.title||a.name||'Course App', logo=normalizeImageUrl(a.logoUrl||a.logo_url||a.logo||'');
-    return `<button class="profileSidebarNavItem courseAppSidebarItem" data-app-index="${i}">
+    return `<button class="profileSidebarNavItem courseAppSidebarItem" data-app-index="${i}" type="button">
       <span class="profileNavIcon">${logo?`<img data-course-image-url="${esc(logo)}" alt="" style="display:none">`:schoologySidebarIcon('resources',title)}</span>
       <span class="courseAppSidebarTitle">${esc(title)}</span>
     </button>`;
-  }).join('')}`:'<div class="empty courseAppsEmpty"><h2>No course apps</h2></div>';
+  }).join(''));
   window.__schoologyCourseApps=apps;
   document.querySelectorAll('[data-app-index]').forEach(b=>b.onclick=async()=>{
     const a=window.__schoologyCourseApps[+b.dataset.appIndex];
@@ -1657,11 +1658,14 @@ async function loadCourseApps(course,targetEl){
     const appId=Number(a?.id??a?.application_id??a?.applicationId??a?.resource_app_id??a?.resourceAppId??a?.app_id??a?.appId);
     if(!href&&(!Number.isSafeInteger(appId)||appId<=0)){el.innerHTML='<div class="error apiError">This course app did not provide a launch target.</div>';return}
     try{
-      openWithPressTransition(b,()=>{}); await A.prepareWebSession();
+      openWithPressTransition(b,()=>{});
+      document.querySelectorAll('.courseAppSidebarItem').forEach(item=>item.classList.toggle('active',item===b));
+      document.querySelectorAll('[data-course-tab]').forEach(item=>item.classList.remove('active'));
+      state.courseTab='courseapp';state.toolbarTitle=title;syncToolbar();
       const launchResult=await A.launchCourseApp({launchUrl:href,appId:Number.isSafeInteger(appId)&&appId>0?appId:undefined,sectionId:Number(sid)});
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
-      openWithPressTransition(b,async()=>{const result=await A.openExternal(url);if(typeof result==='string'&&result)showAppDialog('Unable to open course app',result)});
+      showEmbeddedWeb(url,title,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:true,courseApp:true});
     }catch(e){el.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);

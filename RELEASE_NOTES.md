@@ -1,5 +1,13 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.13]
+
+### Fixed
+- Restore portrait group scrolling by keeping the group tabs and identity infobox fixed while the selected tab content scrolls independently.
+- Keep the group infobox background consistent across tabs, matching the landscape surface, with a dark-mode surface override.
+- Keep the portrait course infobox attached beneath the fixed tabs while course content scrolls; remove the redundant divider and retain the full-width infobox bottom border.
+- Restore the three-pane course layout in short landscape windows so the app sidebar no longer consumes the entire screen and the course content and Upcoming rail remain visible.
+
 ## [2026.10.0-port.12]
 
 ### Fixed

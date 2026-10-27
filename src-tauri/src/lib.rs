@@ -451,6 +451,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let popup_app = app.clone();
     let popup_label = label.clone();
     let popup_allow_lti_external = allow_lti_external;
+    let popup_open_externally = info.get("openPopupsExternally").and_then(Value::as_bool).unwrap_or(false);
     let navigation_app = app.clone();
     let navigation_label = label.clone();
     let navigation_allow_lti_external = allow_lti_external;
@@ -490,7 +491,9 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
             false
         })
         .on_new_window(move |next, _features| {
-            if matches!(next.scheme(), "http" | "https") && (is_schoology_or_lausd_host(next.host_str().unwrap_or_default()) || (popup_allow_lti_external && next.scheme() == "https")) {
+            if matches!(next.scheme(), "http" | "https") && popup_open_externally {
+                let _ = popup_app.opener().open_url(next.as_str(), None::<&str>);
+            } else if matches!(next.scheme(), "http" | "https") && (is_schoology_or_lausd_host(next.host_str().unwrap_or_default()) || (popup_allow_lti_external && next.scheme() == "https")) {
                 if let Some(view) = popup_app.get_webview(&popup_label) { let _ = view.navigate(next); }
             } else if matches!(next.scheme(), "http" | "https") {
                 let _ = popup_app.opener().open_url(next.as_str(), None::<&str>);

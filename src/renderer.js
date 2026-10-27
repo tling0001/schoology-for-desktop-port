@@ -96,7 +96,7 @@ function messageDetail(){
    const date=ts?(typeof ts==='number'||/^\d+$/.test(String(ts))?new Date(Number(ts)*1000).toLocaleString():String(ts)):'';
    const body=msg.message||msg.body||'';
    const attachments=renderMessageAttachments(msg.attachments||msg.attachment||{});
-   return `<article class="messageThreadItem"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div class="messageThreadAuthorBlock"><b class="messageThreadAuthor">${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${renderMessageBody(body)}</div>${attachments}</article>`;
+   return `<article class="messageThreadItem sharedPostMessageCard"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div class="messageThreadAuthorBlock"><b class="messageThreadAuthor">${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${renderMessageBody(body)}</div>${attachments}</article>`;
  }).join(''):`<div class="messageThreadLoading">Loading message…</div>`;
  return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">${officialBackIcon()}</button><span class="toolbarTitle">${esc(subject)}</span><button id="messageRefresh" class="iconButton messageActionButton" aria-label="Refresh">${officialIcon('ic_action_refresh.png','Refresh')||'↻'}</button><button id="messageReply" class="iconButton messageActionButton" aria-label="Reply">${officialIcon('ic_action_reply.png','Reply')||'↩'}</button></header><main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main></div>`;
 }
@@ -1645,15 +1645,24 @@ async function loadCourseApps(course,targetEl){
   const x=await A.api({path:`v2/sections/${sid}/applications`,params:{}});
   const apps=x?.['@extra']||x.extra||x.data?.['@extra']||x.data?.extra||[];
   el.querySelectorAll('.courseAppSidebarItem').forEach(button=>button.remove());
-  if(apps.length)el.insertAdjacentHTML('beforeend',apps.map((a,i)=>{
+  const appRows=apps.map((a,i)=>{
     const title=a.title||a.name||'Course App', logo=normalizeImageUrl(a.logoUrl||a.logo_url||a.logo||'');
-    return `<button class="profileSidebarNavItem courseAppSidebarItem" data-app-index="${i}" data-course-tab="courseapp" type="button">
+    if(landscapeApps) return `<button class="profileSidebarNavItem courseAppSidebarItem" data-app-index="${i}" data-course-tab="courseapp" type="button">
       <span class="profileNavIcon">${logo?`<img data-course-image-url="${esc(logo)}" alt="" style="display:none">`:schoologySidebarIcon('resources',title)}</span>
       <span class="courseAppSidebarTitle">${esc(title)}</span>
     </button>`;
-  }).join(''));
+    return `<button class="courseAppRow courseAppPortraitRow" data-app-index="${i}" type="button">
+      <span class="courseAppPortraitIcon">${logo?`<img class="courseAppPortraitLogo" data-course-image-url="${esc(logo)}" alt="" style="display:none">`:schoologySidebarIcon('resources',title)}</span>
+      <span class="courseAppPortraitTitle">${esc(title)}</span>
+    </button>`;
+  }).join('');
+  if(landscapeApps) {
+    if(appRows)el.insertAdjacentHTML('beforeend',appRows);
+  } else {
+    el.innerHTML=`<div class="courseAppList courseAppPortraitList">${appRows||'<div class="androidEmptyState">No course apps</div>'}</div>`;
+  }
   window.__schoologyCourseApps=apps;
-  document.querySelectorAll('[data-app-index]').forEach(b=>b.onclick=async()=>{
+  el.querySelectorAll('[data-app-index]').forEach(b=>b.onclick=async()=>{
     const a=window.__schoologyCourseApps[+b.dataset.appIndex];
     const launch=a?.['@links']?.launch||a?.links?.launch||a?.['@links']?.['launch']||a?.links?.['launch'];
     const href=launch?.['@id']||launch?.id||launch?.href||launch?.url;

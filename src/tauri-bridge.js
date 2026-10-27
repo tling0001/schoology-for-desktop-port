@@ -220,16 +220,10 @@
     const overlayEnabled = mode?.overlay === true && platform !== 'android' && platform !== 'ios';
     document.documentElement.dataset.windowControlsOverlay = String(overlayEnabled);
     if (platform === 'darwin') {
-      const syncNativeMacControls = () => {
-        const drawerOpen = !!document.getElementById('drawer')?.classList.contains('open');
-        invoke('set-macos-window-controls-visible', { visible: !(overlayEnabled && drawerOpen) }).catch(error => console.warn('Could not synchronize native macOS window controls:', error));
-      };
-      syncNativeMacControls();
-      const drawerObserver = new MutationObserver(syncNativeMacControls);
-      drawerObserver.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['class'] });
-      document.addEventListener('click', event => {
-        if (event.target?.closest?.('#menuButton, #drawerShade, #drawer [data-action], #drawer button, #drawer a')) setTimeout(syncNativeMacControls, 80);
-      }, true);
+      // Keep native macOS window decorations stable. Toggling NSWindow decorations
+      // while the drawer/app bar changes can crash an unmaximized window.
+      // The native traffic-light controls remain visible; the drawer layers above
+      // app content without repeatedly reconfiguring the native window.
       return;
     }
     if (!overlayEnabled || document.getElementById('tauriWindowControls')) return;
@@ -596,6 +590,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           this._sessionBootstrapData = session;
           this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length);
           this._sessionBootstrapUrl = this._url;
+          const sessionWebHost = String(session?.webHost || '').toLowerCase() === 'app.schoologyca.com' ? 'app.schoologyca.com' : 'app.schoology.com';
+          this._sessionBootstrapFirstUrl = this._sessionBootstrapPending ? `https://${sessionWebHost}/` : this._url;
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
           let nativeCreated = false;
@@ -658,6 +654,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           if (typeof this.nativeView.onNavigation === 'function') {
           this._unlistenNavigation = await this.nativeView.onNavigation(url => {
             const nextUrl = String(url || this._url);
+            if (nextUrl !== 'about:blank') this._lastNavigatedUrl = nextUrl;
             let parsed = null;
             try { parsed = new URL(nextUrl); } catch (_) {}
             const host = String(parsed?.hostname || '').toLowerCase();
@@ -715,17 +712,19 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
                 // Tauri's eval() executes JavaScript but does not return the
                 // evaluated expression's value. Use the native load event URL to
                 // distinguish about:blank from a real Schoology document.
-                let completedUrl = String(payload.url || '');
+                let completedUrl = String(payload.url || this._lastNavigatedUrl || this._sessionBootstrapFirstUrl || '');
                 let hostname = '';
                 try { hostname = new URL(completedUrl).hostname.toLowerCase(); } catch (_) {}
-                if (!/^(?:[^.]+\\.)*schoology(?:ca)?\\.com$/.test(hostname)) return;
+                const isSchoologyCookieHost = hostname === 'schoology.com' || hostname.endsWith('.schoology.com') || hostname === 'schoologyca.com' || hostname.endsWith('.schoologyca.com');
+                if (!isSchoologyCookieHost) return;
                 try {
-                  // Explicitly install cookies after the first document exists;
-                  // this works even on WebView2 builds where the init script's
-                  // first navigation races the unauthenticated HTTP request.
+                  // Install cookies after a same-origin Schoology document exists.
+                  // Starting at the web origin root avoids a protected deep-link
+                  // redirect winning the race before cookies can be written.
                   await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, this._sessionBootstrapData, this._label));
                 } catch (error) {
                   console.warn('Could not install Schoology session cookies in the first WebView document:', error);
+                  return;
                 }
                 this._sessionBootstrapPending = false;
                 const retryUrl = this._sessionBootstrapUrl || this._url;
@@ -774,7 +773,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               // eval() has no result channel, so issue one delayed retry if the
               // event-driven path has not already completed.
               if (attempts++ < 1) { setTimeout(retryAfterBootstrap, 2800); return; }
-              try { await initialView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, this._sessionBootstrapData, this._label)); } catch (_) {}
+              try { await initialView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, this._sessionBootstrapData, this._label)); }
+              catch (error) { console.warn('Could not install Schoology session cookies in the WebView load-event fallback:', error); return; }
               if (!this._sessionBootstrapPending || !this.isConnected || this.nativeView !== initialView) return;
               this._sessionBootstrapPending = false;
               const retryUrl = this._sessionBootstrapUrl || this._url;
@@ -802,7 +802,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));
         } else {
           await this._syncBounds();
-          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
+          const firstNavigationUrl = this._sessionBootstrapFirstUrl || this._url;
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(firstNavigationUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(firstNavigationUrl) : invoke('navigate-embedded-webview', { label: this._label, url: firstNavigationUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
           this._hasLoadedPage = true;
           await this._syncBounds();
           this._syncHandler();

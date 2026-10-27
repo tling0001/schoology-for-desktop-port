@@ -855,7 +855,7 @@ async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value
             && (domain == "schoology.com" || domain.ends_with(".schoology.com") || domain == "schoologyca.com" || domain.ends_with(".schoologyca.com"))
     }).collect();
     if safe_cookies.is_empty() { return Err("Schoology returned no usable web-session cookies.".into()); }
-    Ok(json!({ "cookies": safe_cookies, "mobileCookie": MOBILE_COOKIE.split_once('=').map(|(_, value)| value).unwrap_or("") }))
+    Ok(json!({ "cookies": safe_cookies, "mobileCookie": MOBILE_COOKIE.split_once('=').map(|(_, value)| value).unwrap_or(""), "webHost": web_host() }))
 }
 
 fn schoology_api_url(path: &str) -> Result<Url, String> {

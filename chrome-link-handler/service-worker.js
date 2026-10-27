@@ -3,7 +3,7 @@ const DEFAULTS={courseMaterials:true,courses:true,courseUpdates:true,courseGrade
 function categoryFor(url){
  try{
   const u=new URL(url);if(u.protocol!=='https:')return null;
-  const host=u.hostname.toLowerCase();if(!(host==='lms.lausd.net'||host==='app.schoology.com'||host==='schoology.com'||host.endsWith('.schoology.com')))return null;
+  const host=u.hostname.toLowerCase();if(host==='lti-service.svc.schoology.com')return null;if(!(host==='lms.lausd.net'||host==='app.schoology.com'||host==='schoology.com'||host.endsWith('.schoology.com')))return null;
   const path=u.pathname.replace(/\/+$/,'')||'/';
   if(/^\/apps(?:\/|$)/i.test(path)||/^\/resources\/apps(?:\/|$)/i.test(path))return null;
   if(/^\/(oauth|login|logout|mobile_login_success|saml|auth)(?:\/|$)/i.test(path))return null;

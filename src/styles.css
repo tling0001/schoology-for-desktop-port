@@ -143,6 +143,13 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .materialRow:hover,.courseAppRow:hover,.gradeAssignmentRow:hover{background:#f6f7f8}
 .materialIcon{width:38px;font-size:22px}.materialRow>b,.materialRow span:nth-child(2),.courseAppRow span:nth-child(2){flex:1}.materialRow small,.courseAppRow small,.gradeAssignmentName small{display:block;color:#888;font-size:12px;margin-top:3px}
 .courseAppIcon{width:42px;height:42px;border-radius:4px;background:#e7ebee;display:flex;align-items:center;justify-content:center;color:#56607d;font-weight:600;margin-right:14px}
+.courseAppPortraitList{background:#fff;min-height:100%}
+.courseAppPortraitRow{min-height:74px!important;padding:10px 16px!important;gap:0!important;background:#fff!important;border-bottom:1px solid #e2e2e2!important}
+.courseAppPortraitRow:hover{background:#f6f7f8!important}
+.courseAppPortraitIcon{width:9%;min-width:32px;max-width:48px;aspect-ratio:1;flex:0 0 9%;display:flex;align-items:center;justify-content:center;margin:0;background:transparent;color:#566b7a;overflow:hidden}
+.courseAppPortraitIcon>img,.courseAppPortraitIcon>svg{width:100%;height:100%;max-width:48px;max-height:48px;object-fit:contain;display:block}
+.courseAppPortraitLogo{border-radius:0;object-fit:contain}
+.courseAppPortraitTitle{flex:1;min-width:0;padding:0 16px;font-size:18px;font-weight:700;line-height:1.35;color:#222;overflow-wrap:anywhere;text-align:left}
 .assignmentPage{background:#fff;min-height:100%;padding-bottom:40px}.assignmentHeader{padding:22px 20px 16px}.assignmentHeader h1{font-size:23px;font-weight:400;color:#333;margin:0 0 9px}.assignmentDue{font-size:13px;color:#777}.assignmentRule{height:1px;background:#ddd}.assignmentBody{padding:20px;font-size:15px;line-height:1.55;color:#333}.assignmentBody img{max-width:100%;height:auto}.assignmentAttachments{padding:0 20px 18px}.assignmentAttachments img{display:block;max-width:100%;max-height:360px;margin:8px 0;border-radius:3px}.assignmentAttachments a{display:block;padding:8px 0;color:#2e66a3;word-break:break-all}.assignmentMeta{display:flex;justify-content:space-between;padding:15px 20px;border-top:1px solid #eee;color:#777;font-size:13px}.assignmentActions{padding:0 20px}.androidSecondary{background:#fff;border:1px solid #bbb;border-radius:3px;padding:9px 18px;color:#333}
 .gradesAndroid{background:#fff}.gradesOverall{padding:0 0}.gradePeriod{border-top:1px solid #ddd}.gradePeriodHeader{min-height:45px;background:#5d5d5d;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:13px}.gradePeriodHeader strong{font-size:17px;font-weight:500}.gradeAssignmentRow{min-height:54px}.gradeAssignmentName{flex:1}.gradeValue{min-width:55px;text-align:right;color:#333;font-size:14px}
 .upcomingList{background:#fff}.upcomingAssignment{width:100%;border:0;border-bottom:1px solid #e1e1e1;background:#fff;display:flex;align-items:center;text-align:left;padding:13px 16px;min-height:68px;cursor:pointer}.assignmentIcon{width:42px;font-size:20px}.assignmentInfo{flex:1}.assignmentInfo b{display:block;color:#333;font-size:15px;font-weight:500}.assignmentInfo small{display:block;color:#888;font-size:12px;margin-top:4px}.rowChevron{color:#999;font-size:24px}
@@ -3439,3 +3446,26 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 }
 
 .profileNavIcon .schoologyIosPeopleIcon{width:26px!important;height:30px!important;max-width:26px!important;max-height:30px!important;object-fit:contain!important}
+
+/* Port.12: course identity card order follows Android by orientation. */
+@media (min-width:801px) and (orientation:landscape){
+  .courseLandscapePage .courseMainPane{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+  .courseLandscapePage .courseMainPane>.courseIdentityMainInfo{display:flex!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:2!important;order:0!important;flex:0 0 auto!important;height:auto!important;max-height:none!important;min-height:82px!important;overflow:visible!important}
+  .courseLandscapePage .courseMainPane>.sectionProfileTabs{display:flex!important;order:1!important;flex:0 0 auto!important;position:relative!important;z-index:1!important}
+  .courseLandscapePage .courseMainPane>.sectionProfileRule{order:2!important;flex:0 0 auto!important}
+  .courseLandscapePage .courseMainPane>#sectionProfileContent{order:3!important;flex:1 1 auto!important;min-height:0!important;position:relative!important;z-index:0!important}
+}
+@media(max-width:800px){
+  .courseLandscapePage .courseMainPane{display:flex!important;flex-direction:column!important;overflow:visible!important;min-height:100%!important}
+  .courseLandscapePage .courseMainPane>.sectionProfileTabs{order:0!important;flex:0 0 auto!important}
+  .courseLandscapePage .courseMainPane>.courseIdentityMainInfo{display:flex!important;visibility:visible!important;opacity:1!important;order:1!important;flex:0 0 auto!important;height:auto!important;max-height:none!important;min-height:82px!important;overflow:visible!important;margin:0!important}
+  .courseLandscapePage .courseMainPane>.sectionProfileRule{order:2!important;flex:0 0 auto!important}
+  .courseLandscapePage .courseMainPane>#sectionProfileContent{order:3!important;flex:0 0 auto!important;min-height:0!important;overflow:visible!important}
+}
+/* Messages use separated card surfaces and the soft feed backdrop used by posts. */
+.messageDetail{background:#f5f6f7!important;padding:1px 0 16px!important}
+.messageThreadItem.sharedPostMessageCard{display:block!important;margin:10px 10px 14px!important;padding:12px 12px 10px!important;border:1px solid var(--theme-border,#dfe3e7)!important;border-radius:8px!important;background:var(--theme-surface,#fff)!important;color:var(--theme-text,#263238)!important;box-shadow:0 1px 3px rgba(0,0,0,.07)!important}
+.messageThreadItem.sharedPostMessageCard .messageThreadBody{padding:0!important;background:transparent!important;color:inherit!important}
+.messageThreadItem.sharedPostMessageCard .messageAttachments{padding:10px 0 0!important;background:transparent!important}
+:root[data-theme="dark"] .messageDetail{background:var(--theme-bg,#17191c)!important}
+:root[data-theme="dark"] .messageThreadItem.sharedPostMessageCard{background:var(--theme-surface,#202328)!important;border-color:var(--theme-border,#393d43)!important;color:var(--theme-text,#e6e8eb)!important}

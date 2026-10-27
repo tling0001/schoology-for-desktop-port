@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.12]
+
+### Fixed
+- Repair shared WebView session bootstrap: navigate to the configured Schoology web origin first, install sessionstart cookies after that same-origin document loads, then retry the original URL. Fix hostname matching and avoid marking cookie injection complete when injection fails.
+- Render portrait Course Apps as Android-style full-width rows with square app logos and bold titles; keep landscape sidebar app entries unchanged.
+- Keep the landscape course infobox visible above course tabs and place the portrait infobox below the tabs, matching the official Android course layout.
+- Avoid macOS window crashes by keeping native window decorations stable instead of toggling them on every drawer/app-bar class mutation.
+- Exclude https://lti-service.svc.schoology.com/* from the companion link handler.
+- Give each message in message details its own rounded post-style card on the shared light/dark feed backdrop.
+
 ## [2026.10.0-port.11]
 
 ### Fixed

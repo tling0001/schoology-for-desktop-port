@@ -592,6 +592,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           this._sessionBootstrapUrl = this._url;
           const sessionWebHost = String(session?.webHost || '').toLowerCase() === 'app.schoologyca.com' ? 'app.schoologyca.com' : 'app.schoology.com';
           this._sessionBootstrapFirstUrl = this._sessionBootstrapPending ? `https://${sessionWebHost}/` : this._url;
+          this._sessionBootstrapRootRetry = false;
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
           let nativeCreated = false;
@@ -712,11 +713,37 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
                 // Tauri's eval() executes JavaScript but does not return the
                 // evaluated expression's value. Use the native load event URL to
                 // distinguish about:blank from a real Schoology document.
-                let completedUrl = String(payload.url || this._lastNavigatedUrl || this._sessionBootstrapFirstUrl || '');
-                let hostname = '';
-                try { hostname = new URL(completedUrl).hostname.toLowerCase(); } catch (_) {}
-                const isSchoologyCookieHost = hostname === 'schoology.com' || hostname.endsWith('.schoology.com') || hostname === 'schoologyca.com' || hostname.endsWith('.schoologyca.com');
-                if (!isSchoologyCookieHost) return;
+                const isSchoologyCookieUrl = value => {
+                  try {
+                    const hostname = new URL(String(value || '')).hostname.toLowerCase();
+                    return hostname === 'schoology.com' || hostname.endsWith('.schoology.com') || hostname === 'schoologyca.com' || hostname.endsWith('.schoologyca.com');
+                  } catch (_) { return false; }
+                };
+                const eventUrl = String(payload.url || '');
+                const completedUrl = isSchoologyCookieUrl(eventUrl)
+                  ? eventUrl
+                  : isSchoologyCookieUrl(this._lastNavigatedUrl)
+                    ? String(this._lastNavigatedUrl)
+                    : String(this._sessionBootstrapFirstUrl || eventUrl || this._lastNavigatedUrl || '');
+                if (!isSchoologyCookieUrl(completedUrl)) return;
+                // Some native WebView builds report a redirect destination (or a stale
+                // navigation URL) instead of the same-origin bootstrap document. Do not
+                // inject cookies into that unrelated origin or leave bootstrap pending:
+                // return to the known Schoology origin and let its next load event retry.
+                if (eventUrl && !isSchoologyCookieUrl(eventUrl)) {
+                  if (!this._sessionBootstrapRootRetry && this._sessionBootstrapFirstUrl) {
+                    this._sessionBootstrapRootRetry = true;
+                    try {
+                      const bootstrapUrl = this._sessionBootstrapFirstUrl;
+                      if (typeof this.nativeView.navigate === 'function') await this.nativeView.navigate(bootstrapUrl);
+                      else if (typeof this.nativeView.setUrl === 'function') await this.nativeView.setUrl(bootstrapUrl);
+                      else await invoke('navigate-embedded-webview', { label: this._label, url: bootstrapUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' });
+                    } catch (error) {
+                      console.warn('Could not return the shared WebView to the Schoology session bootstrap origin:', error);
+                    }
+                  }
+                  return;
+                }
                 try {
                   // Install cookies after a same-origin Schoology document exists.
                   // Starting at the web origin root avoids a protected deep-link

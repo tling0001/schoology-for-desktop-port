@@ -3324,3 +3324,47 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
  .courseInfoSidePane .courseSidebarNav{padding-bottom:0!important}
  .courseAppsSideContent>.loading{padding:18px 6px!important}
 }
+
+
+/* port.9: one shared landscape shell for courses, groups, and school profiles. */
+@media (min-width:801px) and (orientation:landscape){
+  .schoologyLandscapeLayout{box-sizing:border-box!important}
+  .courseLandscapePage.schoologyLandscapeLayout{grid-template-columns:minmax(176px,22%) minmax(0,1fr) minmax(240px,25%)!important}
+  .groupLandscapeSplit,.schoolProfileLandscapeSplit{grid-template-columns:minmax(176px,22%) minmax(0,1fr) minmax(240px,25%)!important}
+  .courseInfoSidePane.courseAppsSidePane{display:flex!important;flex-direction:column!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+  .courseInfoSidePane .courseIdentityImageWrap{display:none!important}
+  .courseInfoSidePane .courseIdentityInfoBar,.groupInfoSidePane .groupHeader>div:last-child{display:block!important;min-width:0!important;padding:0 12px!important}
+  .courseInfoSidePane .courseIdentityInfoBar .sectionProfileTitle,.groupInfoSidePane .groupHeader h1{font-size:17px!important;line-height:1.3!important;overflow-wrap:anywhere!important}
+  .courseInfoSidePane .courseIdentityInfoBar .sectionProfileSubtitle,.courseInfoSidePane .courseIdentityInfoBar .courseSchoolName,.groupInfoSidePane .groupSchoolLink{display:block!important;font-size:13px!important;margin-top:4px!important}
+  .courseInfoSidePane .courseAppsSideContent{height:auto!important;min-height:0!important;overflow:visible!important;flex:0 0 auto!important}
+  .courseInfoSidePane .courseAppsSideContent .loading{padding:18px 8px!important}
+  .courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage{display:none!important}
+  .groupSidebarNav [data-group-tab="upcoming"],.schoolSidebarNav [data-school-profile-tab="upcoming"]{display:none!important}
+  .courseUpcomingPane,.groupUpcomingPane,.schoolProfileUpcomingPane{position:relative!important;overflow:hidden!important}
+  .courseUpcomingPane .homePaneHeader,.groupUpcomingPane .homePaneHeader,.schoolProfileUpcomingPane .homePaneHeader{height:48px!important;min-height:48px!important;background:#002137!important;color:#fff!important}
+  .courseUpcomingPane .upcomingLandscapeLabel,.groupUpcomingPane .upcomingLandscapeLabel,.schoolProfileUpcomingPane .upcomingLandscapeLabel{display:none!important}
+  .courseUpcomingPane .courseUpcomingContent,.groupUpcomingPane #groupUpcomingContent,.schoolProfileUpcomingPane .schoolProfileUpcomingContent{height:calc(100% - 48px)!important;overflow:auto!important}
+  .courseLandscapePage.upcoming-collapsed{grid-template-columns:minmax(176px,22%) minmax(0,1fr) 108px!important}
+  .groupProfilePage.upcoming-collapsed .groupLandscapeSplit,.schoolProfileNativePage.upcoming-collapsed .schoolProfileLandscapeSplit{grid-template-columns:minmax(176px,22%) minmax(0,1fr) 108px!important}
+  .courseLandscapePage.upcoming-collapsed .courseUpcomingPane .homePaneHeader,.groupProfilePage.upcoming-collapsed .groupUpcomingPane .homePaneHeader,.schoolProfileNativePage.upcoming-collapsed .schoolProfileUpcomingPane .homePaneHeader{position:absolute!important;inset:0 auto 0 0!important;width:32px!important;height:100%!important;min-height:100%!important;box-sizing:border-box!important;flex-direction:column!important;justify-content:center!important;gap:10px!important;padding:8px 2px!important;background:#e1e5e9!important;color:#35414a!important;border-right:1px solid #c6ccd2!important;border-bottom:0!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingLandscapeLabel,.groupProfilePage.upcoming-collapsed .upcomingLandscapeLabel,.schoolProfileNativePage.upcoming-collapsed .upcomingLandscapeLabel{display:block!important;writing-mode:vertical-rl!important;transform:rotate(180deg)!important;font-size:11px!important;letter-spacing:.06em!important;text-transform:uppercase!important;color:#4b5660!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingPaneTitle,.groupProfilePage.upcoming-collapsed .upcomingPaneTitle,.schoolProfileNativePage.upcoming-collapsed .upcomingPaneTitle{display:none!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingCollapseToggle,.groupProfilePage.upcoming-collapsed .upcomingCollapseToggle,.schoolProfileNativePage.upcoming-collapsed .upcomingCollapseToggle{background:#cfd5db!important;color:#26333d!important;border-radius:5px!important;width:26px!important;height:30px!important;flex:0 0 30px!important}
+  .courseLandscapePage.upcoming-collapsed .courseUpcomingContent,.groupProfilePage.upcoming-collapsed #groupUpcomingContent,.schoolProfileNativePage.upcoming-collapsed .schoolProfileUpcomingContent{height:100%!important;margin-left:32px!important;width:calc(100% - 32px)!important;box-sizing:border-box!important;overflow:auto!important;padding:5px 2px!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingDateHeader,.groupProfilePage.upcoming-collapsed .upcomingDateHeader,.schoolProfileNativePage.upcoming-collapsed .upcomingDateHeader{display:flex!important;justify-content:center!important;align-items:center!important;min-height:26px!important;margin:0!important;padding:4px 0 2px!important;border-bottom:1px solid #d9dee3!important;font-size:10px!important;font-weight:600!important;color:#5b6670!important;white-space:nowrap!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingDateFull,.groupProfilePage.upcoming-collapsed .upcomingDateFull,.schoolProfileNativePage.upcoming-collapsed .upcomingDateFull{display:none!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingDateCompact,.groupProfilePage.upcoming-collapsed .upcomingDateCompact,.schoolProfileNativePage.upcoming-collapsed .upcomingDateCompact{display:inline!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingDateRule,.groupProfilePage.upcoming-collapsed .upcomingDateRule,.schoolProfileNativePage.upcoming-collapsed .upcomingDateRule{display:none!important}
+  .courseLandscapePage.upcoming-collapsed .upcomingAssignment,.groupProfilePage.upcoming-collapsed .upcomingAssignment,.schoolProfileNativePage.upcoming-collapsed .upcomingAssignment{display:flex!important;justify-content:center!important;align-items:center!important;min-height:42px!important;height:auto!important;padding:4px 0!important;border:0!important;background:transparent!important;overflow:hidden!important}
+  .courseLandscapePage.upcoming-collapsed .assignmentIcon,.groupProfilePage.upcoming-collapsed .assignmentIcon,.schoolProfileNativePage.upcoming-collapsed .assignmentIcon{width:24px!important;height:24px!important;min-width:24px!important;flex:0 0 24px!important;margin:0!important}
+  .courseLandscapePage.upcoming-collapsed .assignmentInfo,.groupProfilePage.upcoming-collapsed .assignmentInfo,.schoolProfileNativePage.upcoming-collapsed .assignmentInfo,.courseLandscapePage.upcoming-collapsed .rowChevron,.groupProfilePage.upcoming-collapsed .rowChevron,.schoolProfileNativePage.upcoming-collapsed .rowChevron{display:none!important}
+}
+.upcomingDateCompact{display:none}
+.courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage{display:flex!important}
+.courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage .sectionProfileImage,.courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage .sectionProfileFallback{width:64px!important;height:64px!important;object-fit:cover!important}
+@media(max-width:800px){
+  .courseLandscapePage .courseAppsSidePane{display:none!important}
+  .courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage{display:flex!important}
+}
+:root:not([data-theme="dark"]) .activity:has(.sharedPostCard){background:#dfe3e7!important}
+:root[data-theme="dark"] .activity:has(.sharedPostCard){background:var(--theme-bg)!important}

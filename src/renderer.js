@@ -936,7 +936,7 @@ async function showAssignment(sectionId,assignmentId){
     const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission)||flag(gradeItem.allow_dropbox)||flag(gradeItem.allowDropbox)||flag(gradeItem.allow_submission)||flag(gradeItem.allowSubmission);
     const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion)||flag(gradeItem.allow_discussion)||flag(gradeItem.allowDiscussion);
     const annotationFiles=collectAssignmentAttachments(attachments).filter(f=>{const name=String(f.filename||f.fileName||f.title||f.fileTitle||'');const mime=String(f.filemime||f.fileMIME||f.mime||'').toLowerCase();return !!(f.id||f.file_id||f.fileId)&&(mime.includes('pdf')||/\.pdf$/i.test(name))&&!!(f.file_download_url||f.fileDownloadURL||f.download_path||f.downloadPath||f.download_url||f.downloadUrl||f.url||f.resolveDownloadUrl||f.resolve_download_url);});
-    const supportsAnnotations=canSubmit&&!isTeacher&&annotationFiles.length>0&&await schoologyAssignmentSupportsAnnotations(sectionId,assignmentId);
+    const supportsAnnotations=canSubmit&&!isTeacher&&await schoologyAssignmentSupportsAnnotations(sectionId,assignmentId);
     let assignmentGrade={};
     if(uid){try{const gr=await A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItem.id||assignmentId,enrollment_id:(myEnrollment.id||undefined)}});assignmentGrade=(gr.grades?.grade||gr.grade||[])[0]||{}}catch{}}
     const resolvedGradeItemId=Number(gradeItem.id||gradeItem.grade_item_id||gradeItem.gradeItemId||gradeItem.gradeitem_id||gradeItem.gradeItemID||assignmentId)||Number(assignmentId);
@@ -1704,17 +1704,16 @@ async function loadSharedPostPreview(panel){
   const data=await A.api({path:realm+'/'+realmId+'/updates/'+updateId+'/comments',params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});
   const raw=data?.comment??data?.comments??data?.data?.comment??data?.data?.comments??[];
   const comments=Array.isArray(raw)?raw:(raw&&typeof raw==='object'?[raw]:[]);
-  const roots=comments.filter(c=>Number(c.parent_id??c.parentId??0)===0);
-  const timestamp=c=>{const v=c.created??c.timestamp??c.last_updated??c.lastUpdated??0;const n=typeof v==='number'?v:Date.parse(v)||0;return n>0&&n<1000000000000?n*1000:n};
-  roots.sort((a,b)=>timestamp(b)-timestamp(a));
-  const recent=roots.slice(0,2);
+  const timestamp=c=>{const v=c.created??c.timestamp??c.last_updated??c.lastUpdated??0;const n=typeof v==='number'?v:Date.parse(v)||0;return n>0&&n<1000000000000?n*1000:n||Number(c.id??c.comment_id??c.commentId??0)};
+  comments.sort((a,b)=>timestamp(b)-timestamp(a));
+  const recent=comments.slice(0,2);
   if(!recent.length){panel.remove();return;}
   panel.innerHTML='<button type="button" class="sharedPostViewMore">View more comments</button>'+recent.map(comment=>{
    const profile=comment.user||comment.author||comment.profile||comment.creator||{};
    const name=dialogPersonName(comment,profile)||'Schoology';
    const body=comment.body??comment.comment??comment.message??comment.richtext_body??'';
    const created=formatSchoologyDate(comment.created??comment.timestamp??comment.last_updated??'');
-   return '<div class="sharedPostPreviewComment"><b>'+esc(name)+'</b><div class="sharedPostPreviewCommentBody">'+body+'</div>'+(created?'<small>'+esc(created)+'</small>':'')+'</div>';
+   return '<div class="sharedPostPreviewComment"'+(Number(comment.parent_id??comment.parentId??0)>0?' style="margin-left:20px"':'')+'><b>'+esc(name)+'</b><div class="sharedPostPreviewCommentBody">'+body+'</div>'+(created?'<small>'+esc(created)+'</small>':'')+'</div>';
   }).join('');
   panel.querySelector('.sharedPostViewMore')?.addEventListener('click',()=>openUpdateCommentsModal(realm,realmId,updateId,'Comments'));
   hydrateMediaImages(panel).catch(()=>{});

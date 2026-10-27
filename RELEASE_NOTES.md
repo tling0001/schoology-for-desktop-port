@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.7]
+
+### Fixed
+- Install Android SDK components as separate sdkmanager arguments so the Android workflow no longer treats the full package list as one package.
+- Generate first-launch “What’s new” text from the matching version section in RELEASE_NOTES.md.
+- Match shared post-list backgrounds to #f5f6f7 in light mode across course, group, and school updates.
+- Move course, group, and school navigation into a narrower iPad-style sidebar with a full-width square profile image.
+- Make Upcoming collapsible to an icon-only rail while preserving existing event rows and click targets.
+
+
 ## [2026.10.0-port.6]
 
 ### Fixed

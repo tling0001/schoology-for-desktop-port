@@ -1,5 +1,16 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.9]
+
+### Fixed
+- Restore the course image in the portrait infobox while keeping it out of the landscape content header.
+- Keep Course Apps in the same scrollable left sidebar as course navigation in landscape, without changing the portrait Course App tab.
+- Share the same three-column landscape sizing across course, group, and school profile pages; keep course/group identity subtitles while avoiding a duplicate school-name subtitle.
+- Replace group and school sidebar icons with embedded assets converted from the official Schoology iOS app, and render course sidebar sprite icons at their native dimensions to avoid blur.
+- Replace the Upcoming collapse button with a narrow gray vertical Landscape rail and arrow; keep events grouped by date and show compact M/D date labels while collapsed.
+- Apply the light-mode card backdrop to Recent Activity as well as group and school update feeds.
+- Fix the shared WebView session regression: the prior change disabled the original-URL retry and only reloaded a possibly redirected login URL. Retry the original destination after the initialization script confirms that session cookies were installed, with a fallback for missed native load events.
+
 ## [2026.10.0-port.8]
 
 ### Fixed

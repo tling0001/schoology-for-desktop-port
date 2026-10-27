@@ -847,7 +847,7 @@ async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value
     // Schoology hosts. Never pass cookies for arbitrary domains to the renderer.
     let safe_cookies: Vec<Value> = cookies.into_iter().filter(|cookie| {
         let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("");
-        let value = cookie.get("value").and_then(Value::as_str).unwrap_or("");
+        let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str).unwrap_or("");
         let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(if web_host() == "app.schoologyca.com" { ".schoologyca.com" } else { ".schoology.com" }).trim_start_matches('.').to_ascii_lowercase();
         !name.is_empty() && !value.is_empty()
             && !name.chars().any(|c| c.is_control() || c == ';' || c == '=')

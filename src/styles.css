@@ -3542,3 +3542,24 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .courseLandscapePage .courseUpcomingContent{height:100%!important;margin-left:24px!important;width:calc(100% - 24px)!important;overflow:auto!important;padding:3px 1px!important}
   :root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo{background:var(--theme-surface,#202328)!important;border-color:var(--theme-border,#393d43)!important}
 }
+
+
+/* Port.14: account for iOS safe-area insets and keep course identity separate from tabs. */
+@media (orientation:portrait){
+  .groupProfilePage{height:calc(100dvh - 56px - env(safe-area-inset-bottom,0px))!important;max-height:calc(100dvh - 56px - env(safe-area-inset-bottom,0px))!important;padding-bottom:env(safe-area-inset-bottom,0px)!important;box-sizing:border-box!important}
+  .groupLandscapeSplit{height:100%!important;max-height:100%!important;min-height:0!important}
+  .groupMainPane{height:100%!important;max-height:100%!important;min-height:0!important}
+  .groupMainPane>#groupTabContent{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))!important;scroll-padding-bottom:env(safe-area-inset-bottom,0px)!important}
+}
+
+/* Landscape courses use the left sidebar for navigation, but always retain course identity. */
+@media (orientation:landscape){
+  .courseLandscapePage .courseMainPane>.sectionProfileTabs{display:none!important}
+  .courseLandscapePage .courseMainPane>.courseIdentityMainInfo{display:flex!important;visibility:visible!important;opacity:1!important}
+  .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .sectionProfileTitle{color:#333!important}
+  .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .sectionProfileSubtitle{color:#777!important}
+  .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .courseSchoolLink{color:#3183c8!important}
+  :root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .sectionProfileTitle{color:var(--theme-text,#e6e8eb)!important}
+  :root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .sectionProfileSubtitle{color:var(--theme-muted,#a9afb7)!important}
+  :root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .courseSchoolLink{color:var(--theme-blue,#7ab7ff)!important}
+}

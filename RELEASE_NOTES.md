@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.8]
+
+### Fixed
+- Restore the course, group, and school identity strip in the main content column while keeping only the profile image in the left sidebar.
+- Put Course Apps directly below Materials, Updates, Grades, and Members using the same sidebar button treatment.
+- Replace placeholder sidebar glyphs with embedded renderer icons and improve the Upcoming collapse/expand animation.
+- Give the left sidebar, center content, and Upcoming pane independent scrolling in landscape layouts.
+- Apply the #f5f6f7 light-mode surface to the full area behind shared post cards.
+
 ## [2026.10.0-port.7]
 
 ### Fixed

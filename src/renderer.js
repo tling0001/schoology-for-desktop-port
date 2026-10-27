@@ -1612,7 +1612,7 @@ async function showEmbeddedWeb(url,title,options={}){
  }
  if(options.routeSchoology!==false){try{const u=new URL(String(url||''));if((u.hostname.toLowerCase()==='lms.lausd.net'||u.hostname.toLowerCase().endsWith('.schoology.com')||u.hostname.toLowerCase()==='schoologyca.com'||u.hostname.toLowerCase().endsWith('.schoologyca.com'))&&/^\/course(?:s)?\/\d+\/materials\/gp\/\d+\/?$/i.test(u.pathname)){if(await routeSchoologyLink(u.href))return;}}catch{}}
  try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
- c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':''));syncToolbar();
+ if(options.courseApp){c.classList.remove('webContentHost','embeddedContentActive');c.classList.add('courseAppEmbeddedContent');}else{c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');}state.toolbarTitle=title||'Schoology';state.embeddedTitle=title||'Schoology';state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':''));syncToolbar();
  const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" data-open-popups-external="${options.courseApp===true}" allowpopups></${embeddedTag}></section>`;
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
@@ -1668,7 +1668,7 @@ async function loadCourseApps(course,targetEl){
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
       showEmbeddedWeb(url,appTitle,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:true,courseApp:true});
-    }catch(e){el.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
+    }catch(e){const errorTarget=document.getElementById('sectionProfileContent')||el;errorTarget.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);
 }
@@ -1980,6 +1980,7 @@ function openCourseUpdateComposer(course){
 
 async function loadCourseTab(course,tab){
  const el=document.getElementById('sectionProfileContent');if(!el)return;
+ el.classList.remove('courseAppEmbeddedContent','embeddedContentActive');
  const sid=course.id||course.section_id||course.sectionId;
  if(!sid)throw new Error('Course section ID is missing.');
  if(tab==='materials'){

@@ -3317,3 +3317,10 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
  .courseInfoSidePane .courseIdentityImageWrap,.groupInfoSidePane .groupHero,.schoolProfileInfoSidePane .schoolProfileHeaderImage{margin-bottom:0!important}
  .courseInfoSidePane .courseIdentityCard{padding-bottom:0!important}
 }
+
+@media (min-width:801px) and (orientation:landscape){
+ .profileNavIcon{width:32px!important;flex:0 0 32px!important}
+ .profileNavIcon .officialSidebarSpriteIcon{width:32px!important;height:32px!important;flex:0 0 32px!important;background-size:256px 32px!important}
+ .courseInfoSidePane .courseSidebarNav{padding-bottom:0!important}
+ .courseAppsSideContent>.loading{padding:18px 6px!important}
+}

@@ -1,5 +1,12 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.14]
+
+### Fixed
+- Account for the iOS bottom safe-area inset in the portrait group container so content and scrolling are not clipped at the bottom when the top safe-area view is enabled.
+- Hide course tabs in landscape where the sidebar already provides navigation, without hiding the course infobox.
+- Keep the course name subtitle neutral and make only the school name a blue clickable link in the course infobox, including dark mode.
+
 ## [2026.10.0-port.13]
 
 ### Fixed

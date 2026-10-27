@@ -3563,3 +3563,90 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   :root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .sectionProfileSubtitle{color:var(--theme-muted,#a9afb7)!important}
   :root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .courseSchoolLink{color:var(--theme-blue,#7ab7ff)!important}
 }
+
+
+/* Port.15 interaction polish: inset, rounded row highlights and tactile toolbar controls. */
+.materialRow,.courseAppRow,.gradeAssignmentRow,.resourceCategoryHeader,.settingRow,.upcomingCard,.sectionUpdate{
+  border-radius:8px!important;
+  transition:background-color .14s ease,box-shadow .14s ease,transform .14s ease,border-color .14s ease;
+}
+.materialRow,.courseAppRow,.gradeAssignmentRow,.resourceCategoryHeader,.settingRow{
+  width:calc(100% - 16px)!important;
+  margin-inline:8px!important;
+  border-bottom-color:transparent!important;
+}
+.materialRow:hover,.materialRow:focus-visible,.courseAppRow:hover,.courseAppRow:focus-visible,
+.gradeAssignmentRow:hover,.gradeAssignmentRow:focus-visible,.resourceCategoryHeader:hover,.resourceCategoryHeader:focus-visible,
+.settingRow:hover,.settingRow:focus-within,.settingButton:hover,.settingButton:focus-visible{
+  background:var(--theme-hover,#f0f3f6)!important;
+  border-radius:8px!important;
+  box-shadow:0 1px 3px rgba(0,0,0,.08)!important;
+}
+.materialRow:active,.courseAppRow:active,.gradeAssignmentRow:active,.resourceCategoryHeader:active,
+.settingButton:active,.upcomingCard:active{
+  transform:scale(.992);
+  background:var(--theme-pressed,#e8edf2)!important;
+  border-radius:8px!important;
+}
+.upcomingCard{margin:5px 8px!important;padding:10px 12px!important;width:calc(100% - 16px)!important;border:1px solid transparent!important}
+.upcomingCard:hover,.upcomingCard:focus-visible{background:var(--theme-hover,#f0f3f6)!important;border-color:var(--theme-border,#dfe3e7)!important;box-shadow:0 1px 3px rgba(0,0,0,.08)!important}
+.settingsGroup{overflow:hidden}
+.settingRow{min-height:64px}
+.settingRow + .settingRow{border-top-color:transparent!important}
+.shell .toolbar .iconButton,.sharedPdfViewerAppBar button{
+  border:0!important;border-radius:50%!important;
+  transition:background-color .14s ease,transform .14s ease!important;
+}
+.shell .toolbar .iconButton:hover,.shell .toolbar .iconButton:focus-visible,
+.sharedPdfViewerAppBar button:hover,.sharedPdfViewerAppBar button:focus-visible{
+  background:rgba(255,255,255,.14)!important;outline:2px solid rgba(255,255,255,.22)!important;outline-offset:-2px!important;
+}
+.shell .toolbar .iconButton:active,.sharedPdfViewerAppBar button:active{background:rgba(255,255,255,.22)!important;transform:scale(.94)!important}
+:root[data-theme="dark"] .materialRow:hover,:root[data-theme="dark"] .materialRow:focus-visible,
+:root[data-theme="dark"] .courseAppRow:hover,:root[data-theme="dark"] .courseAppRow:focus-visible,
+:root[data-theme="dark"] .gradeAssignmentRow:hover,:root[data-theme="dark"] .gradeAssignmentRow:focus-visible,
+:root[data-theme="dark"] .resourceCategoryHeader:hover,:root[data-theme="dark"] .resourceCategoryHeader:focus-visible,
+:root[data-theme="dark"] .settingRow:hover,:root[data-theme="dark"] .settingRow:focus-within,
+:root[data-theme="dark"] .settingButton:hover,:root[data-theme="dark"] .settingButton:focus-visible,
+:root[data-theme="dark"] .upcomingCard:hover,:root[data-theme="dark"] .upcomingCard:focus-visible{
+  background:var(--theme-hover,#292d32)!important;border-color:var(--theme-border,#3a3f46)!important;box-shadow:0 1px 3px rgba(0,0,0,.24)!important;
+}
+:root[data-theme="dark"] .materialRow:active,:root[data-theme="dark"] .courseAppRow:active,
+:root[data-theme="dark"] .gradeAssignmentRow:active,:root[data-theme="dark"] .resourceCategoryHeader:active,
+:root[data-theme="dark"] .settingButton:active,:root[data-theme="dark"] .upcomingCard:active{
+  background:var(--theme-pressed,#343a42)!important;
+}
+:root[data-theme="dark"] .materialRow,:root[data-theme="dark"] .courseAppRow,
+:root[data-theme="dark"] .gradeAssignmentRow,:root[data-theme="dark"] .resourceCategoryHeader,
+:root[data-theme="dark"] .settingRow,:root[data-theme="dark"] .upcomingCard{
+  color:var(--theme-text,#e6e8eb)!important;border-color:transparent!important;
+}
+/* Keep elastic/rubber-band scrolling inside the selected tab's content, never its tab strip or identity header. */
+.homeTabs,.sectionProfileTabs,.groupTabs,.profileTabs,.messageTabs,.settingsTabs{
+  flex:0 0 auto!important;overscroll-behavior-y:none!important;transform:none;
+}
+.sectionProfileHeader,.courseIdentityMainInfo,.groupIdentityInfoBar,.schoolProfileIdentityInfoBar,
+.sectionProfileTabs,.homeTabs,.groupTabs,.profileTabs,.messageTabs{
+  flex-shrink:0!important;overscroll-behavior:none!important;
+}
+#homeTabContent,.sectionProfileContent,#groupTabContent,.groupMainPane>#groupTabContent,
+.schoolProfileUpcomingContent,.courseUpcomingContent,.resourcesAndroidPage,.settingsPage,.messageDetail{
+  overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.sectionProfileContent,.groupMainPane>#groupTabContent,.schoolProfileUpcomingContent,.courseUpcomingContent,
+#homeTabContent,.resourcesAndroidPage,.settingsPage,.messageDetail{
+  transform:translateZ(0);
+}
+:root[data-theme="dark"] .messageDetail{background:var(--theme-bg,#17191c)!important}
+:root[data-theme="dark"] .messageThreadItem.sharedPostMessageCard{
+  background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;box-shadow:0 1px 3px rgba(0,0,0,.24)!important;
+}
+:root[data-theme="dark"] .messageThreadItem.sharedPostMessageCard .messageThreadHeader b,
+:root[data-theme="dark"] .messageThreadItem.sharedPostMessageCard .messageThreadBody{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messageThreadItem.sharedPostMessageCard .messageThreadHeader small{color:var(--theme-muted,#a9afb7)!important}
+@media(prefers-reduced-motion:reduce){
+  .materialRow,.courseAppRow,.gradeAssignmentRow,.resourceCategoryHeader,.settingRow,.upcomingCard,
+  .shell .toolbar .iconButton,.sharedPdfViewerAppBar button{transition:none!important}
+}

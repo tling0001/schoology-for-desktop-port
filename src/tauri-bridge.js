@@ -731,6 +731,29 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
           await this._syncBounds();
           this._syncHandler();
+          // Fallback for WebView2 builds that occasionally miss the initial Finished event.
+          // Do not depend on that event to retry once the session bootstrap cookies exist.
+          if (this._sessionBootstrapPending) {
+            const initialView = this.nativeView;
+            let attempts = 0;
+            const retryAfterBootstrap = async () => {
+              if (!this._sessionBootstrapPending || !this.isConnected || this.nativeView !== initialView) return;
+              let readyState = '';
+              try { readyState = await initialView.eval('document.readyState'); } catch (_) {}
+              if (readyState === 'complete' || (readyState === 'interactive' && attempts > 20)) {
+                if (!this._sessionBootstrapPending || this.nativeView !== initialView) return;
+                this._sessionBootstrapPending = false;
+                await new Promise(resolve => setTimeout(resolve, 150));
+                if (this.nativeView !== initialView || !this.isConnected) return;
+                try {
+                  await (typeof initialView.navigate === 'function' ? initialView.navigate(this._url) : typeof initialView.setUrl === 'function' ? initialView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
+                } catch (error) { console.warn('Could not retry the first Schoology WebView request after session bootstrap:', error); }
+                return;
+              }
+              if (attempts++ < 100) setTimeout(retryAfterBootstrap, 100);
+            };
+            setTimeout(retryAfterBootstrap, 150);
+          }
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));
         } else {
           await this._syncBounds();

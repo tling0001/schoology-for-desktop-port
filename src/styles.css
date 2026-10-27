@@ -3116,3 +3116,7 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 /* Keep the light-mode area behind shared posts distinct from the white post cards. */
 :root:not([data-theme="dark"]) .courseMainPane:has(.sectionFullUpdate){background:#dfe3e7!important}
 :root[data-theme="dark"] .courseMainPane:has(.sectionFullUpdate){background:var(--theme-bg)!important}
+
+/* Apply the course-dashboard-style page backdrop wherever shared post cards are shown. */
+:root:not([data-theme="dark"]) #content:has(.sharedPostCard){background:#dfe3e7!important}
+:root[data-theme="dark"] #content:has(.sharedPostCard){background:var(--theme-bg)!important}

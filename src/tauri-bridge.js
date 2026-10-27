@@ -759,7 +759,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           this._hasLoadedPage = false;
           this.loading = true;
           this.dispatchEvent(new Event('did-start-loading'));
-          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
+          const firstNavigationUrl = this._sessionBootstrapFirstUrl || this._url;
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(firstNavigationUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(firstNavigationUrl) : invoke('navigate-embedded-webview', { label: this._label, url: firstNavigationUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
           await this._syncBounds();
           this._syncHandler();
           // Some WebView2 builds expose onPageLoad but occasionally omit its Finished

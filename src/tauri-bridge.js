@@ -313,15 +313,6 @@
         setCookie(String(cookie.key || cookie.name || ''), String(cookie.value || ''), String(cookie.path || '/'), String(cookie.domain || defaultDomain));
       }
       if (session.mobileCookie) setCookie('s_mobile', String(session.mobileCookie), '/', defaultDomain);
-      // The first document request necessarily starts before JavaScript cookies exist.
-      // Reload once after this document commits the session cookies; sessionStorage prevents loops.
-      try {
-        const bootstrapKey = '__schoologySessionBootstrapReloaded';
-        if (!sessionStorage.getItem(bootstrapKey)) {
-          sessionStorage.setItem(bootstrapKey, '1');
-          window.addEventListener('load', () => setTimeout(() => { try { location.reload(); } catch (_) {} }, 150), { once: true });
-        }
-      } catch (_) {}
     }
     const dark = ${JSON.stringify(!!dark)};
     const styleId = 'schoology-shared-webview-theme-style';
@@ -596,7 +587,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
             ? await prepareWebSession().catch(() => null) : null;
           this._darkTheme = dark;
           // The sessionstart cookies are installed by the initialization script only after the first document starts. Retry the original URL once after that bootstrap load so its authenticated request carries those cookies.
-          this._sessionBootstrapPending = false;
+          this._sessionBootstrapPending = !!session;
+          this._sessionBootstrapUrl = this._url;
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
           let nativeCreated = false;
@@ -707,6 +699,22 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               return;
             }
             if (eventName.includes('finished') || eventName === 'finish') {
+              // The initialization script has installed the sessionstart cookies by
+              // the time the first document finishes. Retry the ORIGINAL destination,
+              // not a login redirect that may have replaced this._url.
+              if (this._sessionBootstrapPending) {
+                this._sessionBootstrapPending = false;
+                const retryUrl = this._sessionBootstrapUrl || this._url;
+                await new Promise(resolve => setTimeout(resolve, 180));
+                if (!this.isConnected || !this.nativeView) return;
+                try {
+                  this._url = retryUrl;
+                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(retryUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(retryUrl) : invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation }));
+                  return;
+                } catch (error) {
+                  console.warn('Could not retry the original Schoology WebView destination after session bootstrap:', error);
+                }
+              }
               this._hasLoadedPage = true;
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
@@ -729,6 +737,30 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
           await this._syncBounds();
           this._syncHandler();
+          // Some WebView2 builds expose onPageLoad but occasionally omit its Finished
+          // notification. Poll as a fallback, allowing the event handler time to win.
+          if (this._sessionBootstrapPending) {
+            const initialView = this.nativeView;
+            let attempts = 0;
+            const retryAfterBootstrap = async () => {
+              if (!this._sessionBootstrapPending || !this.isConnected || this.nativeView !== initialView) return;
+              let readyState = '';
+              try { readyState = await initialView.eval('document.readyState'); } catch (_) {}
+              if (readyState === 'complete' && attempts >= 10) {
+                this._sessionBootstrapPending = false;
+                const retryUrl = this._sessionBootstrapUrl || this._url;
+                await new Promise(resolve => setTimeout(resolve, 180));
+                if (!this.isConnected || this.nativeView !== initialView) return;
+                try {
+                  this._url = retryUrl;
+                  await (typeof initialView.navigate === 'function' ? initialView.navigate(retryUrl) : typeof initialView.setUrl === 'function' ? initialView.setUrl(retryUrl) : invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation }));
+                } catch (error) { console.warn('Could not retry the original Schoology WebView destination after session bootstrap:', error); }
+                return;
+              }
+              if (attempts++ < 100) setTimeout(retryAfterBootstrap, 100);
+            };
+            setTimeout(retryAfterBootstrap, 100);
+          }
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));
         } else {
           await this._syncBounds();

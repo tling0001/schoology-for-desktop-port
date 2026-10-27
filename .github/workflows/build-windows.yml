@@ -238,7 +238,7 @@ jobs:
           retention-days: 14
 
   ios-adhoc:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.linux_only != true }}
     name: Optional iPhone QR installation package
     runs-on: macos-26
     steps:

@@ -3484,3 +3484,12 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .courseLandscapePage .courseMainPane>.sectionProfileRule{order:2!important;flex:0 0 auto!important}
   .courseLandscapePage .courseMainPane>#sectionProfileContent{order:3!important;flex:0 0 auto!important;min-height:0!important;overflow:visible!important}
 }
+
+/* Port.12: keep the newly matched portrait Course Apps and infobox styling theme-aware. */
+:root[data-theme="dark"] .courseAppPortraitList{background:var(--theme-bg,#17191c)!important}
+:root[data-theme="dark"] .courseAppPortraitRow{background:var(--theme-surface,#202328)!important;color:var(--theme-text,#e6e8eb)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .courseAppPortraitRow:hover{background:var(--theme-hover,#30363d)!important}
+:root[data-theme="dark"] .courseAppPortraitTitle{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .courseAppPortraitIcon{color:var(--theme-muted,#a9afb7)!important}
+:root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo{background:var(--theme-surface,#202328)!important;border-color:var(--theme-border,#393d43)!important}
+:root[data-theme="dark"] .courseLandscapePage .courseMainPane>.courseIdentityMainInfo .sectionProfileSubtitle{color:var(--theme-blue,#7ab7ff)!important}

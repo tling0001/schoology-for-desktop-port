@@ -1667,7 +1667,7 @@ async function loadCourseApps(course,targetEl){
       const launchResult=await A.launchCourseApp({launchUrl:href,appId:Number.isSafeInteger(appId)&&appId>0?appId:undefined,sectionId:Number(sid)});
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
-      showEmbeddedWeb(url,appTitle,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:true,courseApp:true});
+      showEmbeddedWeb(url,appTitle,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:false,courseApp:true});
     }catch(e){const errorTarget=document.getElementById('sectionProfileContent')||el;errorTarget.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);

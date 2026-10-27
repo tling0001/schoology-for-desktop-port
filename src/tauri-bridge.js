@@ -313,6 +313,7 @@
         setCookie(String(cookie.key || cookie.name || ''), String(cookie.value || ''), String(cookie.path || '/'), String(cookie.domain || defaultDomain));
       }
       if (session.mobileCookie) setCookie('s_mobile', String(session.mobileCookie), '/', defaultDomain);
+      window.__schoologySessionBootstrapReady = true;
     }
     const dark = ${JSON.stringify(!!dark)};
     const styleId = 'schoology-shared-webview-theme-style';
@@ -703,16 +704,20 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               // the time the first document finishes. Retry the ORIGINAL destination,
               // not a login redirect that may have replaced this._url.
               if (this._sessionBootstrapPending) {
-                this._sessionBootstrapPending = false;
-                const retryUrl = this._sessionBootstrapUrl || this._url;
-                await new Promise(resolve => setTimeout(resolve, 180));
-                if (!this.isConnected || !this.nativeView) return;
-                try {
-                  this._url = retryUrl;
-                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(retryUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(retryUrl) : invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation }));
-                  return;
-                } catch (error) {
-                  console.warn('Could not retry the original Schoology WebView destination after session bootstrap:', error);
+                let cookiesInstalled = false;
+                try { cookiesInstalled = await this.nativeView.eval('window.__schoologySessionBootstrapReady === true'); } catch (_) {}
+                if (cookiesInstalled) {
+                  this._sessionBootstrapPending = false;
+                  const retryUrl = this._sessionBootstrapUrl || this._url;
+                  await new Promise(resolve => setTimeout(resolve, 180));
+                  if (!this.isConnected || !this.nativeView) return;
+                  try {
+                    this._url = retryUrl;
+                    await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(retryUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(retryUrl) : invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation }));
+                    return;
+                  } catch (error) {
+                    console.warn('Could not retry the original Schoology WebView destination after session bootstrap:', error);
+                  }
                 }
               }
               this._hasLoadedPage = true;
@@ -746,7 +751,9 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               if (!this._sessionBootstrapPending || !this.isConnected || this.nativeView !== initialView) return;
               let readyState = '';
               try { readyState = await initialView.eval('document.readyState'); } catch (_) {}
-              if (readyState === 'complete' && attempts >= 10) {
+              let cookiesInstalled = false;
+              try { cookiesInstalled = await initialView.eval('window.__schoologySessionBootstrapReady === true'); } catch (_) {}
+              if (readyState === 'complete' && cookiesInstalled && attempts >= 10) {
                 this._sessionBootstrapPending = false;
                 const retryUrl = this._sessionBootstrapUrl || this._url;
                 await new Promise(resolve => setTimeout(resolve, 180));

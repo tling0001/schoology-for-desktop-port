@@ -3361,7 +3361,6 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .courseLandscapePage.upcoming-collapsed .assignmentInfo,.groupProfilePage.upcoming-collapsed .assignmentInfo,.schoolProfileNativePage.upcoming-collapsed .assignmentInfo,.courseLandscapePage.upcoming-collapsed .rowChevron,.groupProfilePage.upcoming-collapsed .rowChevron,.schoolProfileNativePage.upcoming-collapsed .rowChevron{display:none!important}
 }
 .upcomingDateCompact{display:none}
-.courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage{display:flex!important}
 .courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage .sectionProfileImage,.courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage .sectionProfileFallback{width:64px!important;height:64px!important;object-fit:cover!important}
 @media(max-width:800px){
   .courseLandscapePage .courseAppsSidePane{display:none!important}

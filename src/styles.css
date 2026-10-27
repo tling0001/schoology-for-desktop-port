@@ -3238,3 +3238,10 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 }
 :root:not([data-theme="dark"]) .courseMainPane .sectionProfileContent:has(.sharedPostCard),:root:not([data-theme="dark"]) .groupMainPane #groupTabContent:has(.sharedPostCard),:root:not([data-theme="dark"]) .schoolProfileMainPane .schoolProfileTabContent:has(.sharedPostCard){background:#f5f6f7!important}
 :root[data-theme="dark"] .courseMainPane .sectionProfileContent:has(.sharedPostCard),:root[data-theme="dark"] .groupMainPane #groupTabContent:has(.sharedPostCard),:root[data-theme="dark"] .schoolProfileMainPane .schoolProfileTabContent:has(.sharedPostCard){background:var(--theme-bg)!important}
+
+:root:not([data-theme="dark"]) #sectionProfileContent:has(.sharedPostCard),
+:root:not([data-theme="dark"]) #groupTabContent:has(.sharedPostCard),
+:root:not([data-theme="dark"]) #schoolProfileTabContent:has(.sharedPostCard) { background: #f5f6f7 !important; }
+:root[data-theme="dark"] #sectionProfileContent:has(.sharedPostCard),
+:root[data-theme="dark"] #groupTabContent:has(.sharedPostCard),
+:root[data-theme="dark"] #schoolProfileTabContent:has(.sharedPostCard) { background: var(--theme-bg) !important; }

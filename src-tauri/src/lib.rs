@@ -432,9 +432,11 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let raw_url = info.get("url").and_then(Value::as_str).ok_or("Embedded webview URL is missing.")?;
     let url = Url::parse(raw_url).map_err(|_| "Embedded webview URL is invalid.")?;
     let allow_lti_external = info.get("lti").and_then(Value::as_bool).unwrap_or(false);
+    let allow_course_app = info.get("courseApp").and_then(Value::as_bool).unwrap_or(false);
     let trusted_host = is_schoology_or_lausd_host(url.host_str().unwrap_or_default());
     let allowed_lti_url = allow_lti_external && url.scheme() == "https";
-    if !matches!(url.scheme(), "http" | "https") || !(trusted_host || allowed_lti_url) {
+    let allowed_course_app_url = allow_course_app && url.scheme() == "https";
+    if !matches!(url.scheme(), "http" | "https") || !(trusted_host || allowed_lti_url || allowed_course_app_url) {
         return Err("Only Schoology/LAUSD pages and HTTPS destinations inside an LTI assignment can be embedded.".into());
     }
     let parent = app.get_window("main").ok_or("The main Schoology window is unavailable.")?;

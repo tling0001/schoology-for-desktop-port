@@ -319,53 +319,9 @@
     const css = 'html[data-schoology-shade-inversion="true"]{color-scheme:dark!important;background:#17191c!important}html[data-schoology-shade-inversion="true"] body{filter:invert(1) hue-rotate(180deg)!important}html[data-schoology-shade-inversion="true"] img,html[data-schoology-shade-inversion="true"] picture,html[data-schoology-shade-inversion="true"] video,html[data-schoology-shade-inversion="true"] canvas,html[data-schoology-shade-inversion="true"] svg,html[data-schoology-shade-inversion="true"] iframe,html[data-schoology-shade-inversion="true"] object,html[data-schoology-shade-inversion="true"] embed{filter:invert(1) hue-rotate(180deg)!important}';
     const root = document.documentElement;
     if (!root) return;
-    // Native child webviews do not bubble right-click events to the main renderer.
-    // Suppress Chromium's HTML menu and request the OS-native Tauri menu instead.
-    if (!window.__schoologyContextMenuInstalled) {
-      window.__schoologyContextMenuInstalled = true;
-      document.addEventListener('contextmenu', event => {
-        event.preventDefault();
-        const anchor = event.target?.closest?.('a[href]');
-        const selection = String(window.getSelection?.() || '');
-        const showFallbackMenu = () => {
-          document.getElementById('schoology-context-menu-fallback')?.remove();
-          const menu = document.createElement('div');
-          menu.id = 'schoology-context-menu-fallback';
-          Object.assign(menu.style, { position:'fixed', zIndex:'2147483647', minWidth:'196px', padding:'5px', border:'1px solid #b7c0c8', borderRadius:'6px', background:'#fff', color:'#263238', boxShadow:'0 5px 20px rgba(0,0,0,.28)', font:'14px system-ui,sans-serif' });
-          const actions = [
-            ['Back', () => history.back(), true],
-            ['Forward', () => history.forward(), true],
-            ['Reload', () => location.reload(), true],
-            ['Copy', () => document.execCommand('copy'), !!selection],
-            ['Select all', () => { const range=document.createRange(); range.selectNodeContents(document.body); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }, true],
-            ['Open link in browser', () => { if(anchor?.href) window.open(anchor.href, '_blank', 'noopener'); }, !!anchor?.href]
-          ];
-          for (const [label, action, enabled] of actions) {
-            const button = document.createElement('button');
-            button.type = 'button'; button.textContent = label; button.disabled = !enabled;
-            Object.assign(button.style, { display:'block', width:'100%', padding:'8px 10px', border:'0', borderRadius:'3px', textAlign:'left', background:'transparent', color:enabled?'inherit':'#92999e', font:'inherit', cursor:enabled?'default':'not-allowed' });
-            button.addEventListener('mouseenter', () => { if(enabled) button.style.background='#e8f1f8'; });
-            button.addEventListener('mouseleave', () => { button.style.background='transparent'; });
-            button.addEventListener('click', () => { menu.remove(); try { action(); } catch (_) {} });
-            menu.appendChild(button);
-          }
-          menu.addEventListener('contextmenu', e => e.preventDefault());
-          menu.addEventListener('mousedown', e => e.stopPropagation());
-          document.body.appendChild(menu);
-          menu.style.left = Math.max(4, Math.min(event.clientX, innerWidth - menu.offsetWidth - 4)) + 'px';
-          menu.style.top = Math.max(4, Math.min(event.clientY, innerHeight - menu.offsetHeight - 4)) + 'px';
-          const dismiss = e => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', dismiss, true); } };
-          setTimeout(() => document.addEventListener('pointerdown', dismiss, true), 0);
-        };
-        const nativeInvoke = window.__TAURI__?.core?.invoke;
-        if (!nativeInvoke) { showFallbackMenu(); return; }
-        nativeInvoke('schoology_invoke', {
-          name: 'show-embedded-context-menu',
-          args: { label: nativeLabel, hasSelection: !!selection, link: anchor?.href || '' }
-        }).then(result => { if (result !== true) showFallbackMenu(); }).catch(error => { console.warn('Could not open native Schoology context menu:', error); showFallbackMenu(); });
-      }, true);
-    }
-    // Tauri child webviews do not implement Electron's native allowpopups/preload
+    // Disable all browser/native context menus inside embedded Schoology pages.
+    document.addEventListener('contextmenu', event => event.preventDefault(), true);
+Tauri child webviews do not implement Electron's native allowpopups/preload
     // contract. Keep Schoology pages inside this view, but send non-Schoology
     // destinations to the user's default browser.
     const internalHost = value => { try { const u = new URL(value, location.href); const h = u.hostname.toLowerCase(); return ['app.schoology.com','schoology.com','app.schoologyca.com','schoologyca.com','lms.lausd.net'].includes(h) || h.endsWith('.schoology.com') || h.endsWith('.schoologyca.com') || h.endsWith('.lms.lausd.net'); } catch (_) { return false; } };
@@ -594,6 +550,8 @@
           if(['hidden','clip','auto','scroll'].includes(astyle.overflowX)){left=Math.max(left,ar.left);right=Math.min(right,ar.right)}
           if(['hidden','clip','auto','scroll'].includes(astyle.overflowY)){top=Math.max(top,ar.top);bottom=Math.min(bottom,ar.bottom)}
         }
+        const toolbar=document.querySelector('.toolbar');
+        if(platform==='win32'&&toolbar){const tr=toolbar.getBoundingClientRect();if(left<tr.right&&right>tr.left&&top<tr.bottom&&bottom>tr.top)top=Math.max(top,tr.bottom);}
         left=Math.max(0,left);top=Math.max(0,top);right=Math.min(innerWidth,right);bottom=Math.min(innerHeight,bottom);
         const width=right-left,height=bottom-top;
         if(width<=1||height<=1)visible=false;
@@ -744,6 +702,8 @@
               if (this._sessionBootstrapPending) {
                 this._sessionBootstrapPending = false;
                 this.loading = true;
+                // Give WebView2 a turn to commit document.cookie writes from the initialization script.
+                await new Promise(resolve => setTimeout(resolve, 120));
                 try {
                   await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
                   return;
@@ -782,7 +742,7 @@
       }
       getURL() { return this._url; }
       isLoading() { return this.loading; }
-      async reload() { if (this.nativeView) { this.loading = true; this.dispatchEvent(new Event('did-start-loading')); await this.nativeView.reload(); } }
+      async reload() { if (!this.nativeView) return; this.loading = true; this.dispatchEvent(new Event('did-start-loading')); try { if (typeof this.nativeView.reload === 'function') await this.nativeView.reload(); else await this.nativeView.eval('location.reload()'); } catch (error) { try { await invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }); } catch (fallbackError) { this.loading = false; this.dispatchEvent(new Event('did-stop-loading')); throw fallbackError || error; } } }
       async goBack() { if (this.nativeView) await this.nativeView.eval('history.back()'); }
       async goForward() { if (this.nativeView) await this.nativeView.eval('history.forward()'); }
       async executeJavaScript(script) { if (!this.nativeView) return null; return this.nativeView.eval(String(script)); }

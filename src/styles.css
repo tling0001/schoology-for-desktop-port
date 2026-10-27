@@ -2047,8 +2047,8 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .schoolProfileUpcomingSchool h2,:root[data-theme="dark"] .schoolProfileUpcomingSchool p,:root[data-theme="dark"] .schoolProfileUpcomingDetail{color:var(--theme-text,#e6e8eb)!important}
 
 /* v161: targeted fidelity updates for course folders, event creation, attachments, and calendar arrows. */
-#createPostDialog.createEventDialogOverlay{padding:0!important;align-items:stretch!important;justify-content:stretch!important;background:#fff!important}
-#createPostDialog .androidCreateEventDialog{width:100vw!important;max-width:none!important;height:100vh!important;max-height:100vh!important;min-height:0!important;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:#fff!important}
+#createPostDialog.createEventDialogOverlay{padding:18px!important;align-items:center!important;justify-content:center!important;background:rgba(0,33,55,.38)!important}
+#createPostDialog .androidCreateEventDialog{width:min(560px,calc(100vw - 32px))!important;max-width:560px!important;height:auto!important;max-height:calc(100vh - 36px)!important;min-height:0!important;border-radius:3px!important;box-shadow:0 12px 40px #0004!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:#fff!important}
 #createPostDialog .androidCreateEventDialog>.androidCommentDialogBar{flex:0 0 48px!important;height:48px!important;min-height:48px!important;background:#002137!important;box-shadow:none!important}
 #createPostDialog .androidCreateEventDialog .androidDialogTitle{font-size:16px!important;font-weight:500!important}
 #createPostDialog .androidCreateEventDialog .androidCreatePostBody{flex:1 1 auto!important;min-height:0!important;overflow:auto!important;padding:8px 0 24px!important;gap:0!important;background:#fff!important}

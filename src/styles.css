@@ -3376,3 +3376,9 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .profileNavIcon{width:26px!important;flex:0 0 26px!important}
   .profileNavIcon .officialSidebarSpriteIcon{width:26px!important;height:24px!important;flex:0 0 26px!important;background-size:208px 24px!important}
 }
+
+/* School profiles have one identity title in landscape; unlike courses/groups, no school subtitle. */
+@media (min-width:801px) and (orientation:landscape){
+  .schoolProfileInfoSidePane .schoolProfileHeaderText{display:block!important;min-width:0!important;padding:0 12px!important}
+  .schoolProfileInfoSidePane .schoolProfileHeaderText h1{font-size:17px!important;line-height:1.3!important;overflow-wrap:anywhere!important}
+}

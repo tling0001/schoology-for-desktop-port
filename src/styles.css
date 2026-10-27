@@ -3399,8 +3399,8 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .courseLandscapePage.upcoming-collapsed{grid-template-columns:minmax(210px,17%) minmax(0,1fr) 76px!important}
   .courseInfoSidePane.courseAppsSidePane{display:flex!important;flex-direction:column!important;overflow-y:auto!important;padding:0!important}
   .courseInfoSidePane .courseLandscapeImage{display:flex!important;flex:0 0 auto!important;width:100%!important;aspect-ratio:1/1!important;max-height:245px!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;background:#eceff1!important;border-bottom:1px solid #d1d5d9!important}
-  .courseInfoSidePane .courseLandscapeImage .sectionProfileImage,.courseInfoSidePane .courseLandscapeImage .sectionProfileFallback{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;max-width:none!important;max-height:none!important}
-  .courseInfoSidePane .courseLandscapeImage .sectionProfileFallback{display:flex!important;align-items:center!important;justify-content:center!important;font-size:54px!important}
+  .courseInfoSidePane .courseLandscapeImage .sectionProfileImage{width:100%!important;height:100%!important;object-fit:cover!important;max-width:none!important;max-height:none!important}
+  .courseInfoSidePane .courseLandscapeImage .sectionProfileFallback{align-items:center!important;justify-content:center!important;font-size:54px!important}
   .courseInfoSidePane .courseIdentityInfoBar,.courseInfoSidePane .courseIdentityCard{display:none!important}
   .courseInfoSidePane .courseSidebarNav{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;overflow:visible!important;min-height:0!important}
   .courseInfoSidePane .courseSidebarNav .profileSidebarNavItem{min-height:52px!important;padding:8px 14px!important;gap:12px!important;font-size:16px!important;justify-content:flex-start!important}
@@ -3426,6 +3426,5 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .groupProfilePage.upcoming-collapsed .groupLandscapeSplit,.schoolProfileNativePage.upcoming-collapsed .schoolProfileLandscapeSplit{grid-template-columns:minmax(210px,17%) minmax(0,1fr) 76px!important}
   .groupInfoSidePane .groupHeader>div:last-child{display:none!important}
   .schoolProfileInfoSidePane .schoolProfileHeaderText .schoolProfileSubtitle{display:none!important}
-  .groupSidebarNav [data-group-tab="members"] .profileNavIcon img{content:url("data:image/png;base64,")!important}
 }
 :root:not([data-theme="dark"]) .activity:has(.sharedPostCard){background:#f5f6f7!important}

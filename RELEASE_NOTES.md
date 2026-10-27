@@ -1,5 +1,17 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.10]
+
+### Fixed
+- Prevent the Android SDK setup action from requesting the removed legacy `tools` package; install only platform-tools in the action and then install pinned Android platform/build-tools/NDK packages.
+- Add a Linux-only checkbox for manual workflow runs, skipping Android, iOS, Windows, macOS and release publishing when selected.
+- Set the Recent Activity background behind shared post cards to `#f5f6f7`.
+- Correct shared WebView session bootstrap by explicitly injecting session cookies after the first Schoology document exists and retrying the original URL. This avoids relying on a return value from Tauri's `eval()`, which does not provide one.
+- Match the course landscape layout to the supplied screenshot: compact image-only left rail, identity infobox at the top of the middle pane, and a short gray Landscape rail beside Upcoming.
+- Move course apps into the landscape course sidebar and open them in the middle pane; route app popups/new windows to the default browser.
+- Use the extracted iOS people icon for the group Members sidebar entry and keep group/school profile sidebars compact.
+- Add an Unread messages tab between Inbox and Sent in portrait and as a tab alongside Inbox in the left landscape split pane.
+
 ## [2026.10.0-port.9]
 
 ### Fixed

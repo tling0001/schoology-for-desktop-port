@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.15]
+
+### Fixed
+- Make course materials, shared Upcoming rows, settings options, and app-bar buttons respond with inset rounded hover/pressed feedback, with matching dark-mode states.
+- Harden shared-WebView session bootstrap when native load events report redirected or stale URLs, returning to the Schoology origin before cookie injection and retrying the requested destination.
+- Label the collapsed gray Upcoming rail “Upcoming” rather than “Landscape”.
+- Keep elastic overscroll confined to scrollable tab content, excluding tab strips and course/group/school identity headers.
+- Keep message details on the shared post-card surface and backdrop in both light and dark themes.
+
 ## [2026.10.0-port.14]
 
 ### Fixed

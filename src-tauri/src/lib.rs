@@ -23,6 +23,7 @@ use tokio::sync::oneshot;
 
 type HmacSha1 = Hmac<Sha1>;
 static CANADIAN_INSTANCE: AtomicBool = AtomicBool::new(false);
+static SERVER_INSTANCE_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static EMBEDDED_CONTEXT_TARGET: Mutex<Option<String>> = Mutex::new(None);
 static EMBEDDED_CONTEXT_LINK: Mutex<Option<String>> = Mutex::new(None);
 static EMBEDDED_CONTEXT_HAS_SELECTION: AtomicBool = AtomicBool::new(false);
@@ -173,7 +174,7 @@ async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Valu
         let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
         let current_is_api_host = current_url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(api_host()));
         let mut builder = client.request(current_method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, current_url.clone()).header("User-Agent", ANDROID_UA).header("Accept", "application/json");
-        if client_identity && current_is_api_host { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0"); }
+        if client_identity && current_is_api_host { builder = builder.header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.10.0"); }
         if let Some(a) = auth.filter(|_| current_is_api_host) {
             let token = a.get("oauth_token").and_then(Value::as_str).unwrap_or("");
             let secret = a.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
@@ -269,7 +270,7 @@ async fn login_credentials(app: &AppHandle, state: &HostState, args: &Value) -> 
     if let Some(id) = args.get("schoolId").filter(|v| !v.is_null() && !v.as_str().unwrap_or("").is_empty()) { form.insert("school_id".into(), id.clone()); }
     let url = Url::parse(&format!("https://{}/oauth/authorize_auto", web_host())).map_err(|e| e.to_string())?;
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
-    let response = client.post(url).header("User-Agent", ANDROID_UA).header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0").form(&form).send().await.map_err(|e| e.to_string())?;
+    let response = client.post(url).header("User-Agent", ANDROID_UA).header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.10.0").form(&form).send().await.map_err(|e| e.to_string())?;
     let status = response.status(); let text = response.text().await.unwrap_or_default();
     if !status.is_success() { return Err(format!("Schoology rejected login: {} {}", status.as_u16(), text.chars().take(700).collect::<String>())); }
     exchange_token(app, state, &temporary).await
@@ -290,7 +291,7 @@ fn build_browser_login_url(domain: &str, request_token: &str) -> Result<String, 
     let parsed = Url::parse(&with_scheme).map_err(|_| "This school did not provide a valid login domain.")?;
     if !["https", "http"].contains(&parsed.scheme()) || parsed.host_str().is_none() { return Err("This school did not provide a valid login domain.".into()); }
     let host = parsed.host_str().unwrap_or_default();
-    let callback = format!("https://{host}/mobile_login_success?os=android&os_version=34&app_version=600000477");
+    let callback = format!("https://{host}/mobile_login_success?os=android&os_version=34&app_version=600000478");
     let oauth_path = format!("oauth/authorize?oauth_token={request_token}&oauth_callback={}", url::form_urlencoded::byte_serialize(callback.as_bytes()).collect::<String>());
     let landing = url::form_urlencoded::byte_serialize(oauth_path.as_bytes()).collect::<String>();
     Ok(format!("https://{host}/{oauth_path}&login_landing_dest={landing}"))
@@ -382,7 +383,7 @@ async fn api_json(app: &AppHandle, state: &HostState, method: &str, url: Url, bo
     let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
     let header = signed_header(method, &url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp, &[])?;
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(90)).build().map_err(|e| e.to_string())?;
-    let mut request = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url).header("User-Agent", ANDROID_UA).header("Accept", "application/json").header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0").header("Authorization", header).header("Cookie", MOBILE_COOKIE);
+    let mut request = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url).header("User-Agent", ANDROID_UA).header("Accept", "application/json").header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.10.0").header("Authorization", header).header("Cookie", MOBILE_COOKIE);
     if let Some(value) = body {
         if json_body { request = request.json(&value); }
         else { request = request.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value)); }
@@ -593,7 +594,7 @@ async fn login_external_school(app: &AppHandle, state: &HostState, info: &Value)
         .timeout(std::time::Duration::from_secs(30)).build().map_err(|e| e.to_string())?;
     let response = client.post(authorize_url)
         .header("User-Agent", ANDROID_UA).header("Accept", "application/json")
-        .header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0")
+        .header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.10.0")
         .header("Cookie", session_cookie).header("Content-Type", "application/x-www-form-urlencoded")
         .body(form_value(&json!({"oauth_token":token}))).send().await
         .map_err(|e| format!("School session authorization failed: {e}"))?;
@@ -670,7 +671,7 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     let form = reqwest::multipart::Form::new().part("file", part);
     let _ = app.emit("file-upload-progress", json!({"percent":0,"phase":"Uploading attachment…"}));
     match client.post(url).header("User-Agent", ANDROID_UA).header("Accept", "application/json")
-        .header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.06.0")
+        .header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.10.0")
         .header("Authorization", authorization).header("Cookie", MOBILE_COOKIE).multipart(form).send().await {
         Ok(response) => {
             let status = response.status();
@@ -1299,7 +1300,7 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
         builder = builder.header("Authorization", header)
             .header("Cookie", MOBILE_COOKIE)
             .header("X-Schoology-Client", "Android")
-            .header("X-Schoology-App-Version", "2026.06.0");
+            .header("X-Schoology-App-Version", "2026.10.0");
     }
     if !content_type.is_empty() { builder = builder.header("Content-Type", content_type); }
     if is_storage && method == "PUT" {
@@ -1366,8 +1367,21 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
 
 #[tauri::command]
 async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: String, args: Option<Value>) -> Result<Value, String> {
-    if name != "set-server-instance" {
-        let enabled = read_json(&app, "server-instance.json", json!({"canadian":false})).get("canadian").and_then(Value::as_bool).unwrap_or(false);
+    if name == "set-server-instance" {
+        // An explicit in-session selection should remain active until the next app launch.
+        SERVER_INSTANCE_INITIALIZED.store(true, Ordering::Relaxed);
+    } else {
+        let mut instance = read_json(&app, "server-instance.json", json!({"canadian":false}));
+        if !instance.is_object() { instance = json!({"canadian":false}); }
+        let mut enabled = instance.get("canadian").and_then(Value::as_bool).unwrap_or(false);
+        // Official Android 2026.10.0 normalizes a persisted Canadian environment back to
+        // Live while loading saved environment preferences. Apply that migration once per
+        // desktop process, but still allow users to switch environments during the session.
+        if !SERVER_INSTANCE_INITIALIZED.swap(true, Ordering::Relaxed) && enabled {
+            instance["canadian"] = json!(false);
+            write_json(&app, "server-instance.json", &instance)?;
+            enabled = false;
+        }
         CANADIAN_INSTANCE.store(enabled, Ordering::Relaxed);
     }
     let args = args.unwrap_or(Value::Null);

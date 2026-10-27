@@ -6,7 +6,7 @@ const https=require('https');
 const querystring=require('querystring');
 
 // Match the Android app's public identity/version as closely as Electron allows.
-const ANDROID_WEBVIEW_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0';
+const ANDROID_WEBVIEW_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.10.0';
 const CLIENT_UA=ANDROID_WEBVIEW_UA;
 const API_HOST='api.schoology.com';
 const WEB_HOST='app.schoology.com';
@@ -209,7 +209,7 @@ function request(method,url,body={},opts={},redirectDepth=0){
     };
     if(opts.clientIdentity){
       headers['X-Schoology-Client']='Android';
-      headers['X-Schoology-App-Version']='2026.06.0';
+      headers['X-Schoology-App-Version']='2026.10.0';
     }
     if(opts.headers) Object.assign(headers,opts.headers);
     if(opts.sign){
@@ -447,7 +447,7 @@ async function submitAssignmentFile(info){
   const mime=mimeByExt[path.extname(filename).toLowerCase()]||String(info.mime||'application/octet-stream');
   let fileId=null, primaryError=null;
   try{
-    // This reproduces tc.z.a()/MultipartBody from Android 2026.06.0. In
+    // This reproduces tc.z.a()/MultipartBody from Android 2026.10.0. In
     // particular, the file part itself has the multipart/form-data media type,
     // includes a Content-Length header, and the multipart boundary is a UUID.
     const boundary=crypto.randomUUID();
@@ -473,7 +473,7 @@ async function submitAssignmentFile(info){
     if(!fileId)throw new Error(`FileService ${uploaded.status}: ${uploaded.text}`);
   }catch(e){primaryError=e}
   if(!fileId){
-    // The Android 2026.06.0 legacy implementation is only used when the
+    // The Android 2026.10.0 legacy implementation is only used when the
     // FileServiceApi dependency is unavailable. Reproduce its exact request:
     // POST /v1/upload with UploadAttachmentObject JSON fields (filename/md5_checksum/filesize) in the BODY (not query parameters), then
     // PUT /v1/upload/{id} with the raw file bytes. The previous port incorrectly
@@ -582,7 +582,7 @@ function buildAndroidOAuthLoginUrl(domain,requestToken){
   const host=normalizeSchoolLoginHost(domain);
   if(!host) throw new Error('This school did not provide a valid login domain.');
   // Exact LoginOAuthManagementActivity.R0() URL layout from the official Android source.
-  const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000477`;
+  const callback=`https://${host}/mobile_login_success?os=android&os_version=34&app_version=600000478`;
   const oauthPath=`oauth/authorize?oauth_token=${requestToken}&oauth_callback=${androidUriEncode(callback)}`;
   return `https://${host}/${oauthPath}&login_landing_dest=${androidUriEncode(oauthPath)}`;
 }

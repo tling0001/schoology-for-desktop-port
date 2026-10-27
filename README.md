@@ -1,6 +1,6 @@
 # Schoology Desktop Port
 
-Schoology Desktop Port is a cross-platform desktop/mobile wrapper aligned with the supplied official Schoology Android 2026.06.0 source. The active GitHub Actions workflow builds and publishes versioned Tauri releases for Windows, macOS, Linux, and Android, with an optional Ad Hoc iPhone IPA and QR installation package when the required Apple signing and provisioning configuration is available.
+Schoology Desktop Port is a cross-platform desktop/mobile wrapper aligned with the supplied official Schoology Android 2026.10.0 source. The active GitHub Actions workflow builds and publishes versioned Tauri releases for Windows, macOS, Linux, and Android, with an optional Ad Hoc iPhone IPA and QR installation package when the required Apple signing and provisioning configuration is available.
 
 ## Releases and builds
 
@@ -16,4 +16,4 @@ The active native host is Tauri v2 (`src-tauri`) with the compatibility bridge i
 
 Desktop native child webviews are implemented with Tauri's native webview APIs. Tauri's current mobile targets do not support the same multiple-child-webview API, so mobile flows that depend on embedded remote pages still need a mobile-compatible native navigation implementation. Native background push on iOS also requires APNs delivery and a server-side device-token workflow; five-minute polling alone is not equivalent to background push.
 
-Schoology-specific behavior should be verified against the supplied official Schoology Android 2026.06.0 source in this project, not unofficial web descriptions.
+Schoology-specific behavior should be verified against the supplied official Schoology Android 2026.10.0 source in this project, not unofficial web descriptions.

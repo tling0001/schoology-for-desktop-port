@@ -132,7 +132,7 @@
         center: true,
         focus: true,
         resizable: true,
-        userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0'
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.10.0'
       });
       child.onNavigation(url => { latestUrl = String(url || latestUrl); return true; }).catch(error => finish(error));
       child.onPageLoad(event => {
@@ -639,7 +639,7 @@
               y: -10000,
               width: 1,
               height: 1,
-              userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.06.0',
+              userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.10.0',
               initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
               forceDark: dark,
               lti: this._ltiNavigation,

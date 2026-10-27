@@ -1,6 +1,6 @@
 # Schoology Desktop Port release history
 
-## [2026.06.0-port.261]
+## [2026.10.1]
 
 ### Fixed
 - Route shared embedded-WebView navigation through the native Tauri host when the JavaScript WebView handle lacks both `navigate` and `setUrl`, retaining Schoology/LAUSD and LTI URL restrictions.
@@ -10,7 +10,10 @@
 - Add hover, pressed, and keyboard-focus feedback to group discussion and resource rows.
 
 ### Changed
-- Bump the port version to 2026.06.0-port.261.
+- Align the desktop app, Tauri bundle, and native crate version at `2026.10.1`.
+- Align Schoology client-version headers, embedded WebView user agents, and the OAuth callback app version code with official Android `2026.10.0`.
+- On startup, migrate a persisted Canadian server selection back to Live to match Android 2026.10.0; in-session manual switching remains available.
+- Reviewed the Android PDFTron source differences. The apparent `expandTextMarkup()` addition is a decompiler-reconstruction difference (the older source contains a decompilation stub), not a verified runtime behavior change, so the existing desktop PDF.js annotation editor is intentionally unchanged.
 
 ## [2026.06.0-port.260]
 

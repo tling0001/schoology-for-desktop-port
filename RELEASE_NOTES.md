@@ -1,5 +1,10 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.5]
+
+### Fixed
+- Match the light-mode background behind shared post cards to the native course dashboard background.
+
 ## [2026.10.0-port.4]
 
 ### Fixed

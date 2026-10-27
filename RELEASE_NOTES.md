@@ -1,5 +1,16 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.11]
+
+### Fixed
+- Keep the course app bar unchanged while Course Apps render inside the landscape main-content pane.
+- Move the course identity infobox above the landscape course tabs and show group/school identity text only above the main content, not below the sidebar image.
+- Keep Course Apps and course tabs in one sidebar selection model, clearing the Course App highlight when switching to another course tab.
+- Preserve the course-app HTTPS permission through native WebView fallback navigation so app launch URLs are not rejected on Tauri API variants without a JavaScript navigate method.
+- Reveal shared native WebViews when a platform omits the load-finished event, instead of leaving the native surface hidden indefinitely.
+- Keep course-app popups routed to the default browser instead of silently blocking them.
+- Enable Window Controls Overlay by default on supported desktop platforms when no saved preference exists.
+
 ## [2026.10.0-port.10]
 
 ### Fixed

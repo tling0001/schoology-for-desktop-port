@@ -735,7 +735,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
                   this._url = retryUrl;
                   if (typeof this.nativeView.navigate === 'function') await this.nativeView.navigate(retryUrl);
                   else if (typeof this.nativeView.setUrl === 'function') await this.nativeView.setUrl(retryUrl);
-                  else await invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation });
+                  else await invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' });
                   return;
                 } catch (error) {
                   console.warn('Could not retry the original Schoology WebView destination after session bootstrap:', error);
@@ -760,7 +760,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           this._hasLoadedPage = false;
           this.loading = true;
           this.dispatchEvent(new Event('did-start-loading'));
-          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
           await this._syncBounds();
           this._syncHandler();
           // Some WebView2 builds expose onPageLoad but occasionally omit its Finished
@@ -784,15 +784,25 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
                 this._url = retryUrl;
                 if (typeof initialView.navigate === 'function') await initialView.navigate(retryUrl);
                 else if (typeof initialView.setUrl === 'function') await initialView.setUrl(retryUrl);
-                else await invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation });
+                else await invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' });
               } catch (error) { console.warn('Could not retry the original Schoology WebView destination after session bootstrap:', error); }
             };
             setTimeout(retryAfterBootstrap, 100);
           }
+          // Some Tauri/WebView2 versions never emit the Finished load event. If the
+          // session retry has completed but no event arrived, still reveal the native
+          // surface instead of leaving an otherwise loaded page permanently hidden.
+          setTimeout(()=>{
+            if(!this.isConnected||!this.nativeView||this._hasLoadedPage||this._sessionBootstrapPending)return;
+            this._hasLoadedPage=true;this.loading=false;
+            this.dispatchEvent(new Event('did-stop-loading'));
+            this.dispatchEvent(new Event('did-finish-load'));
+            this._syncBounds();this.nativeView.show().catch(()=>{});
+          },5000);
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));
         } else {
           await this._syncBounds();
-          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
           this._hasLoadedPage = true;
           await this._syncBounds();
           this._syncHandler();
@@ -800,7 +810,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
       }
       getURL() { return this._url; }
       isLoading() { return this.loading; }
-      async reload() { if (!this.nativeView) return; this.loading = true; this.dispatchEvent(new Event('did-start-loading')); try { if (typeof this.nativeView.reload === 'function') await this.nativeView.reload(); else await this.nativeView.eval('location.reload()'); } catch (error) { try { await invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }); } catch (fallbackError) { this.loading = false; this.dispatchEvent(new Event('did-stop-loading')); throw fallbackError || error; } } }
+      async reload() { if (!this.nativeView) return; this.loading = true; this.dispatchEvent(new Event('did-start-loading')); try { if (typeof this.nativeView.reload === 'function') await this.nativeView.reload(); else await this.nativeView.eval('location.reload()'); } catch (error) { try { await invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }); } catch (fallbackError) { this.loading = false; this.dispatchEvent(new Event('did-stop-loading')); throw fallbackError || error; } } }
       async goBack() { if (this.nativeView) await this.nativeView.eval('history.back()'); }
       async goForward() { if (this.nativeView) await this.nativeView.eval('history.forward()'); }
       async executeJavaScript(script) { if (!this.nativeView) return null; return this.nativeView.eval(String(script)); }

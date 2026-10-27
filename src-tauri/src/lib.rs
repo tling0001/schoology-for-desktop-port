@@ -1502,8 +1502,9 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let raw_url = args.get("url").and_then(Value::as_str).ok_or("Embedded webview URL is missing.")?;
             let url = Url::parse(raw_url).map_err(|_| "Embedded webview URL is invalid.")?;
             let allow_lti_external = args.get("lti").and_then(Value::as_bool).unwrap_or(false);
+            let allow_course_app = args.get("courseApp").and_then(Value::as_bool).unwrap_or(false);
             let trusted_host = is_schoology_or_lausd_host(url.host_str().unwrap_or_default());
-            if !matches!(url.scheme(), "http" | "https") || !(trusted_host || (allow_lti_external && url.scheme() == "https")) {
+            if !matches!(url.scheme(), "http" | "https") || !(trusted_host || (allow_lti_external && url.scheme() == "https") || (allow_course_app && url.scheme() == "https")) {
                 return Err("Only Schoology/LAUSD pages and HTTPS destinations inside an LTI assignment can be embedded.".into());
             }
             let view = app.get_webview(label).ok_or("The embedded Schoology webview is unavailable.")?;
@@ -1533,7 +1534,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "prepare-web-session" => prepare_web_session(&app, &state).await,
         "login-external-school" => login_external_school(&app, &state, &args).await,
         "set-window-chrome" => Ok(json!(true)),
-        "get-window-chrome-mode" => Ok(json!({"overlay":read_json(&app,"window-chrome.json",json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false),"platform":std::env::consts::OS})),
+        "get-window-chrome-mode" => Ok(json!({"overlay":read_json(&app,"window-chrome.json",json!({"overlay":true})).get("overlay").and_then(Value::as_bool).unwrap_or(true),"platform":std::env::consts::OS})),
         "set-window-chrome-mode" => {
             let enabled = args.as_bool().unwrap_or(false);
             write_json(&app,"window-chrome.json",&json!({"overlay":enabled}))?;
@@ -1654,7 +1655,7 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 #[cfg(not(target_os = "macos"))]
-                let overlay = read_json(app.handle(), "window-chrome.json", json!({})).get("overlay").and_then(Value::as_bool).unwrap_or(false);
+                let overlay = read_json(app.handle(), "window-chrome.json", json!({"overlay":true})).get("overlay").and_then(Value::as_bool).unwrap_or(true);
                 #[cfg(not(target_os = "macos"))]
                 if overlay {
                     if let Some(window) = app.get_webview_window("main") {

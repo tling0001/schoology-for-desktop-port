@@ -3366,7 +3366,7 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .courseLandscapePage .courseAppsSidePane{display:none!important}
   .courseMainPane>.courseIdentityMainInfo .courseIdentityMainImage{display:flex!important}
 }
-:root:not([data-theme="dark"]) .activity:has(.sharedPostCard){background:#dfe3e7!important}
+:root:not([data-theme="dark"]) .activity:has(.sharedPostCard){background:#f5f6f7!important}
 :root[data-theme="dark"] .activity:has(.sharedPostCard){background:var(--theme-bg)!important}
 
 /* Keep official iOS sidebar PNGs crisp at their native-size scale and avoid sprite upscaling. */

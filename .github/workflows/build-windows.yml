@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: false
+      linux_only:
+        description: Build only the Linux package (useful for retrying a transient Linux runner failure)
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,7 +40,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true && (inputs.linux_only != true || matrix.platform == 'linux') }}
     name: Tauri ${{ matrix.platform }} build
     strategy:
       fail-fast: false
@@ -150,7 +155,7 @@ jobs:
           retention-days: 14
 
   android:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true && inputs.linux_only != true }}
     name: Tauri Android APK
     runs-on: ubuntu-26.04
     steps:
@@ -168,6 +173,10 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
+          # The action's legacy default includes the removed SDK package "tools".
+          # Install only platform-tools here; the exact platform/build-tools/NDK
+          # versions are installed explicitly in the next step.
+          packages: platform-tools
       - name: Install Android SDK packages
         shell: bash
         run: |
@@ -462,7 +471,7 @@ jobs:
 
   release:
     name: Publish versioned Tauri release
-    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true
+    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.linux_only != true
     needs: [build, android, ios-adhoc]
     runs-on: ubuntu-latest
     steps:

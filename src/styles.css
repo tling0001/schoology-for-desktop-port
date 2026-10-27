@@ -3099,3 +3099,6 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 .sharedPostPreviewCommentBody img{max-width:100%;height:auto}
 .sharedPostPreviewComment small{display:block;margin-top:3px;color:var(--theme-secondary,#73808c);font-size:11px}
 #assignmentActionMenu button,#submissionMenu button{display:block;width:100%;text-align:left}
+
+/* Preserve release-note line breaks and bullets in the shared app dialog. */
+.appDialogMessage{white-space:pre-line;overflow-wrap:anywhere}

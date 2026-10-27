@@ -16,7 +16,7 @@
 - On startup, migrate a persisted Canadian server selection back to Live to match Android 2026.10.0; in-session manual switching remains available.
 - Reviewed the official Android PDFTron source differences. The apparent `expandTextMarkup()` addition is a decompiler-reconstruction difference, not a verified runtime behavior change; the desktop editor uses PDF.js and is reused for the new annotated-submission action.
 - Show this release’s notes once on first launch after the installed app version changes.
-- Shared posts now load and display the two newest top-level comments below each post, with a View more action for the full comments dialog.
+- Shared posts now load and display the two most recent comments below each post, with a View more action for the full comments dialog.
 - Load the initial URL directly in native shared WebViews instead of creating `about:blank` and relying on a second navigation call, addressing the persistent blank WebView report on Windows.
 
 ## [2026.06.0-port.260]

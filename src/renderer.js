@@ -3113,7 +3113,7 @@ const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• Shared post cards show the
 // Keep the landscape Upcoming pane usable at both full and icon-only widths.
 if(!window.__schoologyUpcomingCollapseBound){window.__schoologyUpcomingCollapseBound=true;document.addEventListener('click',event=>{const button=event.target?.closest?.('[data-upcoming-collapse-toggle]');if(!button)return;const page=button.closest('.courseLandscapePage,.groupProfilePage,.schoolProfileNativePage');if(!page)return;const collapsed=page.classList.toggle('upcoming-collapsed');button.textContent=collapsed?'›':'‹';button.setAttribute('aria-label',collapsed?'Expand Upcoming':'Collapse Upcoming');button.title=collapsed?'Expand Upcoming':'Collapse Upcoming';});}
 async function maybeShowReleaseNotesAfterUpdate(){
- try{const version=String(await A.getAppVersion?.()||CURRENT_RELEASE_NOTES_VERSION);const key='schoology.release-notes-version';if(localStorage.getItem(key)===version)return;localStorage.setItem(key,version);setTimeout(()=>showAppDialog('What’s new in Schoology '+version,CURRENT_RELEASE_NOTES_TEXT),650)}catch(error){console.debug('Could not check release notes version:',error)}
+ try{const version=CURRENT_RELEASE_NOTES_VERSION;const key='schoology.release-notes-version';if(localStorage.getItem(key)===version)return;localStorage.setItem(key,version);setTimeout(()=>showAppDialog('What’s new in Schoology '+version,CURRENT_RELEASE_NOTES_TEXT),650)}catch(error){console.debug('Could not check release notes version:',error)}
 }
 async function startSchoologyStartup(retry=false){
   try{

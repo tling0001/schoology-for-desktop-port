@@ -788,7 +788,7 @@ async fn poll_notifications(app: &AppHandle, state: &HostState) {
             let title = item.get("title").or_else(|| item.get("type_label")).and_then(Value::as_str).unwrap_or("Schoology");
             if let Err(error) = app.notification().builder().title(title)
                 .body(if body.is_empty() { "You have a new Schoology notification" } else { &body })
-                .extra("schoologyNotification", item.clone())
+                .extra("schoologyNotification", item.to_string())
                 .show() {
                 eprintln!("Could not show native Schoology notification: {error}");
                 let _ = app.emit("schoology-notification-error", json!({"message":error.to_string()}));
@@ -1666,7 +1666,8 @@ pub fn run() {
                     if action.action_id() != "tap" { return; }
                     let Some(item) = action.notification()
                         .and_then(|notification| notification.extra().get("schoologyNotification"))
-                        .cloned() else { return; };
+                        .and_then(Value::as_str)
+                        .and_then(|raw| serde_json::from_str::<Value>(raw).ok()) else { return; };
                     let _ = notification_open_handle.emit("schoology-notification-open", item);
                 }).map_err(|e| std::io::Error::other(format!("Could not register notification activation handler: {e}")))?;
             }

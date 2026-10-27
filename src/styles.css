@@ -3438,3 +3438,5 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .sectionProfileContent.courseAppEmbeddedContent .embeddedPage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
   .sectionProfileContent.courseAppEmbeddedContent webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
 }
+
+.profileNavIcon .schoologyIosPeopleIcon{width:26px!important;height:30px!important;max-width:26px!important;max-height:30px!important;object-fit:contain!important}

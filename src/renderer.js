@@ -24,7 +24,7 @@ let pendingDeepLinkAfterLogin=null;
 let schoologyStartupComplete=false;
 let queuedIncomingDeepLink=null;
 let queuedNotificationOpen=null;
-let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false};
+let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,windowChromeOverlay:false,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false};
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
 function applyTheme(mode,save=false){const selected=['light','dark','system'].includes(mode)?mode:'system';state.themeMode=selected;document.documentElement.dataset.theme=resolveTheme(selected);document.documentElement.dataset.themeMode=selected;if(document.documentElement.dataset.theme==='dark')requestAnimationFrame(()=>fixDarkRichTextColors());if(save){try{Promise.resolve(A.setThemeMode?.(selected)).catch(()=>{})}catch{}}}
 window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.themeMode==='system')applyTheme('system')});
@@ -902,7 +902,7 @@ function showAssignmentAttachmentDialog(attachments){
 }
 async function showAssignment(sectionId,assignmentId){
   const c=document.getElementById('content'); if(!c)return;
-  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSubpage=null; state.submissionMenu=false; state.assignmentAllowComments=false; state.assignmentLandscape=window.matchMedia('(min-width: 801px)').matches; syncToolbar();
+  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSupportsAnnotations=false; state.assignmentSubpage=null; state.submissionMenu=false; state.assignmentAllowComments=false; state.assignmentLandscape=window.matchMedia('(min-width: 801px)').matches; syncToolbar();
   c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading assignment…</span></div></section>`;
   try{
     const uid=state.auth?.userId||state.auth?.user?.id;
@@ -935,10 +935,12 @@ async function showAssignment(sectionId,assignmentId){
     }catch{}
     const canSubmit=flag(at.allow_dropbox)||flag(at.allowDropbox)||flag(at.allow_submission)||flag(at.allowSubmission)||flag(gradeItem.allow_dropbox)||flag(gradeItem.allowDropbox)||flag(gradeItem.allow_submission)||flag(gradeItem.allowSubmission);
     const allowComments=flag(at.allow_discussion)||flag(at.allowDiscussion)||flag(gradeItem.allow_discussion)||flag(gradeItem.allowDiscussion);
+    const annotationFiles=collectAssignmentAttachments(attachments).filter(f=>{const name=String(f.filename||f.fileName||f.title||f.fileTitle||'');const mime=String(f.filemime||f.fileMIME||f.mime||'').toLowerCase();return !!(f.id||f.file_id||f.fileId)&&(mime.includes('pdf')||/\.pdf$/i.test(name))&&!!(f.file_download_url||f.fileDownloadURL||f.download_path||f.downloadPath||f.download_url||f.downloadUrl||f.url||f.resolveDownloadUrl||f.resolve_download_url);});
+    const supportsAnnotations=canSubmit&&!isTeacher&&annotationFiles.length>0&&await schoologyAssignmentSupportsAnnotations(sectionId,assignmentId);
     let assignmentGrade={};
     if(uid){try{const gr=await A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItem.id||assignmentId,enrollment_id:(myEnrollment.id||undefined)}});assignmentGrade=(gr.grades?.grade||gr.grade||[])[0]||{}}catch{}}
     const resolvedGradeItemId=Number(gradeItem.id||gradeItem.grade_item_id||gradeItem.gradeItemId||gradeItem.gradeitem_id||gradeItem.gradeItemID||assignmentId)||Number(assignmentId);
-    state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentAllowComments=allowComments; state.assignmentData={...at,__gradeItemId:resolvedGradeItemId}; state.assignmentEnrollmentId=myEnrollment.id||null;
+    state.assignmentCanSubmit=canSubmit; state.assignmentIsTeacher=isTeacher; state.assignmentSupportsAnnotations=supportsAnnotations; state.assignmentAllowComments=allowComments; state.assignmentData={...at,__gradeItemId:resolvedGradeItemId,__annotationFiles:annotationFiles}; state.assignmentEnrollmentId=myEnrollment.id||null;
     const tabs=`<button class="assignmentTab active" data-assignment-tab="info">Info</button>${allowComments?`<button class="assignmentTab" data-assignment-tab="comments">Comments</button>`:''}${!state.assignmentLandscape&&canSubmit?`<button class="assignmentTab" data-assignment-tab="submit">${isTeacher?'Grade Submissions':'Submissions'}</button>`:''}`;
     if(state.assignmentLandscape&&canSubmit){
       c.innerHTML=`<section class="assignmentAndroidPage assignmentLandscapePage"><div class="assignmentLandscapeSplit"><section class="assignmentInfoPane"><div class="assignmentTabs">${tabs}</div><div id="assignmentTabContent" class="assignmentTabContent"></div></section><aside class="assignmentSubmissionsPane"><div class="assignmentPaneHeader">${isTeacher?'Submissions':'Submissions'}</div><div id="assignmentSubmissionsPane" class="assignmentSubmissionsContent"></div></aside></div></section>`;
@@ -1031,17 +1033,37 @@ function openAssignmentCommentComposer(sectionId,assignmentId,parentId='0'){
   });
   requestAnimationFrame(()=>wrap.querySelector('#assignmentCommentBody')?.focus());
 }
+function openAnnotatedSubmissionPicker(){
+ const assignment=state.assignmentData||{},files=assignment.__annotationFiles||[];
+ if(!state.assignmentSupportsAnnotations||!files.length){showAppDialog('Annotated submission unavailable','This assignment does not currently provide a supported PDF for annotated submissions.');return;}
+ const openFile=async file=>{
+  const fileId=file.id||file.file_id||file.fileId;
+  const pdfUrl=file.file_download_url||file.fileDownloadURL||file.download_path||file.downloadPath||file.download_url||file.downloadUrl||file.url||file.resolveDownloadUrl||file.resolve_download_url;
+  if(!fileId||!pdfUrl){showAppDialog('Annotated submission unavailable','Schoology did not provide the PDF file details required to annotate this submission.');return;}
+  if(!window.schoologyAnnotationEditor?.open){showAppDialog('Annotation unavailable','The PDF annotation editor did not load.');return;}
+  try{await window.schoologyAnnotationEditor.open({sectionId:state.assignmentView.sectionId,assignmentId:state.assignmentView.assignmentId,fileId:String(fileId),fileType:file.fileType||file.file_type||file.filemime||file.fileMIME||'application/pdf',pdfUrl,filename:file.title||file.fileTitle||file.filename||file.fileName||'Assignment PDF',onSubmitted:async()=>{await openAssignmentSubmissions(state.assignmentView.sectionId,state.assignmentView.assignmentId,state.assignmentData||{},false)}})}
+  catch(error){showAppDialog('Unable to open annotation editor',error?.message||String(error))}
+ };
+ if(files.length===1){void openFile(files[0]);return;}
+ const old=document.getElementById('annotatedSubmissionPicker');old?.remove();
+ const wrap=document.createElement('div');wrap.id='annotatedSubmissionPicker';wrap.className='appDialogOverlay';
+ wrap.innerHTML='<section class="appDialog assignmentAttachmentDialog" role="dialog" aria-modal="true"><h2>Create annotated submission</h2><div class="assignmentAttachmentList">'+files.map((f,i)=>'<button type="button" class="assignmentAttachmentRow" data-annotated-file="'+i+'"><span class="assignmentAttachmentName">'+esc(f.title||f.fileTitle||f.filename||f.fileName||'Assignment PDF')+'</span></button>').join('')+'</div><div class="appDialogActions"><button type="button" data-annotated-cancel>Cancel</button></div></section>';
+ document.body.appendChild(wrap);wrap.classList.add('open');
+ wrap.querySelector('[data-annotated-cancel]')?.addEventListener('click',()=>wrap.remove());
+ wrap.querySelectorAll('[data-annotated-file]').forEach(button=>button.addEventListener('click',async()=>{const file=files[Number(button.dataset.annotatedFile)];wrap.remove();if(file)await openFile(file)}));
+}
 function showAssignmentActionMenu(){
   const old=document.getElementById('assignmentActionMenu');old?.remove();
   const plus=document.getElementById('assignmentPlus');if(!plus)return;
   const r=plus.getBoundingClientRect();
   const menu=document.createElement('div');menu.id='assignmentActionMenu';menu.className='assignmentActionMenu';
-  const canComment=!!state.assignmentAllowComments,canSubmit=!!state.assignmentCanSubmit&&!state.assignmentIsTeacher;
-  menu.innerHTML=`${canComment?`<button id="assignmentNewComment"><span>Create comment</span></button>`:''}${canSubmit?`<button id="assignmentUploadSubmission"><span>Upload submission</span></button><button id="assignmentTextSubmission"><span>Create text submission</span></button>`:''}`;
+  const canComment=!!state.assignmentAllowComments,canSubmit=!!state.assignmentCanSubmit&&!state.assignmentIsTeacher,canAnnotate=!!state.assignmentSupportsAnnotations;
+  menu.innerHTML=`${canComment?`<button id="assignmentNewComment"><span>Create comment</span></button>`:''}${canSubmit?`<button id="assignmentUploadSubmission"><span>Upload submission</span></button><button id="assignmentTextSubmission"><span>Create text submission</span></button>`:''}${canAnnotate?`<button id="assignmentAnnotatedSubmission"><span>Create annotated submission</span></button>`:''}`;
   document.body.appendChild(menu);menu.style.top=(r.bottom+6)+'px';menu.style.right=(window.innerWidth-r.right)+'px';
   document.getElementById('assignmentNewComment')?.addEventListener('click',()=>{menu.remove();openAssignmentCommentComposer(state.assignmentView.sectionId,state.assignmentView.assignmentId,'0')});
   document.getElementById('assignmentUploadSubmission')?.addEventListener('click',()=>{menu.remove();showAssignmentAttachmentChooser()});
   document.getElementById('assignmentTextSubmission')?.addEventListener('click',()=>{menu.remove();openTextSubmissionComposer()});
+  document.getElementById('assignmentAnnotatedSubmission')?.addEventListener('click',()=>{menu.remove();openAnnotatedSubmissionPicker()});
   const dismiss=e=>{if(!menu.contains(e.target)&&e.target!==plus){menu.remove();document.removeEventListener('mousedown',dismiss)}};setTimeout(()=>document.addEventListener('mousedown',dismiss),0);
 }
 
@@ -1099,11 +1121,12 @@ function showSubmissionMenu(){
   const old=document.getElementById('submissionMenu'); old?.remove();
   if(!state.submissionMenu)return;
   const menu=document.createElement('div');menu.id='submissionMenu';menu.className='submissionMenu';
-  menu.innerHTML='<button id="uploadSubmissionAction">Upload Submission</button><button id="textSubmissionAction">Create Text Submission</button>';
+  menu.innerHTML='<button id="uploadSubmissionAction">Upload Submission</button><button id="textSubmissionAction">Create Text Submission</button>'+(state.assignmentSupportsAnnotations?'<button id="annotatedSubmissionAction">Create annotated submission</button>':'');
   document.body.appendChild(menu);
   const b=document.getElementById('assignmentPlus');const r=b?.getBoundingClientRect();if(r){menu.style.top=(r.bottom+6)+'px';menu.style.right=(window.innerWidth-r.right)+'px';}
   document.getElementById('uploadSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();showAssignmentAttachmentChooser()});
   document.getElementById('textSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();openTextSubmissionComposer()});
+  document.getElementById('annotatedSubmissionAction')?.addEventListener('click',()=>{state.submissionMenu=false;menu.remove();openAnnotatedSubmissionPicker()});
 }
 function showAssignmentAttachmentChooser(){
   document.getElementById('assignmentUploadSubmissionDialog')?.remove();
@@ -1661,15 +1684,42 @@ function installCourseLayoutWatcher(){
   courseLayoutMediaQuery=mq;
 }
 
-function renderSharedPostCard({update={},id,author='Schoology',avatar='',authorId='',authorAttr='data-author-id',contextLabel='',contextAttr='data-activity-group-id',contextId='',cardClass='',badge='',comments=0,likes=0,liked=false,commentAttr='data-shared-post-comments',commentCountAttr='data-shared-post-comment-count',likeAttr='data-shared-post-like',likeCountAttr='data-shared-post-like-count',deleteButton='',commentsPanelId=''}) {
+function renderSharedPostCard({update={},id,author='Schoology',avatar='',authorId='',authorAttr='data-author-id',contextLabel='',contextAttr='data-activity-group-id',contextId='',cardClass='',badge='',comments=0,likes=0,liked=false,commentAttr='data-shared-post-comments',commentCountAttr='data-shared-post-comment-count',likeAttr='data-shared-post-like',likeCountAttr='data-shared-post-like-count',deleteButton='',commentsPanelId='',realm='',realmId=''}) {
  const postId=id??update.id??update.update_id??update.updateId??'';
  const body=update.body||update.message||update.description||update.title||update.update_body||update.updateBody||update.richtext_body||update.richtextBody||update.update?.body||update.update?.message||update.template_fields?.body||'';
  const date=formatSchoologyDate(update.created??update.timestamp??update.created_at??update.last_updated??update.lastUpdated??'');
  const authorMarkup=authorAttr?'<button class="activityUser activityAuthorLink" '+authorAttr+'="'+esc(authorId||'')+'">'+esc(author)+'</button>':'<b class="activityUser">'+esc(author)+'</b>';
  const contextMarkup=contextLabel?'<span class="activityContextArrow" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path fill="#8c8c8c" d="M6.5 12l4-4-4-4-1 1 3 3-3 3z"/></svg></span><button class="activityGroupLink" '+contextAttr+'="'+esc(contextId||'')+'">'+esc(contextLabel)+'</button>':'';
- return '<article class="androidActivityCard sharedPostCard '+esc(cardClass)+'" data-update-card="'+esc(postId)+'"><div class="activityHeader">'+(avatar?'<img class="activityAvatar" data-media-image-url="'+esc(avatar)+'" alt="">':'<span class="activityAvatar">'+esc(String(author||'S').charAt(0))+'</span>')+authorMarkup+contextMarkup+(badge||'')+(deleteButton||'')+'</div><div class="activityBody">'+body+'</div>'+renderAttachments(update.attachments||update.attachment||update.files||{})+renderUpdatePoll(update,postId)+'<div class="activityMeta">'+esc(date)+'</div>'+renderSharedPostActions({id:postId,comments,likes,liked,commentAttr,commentCountAttr,likeAttr,likeCountAttr})+(commentsPanelId?'<div class="updateCommentsPanel" id="'+esc(commentsPanelId)+'" hidden></div>':'')+'</article>';
+ const previewKey=realm&&Number(realmId)>0&&postId&&Number(comments)>0?'shared-preview-'+Math.random().toString(36).slice(2,11):'';
+ const previewMarkup=previewKey?'<div class="sharedPostCommentPreview" data-shared-post-preview-key="'+previewKey+'" data-realm="'+esc(realm)+'" data-realm-id="'+esc(realmId)+'" data-update-id="'+esc(postId)+'" aria-label="Recent comments"></div>':'';
+ const markup='<article class="androidActivityCard sharedPostCard '+esc(cardClass)+'" data-update-card="'+esc(postId)+'"><div class="activityHeader">'+(avatar?'<img class="activityAvatar" data-media-image-url="'+esc(avatar)+'" alt="">':'<span class="activityAvatar">'+esc(String(author||'S').charAt(0))+'</span>')+authorMarkup+contextMarkup+(badge||'')+(deleteButton||'')+'</div><div class="activityBody">'+body+'</div>'+renderAttachments(update.attachments||update.attachment||update.files||{})+renderUpdatePoll(update,postId)+'<div class="activityMeta">'+esc(date)+'</div>'+renderSharedPostActions({id:postId,comments,likes,liked,commentAttr,commentCountAttr,likeAttr,likeCountAttr})+previewMarkup+(commentsPanelId?'<div class="updateCommentsPanel" id="'+esc(commentsPanelId)+'" hidden></div>':'')+'</article>';
+ if(previewKey)setTimeout(()=>{const el=document.querySelector('[data-shared-post-preview-key="'+previewKey+'"]');if(el)loadSharedPostPreview(el)},0);
+ return markup;
 }
-
+async function loadSharedPostPreview(panel){
+ if(!panel||panel.dataset.loaded==='1')return;
+ panel.dataset.loaded='1';
+ const realm=panel.dataset.realm,realmId=panel.dataset.realmId,updateId=panel.dataset.updateId;
+ try{
+  const data=await A.api({path:realm+'/'+realmId+'/updates/'+updateId+'/comments',params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});
+  const raw=data?.comment??data?.comments??data?.data?.comment??data?.data?.comments??[];
+  const comments=Array.isArray(raw)?raw:(raw&&typeof raw==='object'?[raw]:[]);
+  const roots=comments.filter(c=>Number(c.parent_id??c.parentId??0)===0);
+  const timestamp=c=>{const v=c.created??c.timestamp??c.last_updated??c.lastUpdated??0;const n=typeof v==='number'?v:Date.parse(v)||0;return n>0&&n<1000000000000?n*1000:n};
+  roots.sort((a,b)=>timestamp(b)-timestamp(a));
+  const recent=roots.slice(0,2);
+  if(!recent.length){panel.remove();return;}
+  panel.innerHTML='<button type="button" class="sharedPostViewMore">View more comments</button>'+recent.map(comment=>{
+   const profile=comment.user||comment.author||comment.profile||comment.creator||{};
+   const name=dialogPersonName(comment,profile)||'Schoology';
+   const body=comment.body??comment.comment??comment.message??comment.richtext_body??'';
+   const created=formatSchoologyDate(comment.created??comment.timestamp??comment.last_updated??'');
+   return '<div class="sharedPostPreviewComment"><b>'+esc(name)+'</b><div class="sharedPostPreviewCommentBody">'+body+'</div>'+(created?'<small>'+esc(created)+'</small>':'')+'</div>';
+  }).join('');
+  panel.querySelector('.sharedPostViewMore')?.addEventListener('click',()=>openUpdateCommentsModal(realm,realmId,updateId,'Comments'));
+  hydrateMediaImages(panel).catch(()=>{});
+ }catch(error){console.debug('Unable to load recent post comments:',error);panel.remove();}
+}
 function renderSharedPostActions({id,comments=0,likes=0,liked=false,commentAttr,commentCountAttr,likeAttr,likeCountAttr}){
  const value=esc(id??''),commentTotal=Number(comments)||0,likeTotal=Number(likes)||0,isLiked=!!liked;
  const action=(name)=>`${name}="${value}"`;
@@ -1693,7 +1743,7 @@ async function loadCourseUpdates(course,el){
      const likes=Number(u.likes??u.like_count??0);
      const liked=!!(u.user_liked??u.liked??u.is_liked);
      const canDelete=uid&&String(u.uid||u.user_id||u.author_id||'')===String(uid);
-     return renderSharedPostCard({update:u,id,author,avatar,authorId:au.id||u.user_id||u.uid||u.author_id||u.authorId||'',authorAttr:'data-course-author-id',cardClass:'sectionFullUpdate',comments,likes,liked,commentAttr:'data-course-update-comments',commentCountAttr:'data-course-update-comment-count',likeAttr:'data-course-update-like',likeCountAttr:'data-course-update-like-count',deleteButton:canDelete?'<button class="updateDeleteButton" data-update-delete="'+esc(id)+'" aria-label="Delete update">⋮</button>':'',commentsPanelId:'course-update-comments-'+id});
+     return renderSharedPostCard({update:u,id,author,avatar,authorId:au.id||u.user_id||u.uid||u.author_id||u.authorId||'',authorAttr:'data-course-author-id',realm:'sections',realmId:sid,cardClass:'sectionFullUpdate',comments,likes,liked,commentAttr:'data-course-update-comments',commentCountAttr:'data-course-update-comment-count',likeAttr:'data-course-update-like',likeCountAttr:'data-course-update-like-count',deleteButton:canDelete?'<button class="updateDeleteButton" data-update-delete="'+esc(id)+'" aria-label="Delete update">⋮</button>':'',commentsPanelId:'course-update-comments-'+id});
    }).join('');
    el.innerHTML=`${cards||'<div class="empty"><h2>No updates</h2><p>There are no updates in this course.</p></div>'}${next?'<button id="courseUpdateMore" class="androidMoreButton">Load more</button>':''}`;
    await hydrateMediaImages(el);
@@ -2296,7 +2346,7 @@ async function openSchoolProfile(schoolId,title='School'){
    const likes=Number(u.likes||u.like_count||u.likeCount||0);
    const comments=Number(u.num_comments||u.comment_count||u.commentCount||u.comments_count||0);
    const liked=!!(u.user_liked||u.liked||u.is_liked);
-   return renderSharedPostCard({update:u,id:updateId,author:name,avatar:avatar,authorId:authorId,authorAttr:'data-school-profile-author-id',cardClass:'schoolProfileUpdate',comments:comments,likes:likes,liked:liked,commentAttr:'data-school-update-comments',commentCountAttr:'data-school-update-comment-count',likeAttr:'data-school-update-like',likeCountAttr:'data-school-update-like-count',commentsPanelId:'school-update-comments-'+updateId});
+   return renderSharedPostCard({update:u,id:updateId,author:name,avatar:avatar,authorId:authorId,authorAttr:'data-school-profile-author-id',realm:'schools',realmId:schoolId,cardClass:'schoolProfileUpdate',comments:comments,likes:likes,liked:liked,commentAttr:'data-school-update-comments',commentCountAttr:'data-school-update-comment-count',likeAttr:'data-school-update-like',likeCountAttr:'data-school-update-like-count',commentsPanelId:'school-update-comments-'+updateId});
  }).join('')+'</div>':'<div class="schoolProfileEmpty">No updates.</div>';
  await hydrateMediaImages(content);
  content.querySelectorAll('[data-school-profile-author-id]').forEach(function(button){button.addEventListener('click',function(){const authorId=button.dataset.schoolProfileAuthorId;if(authorId)openProfileById(authorId,button.textContent||'Profile')})});
@@ -2386,7 +2436,7 @@ async function showGroup(group,activeTab='updates'){
           const avatar=normalizeImageUrl(au.picture_url||au.pictureUrl||au.picture||au.photo_url||'');
           const updateId=u.id||u.update_id||u.updateId||'';
           const likes=Number(u.likes||u.like_count||u.likeCount||0), comments=Number(u.num_comments||u.comment_count||u.commentCount||u.comments_count||0), liked=!!(u.user_liked||u.liked||u.is_liked);
-          return renderSharedPostCard({update:u,id:updateId,author:name,avatar,authorId:u.user_id||u.uid||u.author_id||u.authorId||u.creator_id||u.creatorId||'',authorAttr:'data-author-id',cardClass:'groupFullUpdate',badge:groupAdminBadgeMarkup(u)||groupAdminBadgeMarkup(au),comments,likes,liked,commentAttr:'data-group-update-comments',commentCountAttr:'data-group-update-comment-count',likeAttr:'data-group-update-like',likeCountAttr:'data-group-update-like-count'});
+          return renderSharedPostCard({update:u,id:updateId,author:name,avatar,authorId:u.user_id||u.uid||u.author_id||u.authorId||u.creator_id||u.creatorId||'',authorAttr:'data-author-id',realm:'groups',realmId:gid,cardClass:'groupFullUpdate',badge:groupAdminBadgeMarkup(u)||groupAdminBadgeMarkup(au),comments,likes,liked,commentAttr:'data-group-update-comments',commentCountAttr:'data-group-update-comment-count',likeAttr:'data-group-update-like',likeCountAttr:'data-group-update-like-count'});
         }).join(''):'<div class="empty">No updates.</div>';
         await hydrateMediaImages(gc);
         gc.querySelectorAll('[data-author-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.authorId;if(id)openProfileById(id,b.textContent||'Profile')});
@@ -2740,7 +2790,7 @@ async function loadTab(){
       }else if(tab==='badges'){
         try{const x=await A.api({path:`users/${puid}/badges`,params:{}});const arr=x.badge||x.badges||x.items||[];pane.innerHTML=arr.length?`<div class="badgeGrid">${arr.map(b=>`<article class="badgeCard"><b>${esc(b.name||b.title||'Badge')}</b><small>${esc(b.description||'')}</small></article>`).join('')}</div>`:'<div class="empty">No badges.</div>'}catch(e){pane.innerHTML='<div class="empty">No badges.</div>'}
       }else{
-        try{const x=await A.api({path:`users/${puid}/updates`,params:{start:0,limit:20,with_attachments:'TRUE',richtext:1}});const arr=x.update||x.updates||[];pane.innerHTML=arr.length?arr.map(u=>{const id=u.id||u.update_id||u.updateId,comments=Number(u.num_comments||u.comment_count||0),likes=Number(u.likes||u.like_count||0),liked=!!(u.user_liked||u.liked||u.is_liked);return renderSharedPostCard({update:u,id,author:user.name_display||user.display_name||user.name||'Schoology',avatar:normalizeImageUrl(user.picture_url||user.pictureUrl||user.picture||user.avatar_url||''),authorAttr:null,comments,likes,liked,commentAttr:'data-person-update-comments',commentCountAttr:'data-person-update-comment-count',likeAttr:'data-person-update-like',likeCountAttr:'data-person-update-like-count'});}).join(''):'<div class="empty">No updates.</div>';pane.querySelectorAll('[data-person-update-comments]').forEach(b=>b.onclick=()=>openSharedCommentComposer('users',puid,b.dataset.personUpdateComments,'Add comment'));pane.querySelectorAll('[data-person-update-comment-count]').forEach(b=>b.onclick=()=>openUpdateCommentsModal('users',puid,b.dataset.personUpdateCommentCount,'Comments'));pane.querySelectorAll('[data-person-update-like]').forEach(b=>b.onclick=async()=>{const id=b.dataset.personUpdateLike,liked=b.dataset.liked==='1';try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},json:true});b.dataset.liked=liked?'0':'1';b.textContent=liked?'Like':'Unlike'}catch(e){showAppDialog('Unable to update like',e?.message||String(e)||'Unknown error')}});await hydrateMediaImages(pane)}catch(e){pane.innerHTML='<div class="empty">No updates.</div>'}
+        try{const x=await A.api({path:`users/${puid}/updates`,params:{start:0,limit:20,with_attachments:'TRUE',richtext:1}});const arr=x.update||x.updates||[];pane.innerHTML=arr.length?arr.map(u=>{const id=u.id||u.update_id||u.updateId,comments=Number(u.num_comments||u.comment_count||0),likes=Number(u.likes||u.like_count||0),liked=!!(u.user_liked||u.liked||u.is_liked);return renderSharedPostCard({update:u,id,author:user.name_display||user.display_name||user.name||'Schoology',avatar:normalizeImageUrl(user.picture_url||user.pictureUrl||user.picture||user.avatar_url||''),authorAttr:null,comments,likes,liked,realm:'users',realmId:puid,commentAttr:'data-person-update-comments',commentCountAttr:'data-person-update-comment-count',likeAttr:'data-person-update-like',likeCountAttr:'data-person-update-like-count'});}).join(''):'<div class="empty">No updates.</div>';pane.querySelectorAll('[data-person-update-comments]').forEach(b=>b.onclick=()=>openSharedCommentComposer('users',puid,b.dataset.personUpdateComments,'Add comment'));pane.querySelectorAll('[data-person-update-comment-count]').forEach(b=>b.onclick=()=>openUpdateCommentsModal('users',puid,b.dataset.personUpdateCommentCount,'Comments'));pane.querySelectorAll('[data-person-update-like]').forEach(b=>b.onclick=async()=>{const id=b.dataset.personUpdateLike,liked=b.dataset.liked==='1';try{await A.api({path:`like/${id}`,method:'POST',params:{like_action:!liked},json:true});b.dataset.liked=liked?'0':'1';b.textContent=liked?'Like':'Unlike'}catch(e){showAppDialog('Unable to update like',e?.message||String(e)||'Unknown error')}});await hydrateMediaImages(pane)}catch(e){pane.innerHTML='<div class="empty">No updates.</div>'}
       }
     };
     document.querySelectorAll('[data-profile-tab]').forEach(b=>b.onclick=()=>loadProfileTab(b.dataset.profileTab));
@@ -2944,7 +2994,7 @@ async function loadHomeTab(){
       const activityGroup=groupMap[activityGroupId]||{};
       const activityGroupName=x.group_name||x.groupName||x.realm_title||x.realmTitle||activityGroup.name||activityGroup.title||'';
       const groupContext=['group','groups'].includes(activityRealm)&&activityGroupId>0&&activityGroupName;
-      return renderSharedPostCard({update:x,id:x.id||'',author:name,avatar,authorId:u.user_id||u.uid||u.author_id||u.authorId||u.creator_id||u.creatorId||'',authorAttr:'data-author-id',comments,likes:x.likes||0,liked:x.liked||x.is_liked,contextLabel:groupContext?activityGroupName:'',contextAttr:'data-activity-group-id',contextId:activityGroupId,commentAttr:'data-activity-comments',commentCountAttr:'data-activity-comment-count',likeAttr:'data-activity-like',likeCountAttr:'data-activity-like-count'});
+      return renderSharedPostCard({update:x,id:x.id||'',author:name,avatar,authorId:u.user_id||u.uid||u.author_id||u.authorId||u.creator_id||u.creatorId||'',authorAttr:'data-author-id',realm:({'section':'sections','sections':'sections','group':'groups','groups':'groups','school':'schools','schools':'schools','user':'users','users':'users'})[activityRealm]||activityRealm,realmId:activityGroupId||Number(x.realm_id||x.realmId||x.section_id||x.user_id||0),comments,likes:x.likes||0,liked:x.liked||x.is_liked,contextLabel:groupContext?activityGroupName:'',contextAttr:'data-activity-group-id',contextId:activityGroupId,commentAttr:'data-activity-comments',commentCountAttr:'data-activity-comment-count',likeAttr:'data-activity-like',likeCountAttr:'data-activity-like-count'});
     }).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>';
     await hydrateMediaImages(c);
     c.querySelectorAll('.activityBody a[href]').forEach(a=>a.addEventListener('click',async ev=>{
@@ -3069,6 +3119,11 @@ function showStartupOfflineError(){
   splash.innerHTML=`<img class="androidSplashLogo" src="../assets/android_loading_logo.png" alt="Schoology"><div class="startupOfflineError"><b>Unable to connect to Schoology</b><span>Check your internet connection and try again.</span><button id="startupRetry">Retry</button></div>`;
   splash.querySelector('#startupRetry')?.addEventListener('click',()=>startSchoologyStartup(true));
 }
+const CURRENT_RELEASE_NOTES_VERSION='2026.10.0-port.1';
+const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• Shared post cards show the two most recent comments, with View more for the full thread.\n• Assignments that support annotated submissions now offer Create annotated submission from the plus menu when a PDF is available.\n• Fixed the initial shared WebView navigation path on Windows by loading the requested URL in the native child WebView itself.\n• Canadian server preferences now follow the Android 2026.10.0 startup behavior.\n• Includes the previous release’s shared WebView navigation, responsive comments, poll results, homepage composer, and group-row interaction fixes.';
+async function maybeShowReleaseNotesAfterUpdate(){
+ try{const version=String(await A.getAppVersion?.()||CURRENT_RELEASE_NOTES_VERSION);const key='schoology.release-notes-version';if(localStorage.getItem(key)===version)return;localStorage.setItem(key,version);setTimeout(()=>showAppDialog('What’s new in Schoology '+version,CURRENT_RELEASE_NOTES_TEXT),650)}catch(error){console.debug('Could not check release notes version:',error)}
+}
 async function startSchoologyStartup(retry=false){
   try{
     const online=await A.networkOnline?.();
@@ -3091,6 +3146,7 @@ async function startSchoologyStartup(retry=false){
     if(queuedIncomingDeepLink){const url=queuedIncomingDeepLink;queuedIncomingDeepLink=null;handleIncomingSchoologyDeepLink(url)}
     if(queuedNotificationOpen){const notification=queuedNotificationOpen;queuedNotificationOpen=null;void handleSchoologyNotificationOpen(notification)}
     if(pendingStartupUpdate){const update=pendingStartupUpdate;pendingStartupUpdate=null;setTimeout(()=>showUpdateDialog(update),0)}
+    setTimeout(()=>maybeShowReleaseNotesAfterUpdate(),1100)
   }
 }
 async function handleIncomingSchoologyDeepLink(url){

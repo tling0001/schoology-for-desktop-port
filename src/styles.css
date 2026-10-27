@@ -3089,3 +3089,13 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 .groupDiscussionRow:focus-visible,.resourceCategoryHeader:focus-visible,.resourceCollectionRow:focus-visible,.resourceFileRow:focus-visible{outline:2px solid #2f6fa3;outline-offset:-2px}
 .androidPostToSelect{width:100%;min-height:42px;margin:0 0 12px;padding:8px 36px 8px 10px;border:1px solid #c7d1dc;border-radius:4px;background:#fff;color:#283746;font:inherit}
 .androidPostToSelect:focus{outline:2px solid #2f6fa3;outline-offset:1px}
+
+/* Shared post cards: compact two-comment preview, with the full thread still behind the count button. */
+.sharedPostCommentPreview{margin-top:8px;padding-top:7px;border-top:1px solid var(--theme-divider,#e4e7eb);color:var(--theme-text,#263238)}
+.sharedPostViewMore{display:block;margin:0 0 6px;padding:3px 0;border:0;background:transparent;color:var(--theme-blue,#2e66a3);font:inherit;font-size:13px;cursor:pointer}
+.sharedPostPreviewComment{padding:6px 0;font-size:13px;overflow-wrap:anywhere;word-break:break-word}
+.sharedPostPreviewComment b{font-weight:600}
+.sharedPostPreviewCommentBody{margin-top:3px;line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
+.sharedPostPreviewCommentBody img{max-width:100%;height:auto}
+.sharedPostPreviewComment small{display:block;margin-top:3px;color:var(--theme-secondary,#73808c);font-size:11px}
+#assignmentActionMenu button,#submissionMenu button{display:block;width:100%;text-align:left}

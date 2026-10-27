@@ -645,7 +645,7 @@
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
               jsNavigationHookAvailable: typeof tauri.webview.Webview.prototype?.onNavigation === 'function',
-              deferNavigation: true
+              deferNavigation: false
             });
             nativeCreated = true;
             this.nativeView = await tauri.webview.Webview.getByLabel(label);
@@ -753,11 +753,9 @@
             // The native surface is still navigated and shown below, even without renderer load events.
             console.info('Schoology embedded webview: native onPageLoad hook unavailable; continuing without load events.');
           }
-          // Apply the measured box before exposing the native child surface. Calling
-          // the requestAnimationFrame scheduler here used to show a 1px/zero-sized
-          // child briefly, and could leave it covering content if layout was late.
-          await this._syncBounds();
-          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
+          // The native child is created at the requested URL. Starting it at about:blank
+          // and issuing a second navigation has left a blank child surface on Windows.
+          // Mark the surface visible immediately; native load events still update loading state.
           this._hasLoadedPage = true;
           await this._syncBounds();
           this._syncHandler();

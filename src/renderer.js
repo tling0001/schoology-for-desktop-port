@@ -789,9 +789,9 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
  c.innerHTML=`<section class="sectionProfilePage courseLandscapePage">
-   <aside class="courseAppsSidePane courseInfoSidePane"><div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolName" class="courseSchoolName"></div></div></div><nav class="profileSidebarNav courseSidebarNav">${baseTabs.concat([["grades","Grades"]]).map(([id,label])=>`<button class="profileSidebarNavItem ${effectiveTab===id?"active":""}" data-course-tab="${id}"><span class="profileNavIcon" aria-hidden="true">${schoologySidebarIcon(id,label)}</span><span>${label}</span></button>`).join("")}</nav><div class="courseAppsSideDivider"></div><div class="homePaneHeader courseAppsSideHeading">Course Apps</div><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
+   <aside class="courseAppsSidePane courseInfoSidePane"><div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolName" class="courseSchoolName"></div></div></div><nav class="profileSidebarNav courseSidebarNav">${baseTabs.concat([["grades","Grades"]]).map(([id,label])=>`<button class="profileSidebarNavItem ${effectiveTab===id?"active":""}" data-course-tab="${id}"><span class="profileNavIcon" aria-hidden="true">${schoologySidebarIcon(id,label)}</span><span>${label}</span></button>`).join("")}</nav><div id="courseAppsSideContent" class="courseAppsSideContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside>
    <section class="courseMainPane"><div class="sectionProfileTabs">${baseTabs.concat([["grades","Grades"]]).map(([id,label])=>`<button class="sectionProfileTab ${effectiveTab===id?'active':''}" data-course-tab="${id}">${label}</button>`).join('')}</div>
-    <div class="sectionProfileHeader courseIdentityCard"><div class="courseIdentityImageWrap"><img class="sectionProfileImage" data-course-image-url="${esc(image)}" style="display:none" alt=""><span class="sectionProfileFallback" style="display:${image?'none':'flex'}">${esc(title.charAt(0)||'C')}</span></div><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolNameMobile" class="courseSchoolName"></div></div></div>
+    <div class="sectionProfileHeader courseIdentityCard courseIdentityMainInfo"><div class="courseIdentityInfoBar"><div class="sectionProfileTitle">${esc(title)}</div><div class="sectionProfileSubtitle">${esc(section||'')}</div><div id="courseSchoolNameMobile" class="courseSchoolName"></div></div></div>
     <div class="sectionProfileRule"></div><div id="sectionProfileContent" class="sectionProfileContent tabSlidePage"><div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></section>
    <aside id="courseUpcomingPane" class="courseUpcomingPane"><div class="homePaneHeader"><span>Upcoming</span><button class="upcomingCollapseToggle" type="button" data-upcoming-collapse-toggle aria-label="Collapse Upcoming" title="Collapse Upcoming">‹</button></div><div id="courseUpcomingContent" class="courseUpcomingContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></aside></section>`;
  hydrateCourseImages(c);
@@ -1636,13 +1636,13 @@ async function loadCourseApps(course,targetEl){
   const sid=course.id||course.section_id||course.sectionId;
   const x=await A.api({path:`v2/sections/${sid}/applications`,params:{}});
   const apps=x?.['@extra']||x.extra||x.data?.['@extra']||x.data?.extra||[];
-  el.innerHTML=apps.length?`<div class="courseAppList">${apps.map((a,i)=>{
+  el.innerHTML=apps.length?`${apps.map((a,i)=>{
     const title=a.title||a.name||'Course App', logo=normalizeImageUrl(a.logoUrl||a.logo_url||a.logo||'');
-    return `<button class="courseAppRow" data-app-index="${i}">
-      <span class="courseAppIcon">${logo?`<img data-course-image-url="${esc(logo)}" alt="" style="display:none">`:''}<span class="courseAppFallback"><img src="../assets/icons/ic_resourceapps.png" alt=""></span></span>
-      <span><b>${esc(title)}</b></span><span>›</span>
+    return `<button class="profileSidebarNavItem courseAppSidebarItem" data-app-index="${i}">
+      <span class="profileNavIcon">${logo?`<img data-course-image-url="${esc(logo)}" alt="" style="display:none">`:schoologySidebarIcon('resources',title)}</span>
+      <span class="courseAppSidebarTitle">${esc(title)}</span>
     </button>`;
-  }).join('')}</div>`:'<div class="empty"><h2>No course apps</h2></div>';
+  }).join('')}`:'<div class="empty courseAppsEmpty"><h2>No course apps</h2></div>';
   window.__schoologyCourseApps=apps;
   document.querySelectorAll('[data-app-index]').forEach(b=>b.onclick=async()=>{
     const a=window.__schoologyCourseApps[+b.dataset.appIndex];

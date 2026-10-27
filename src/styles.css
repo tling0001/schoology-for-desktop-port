@@ -3076,3 +3076,16 @@ html.androidAppSafeArea .assignmentCommentDialogOverlay .assignmentCommentDialog
 /* One shared centering rule: overflowing strips scroll to the active tab; the strip itself remains full width. */
 .homeTabs,.courseTabs,.groupTabs,.sectionProfileTabs,.schoolProfileTabs,.calendarTabs,.profileTabs,.assignmentTabs,.messageTabs,.resourcePickerTabs,.discussionTabs,#discussionTabs{scroll-behavior:smooth;scroll-padding-inline:12px;}
 html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .courseTabs,html[data-reduced-motion="true"] .groupTabs,html[data-reduced-motion="true"] .sectionProfileTabs,html[data-reduced-motion="true"] .schoolProfileTabs,html[data-reduced-motion="true"] .calendarTabs,html[data-reduced-motion="true"] .profileTabs,html[data-reduced-motion="true"] .assignmentTabs,html[data-reduced-motion="true"] .messageTabs,html[data-reduced-motion="true"] .resourcePickerTabs,html[data-reduced-motion="true"] .discussionTabs,html[data-reduced-motion="true"] #discussionTabs{scroll-behavior:auto;}
+
+
+/* port.261: responsive post/comment text, poll results, and interactive group/resource rows. */
+.activityBody,.updateComment,.updateCommentBody,.updateCommentText,.sharedCommentBody,.commentBody,.discussionBody,.discussionDescription{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal}
+.activityBody img,.updateComment img,.updateCommentBody img,.sharedCommentBody img{max-width:100%;height:auto}
+.updatePoll:not(.resultsVisible) .updatePollTrack,.updatePoll:not(.resultsVisible) .updatePollResult{display:none!important}
+.updatePoll:not(.resultsVisible) .updatePollOption{grid-template-columns:minmax(0,1fr)}
+.groupDiscussionRow,.resourceCategoryHeader,.resourceCollectionRow,.resourceFileRow{transition:background-color .14s ease,color .14s ease,box-shadow .14s ease}
+.groupDiscussionRow:hover,.resourceCategoryHeader:hover,.resourceCollectionRow:hover,.resourceFileRow:hover{background:#eaf4fb;color:#174f7b}
+.groupDiscussionRow:active,.resourceCategoryHeader:active,.resourceCollectionRow:active,.resourceFileRow:active{background:#d5eafa;box-shadow:inset 0 0 0 1px #8ebbdc}
+.groupDiscussionRow:focus-visible,.resourceCategoryHeader:focus-visible,.resourceCollectionRow:focus-visible,.resourceFileRow:focus-visible{outline:2px solid #2f6fa3;outline-offset:-2px}
+.androidPostToSelect{width:100%;min-height:42px;margin:0 0 12px;padding:8px 36px 8px 10px;border:1px solid #c7d1dc;border-radius:4px;background:#fff;color:#283746;font:inherit}
+.androidPostToSelect:focus{outline:2px solid #2f6fa3;outline-offset:1px}

@@ -1475,6 +1475,25 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         },
         "create-embedded-webview" => create_embedded_webview(&app, &args).await,
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        "navigate-embedded-webview" => {
+            let label = args.get("label").and_then(Value::as_str).unwrap_or("");
+            if !label.starts_with("schoology-embedded-") {
+                return Err("Embedded webview label is not valid.".into());
+            }
+            let raw_url = args.get("url").and_then(Value::as_str).ok_or("Embedded webview URL is missing.")?;
+            let url = Url::parse(raw_url).map_err(|_| "Embedded webview URL is invalid.")?;
+            let allow_lti_external = args.get("lti").and_then(Value::as_bool).unwrap_or(false);
+            let trusted_host = is_schoology_or_lausd_host(url.host_str().unwrap_or_default());
+            if !matches!(url.scheme(), "http" | "https") || !(trusted_host || (allow_lti_external && url.scheme() == "https")) {
+                return Err("Only Schoology/LAUSD pages and HTTPS destinations inside an LTI assignment can be embedded.".into());
+            }
+            let view = app.get_webview(label).ok_or("The embedded Schoology webview is unavailable.")?;
+            view.navigate(url).map_err(|e| format!("Could not navigate the embedded Schoology webview: {e}"))?;
+            Ok(json!(true))
+        },
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        "navigate-embedded-webview" => Err("Inline remote webviews are not supported by the mobile build yet.".into()),
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         "close-embedded-webview" => {
             let label = args.get("label").and_then(Value::as_str).unwrap_or("");
             if !label.starts_with("schoology-embedded-") {

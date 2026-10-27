@@ -1,5 +1,17 @@
 # Schoology Desktop Port release history
 
+## [2026.06.0-port.261]
+
+### Fixed
+- Route shared embedded-WebView navigation through the native Tauri host when the JavaScript WebView handle lacks both `navigate` and `setUrl`, retaining Schoology/LAUSD and LTI URL restrictions.
+- Keep long update and discussion-comment text wrapping within narrow screen widths instead of forcing horizontal scrolling.
+- Hide poll vote percentages and result bars until the current user has voted.
+- Open the homepage update composer directly with a course/group dropdown, while preserving course/group-specific composers and posting behavior.
+- Add hover, pressed, and keyboard-focus feedback to group discussion and resource rows.
+
+### Changed
+- Bump the port version to 2026.06.0-port.261.
+
 ## [2026.06.0-port.260]
 
 ### Fixed

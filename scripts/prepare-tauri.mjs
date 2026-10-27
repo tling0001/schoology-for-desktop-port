@@ -50,6 +50,27 @@ fs.writeFileSync(path.join(out, 'index.html'), page);
 // element cannot be registered as a custom element in Tauri/WebView2/WKWebView.
 const renderer = path.join(out, 'renderer.js');
 let rendererSource = fs.readFileSync(renderer, 'utf8');
+// Generate the first-launch "What's new" dialog from the release-notes section
+// matching package.json, so it cannot silently lag behind the shipped version.
+const packageJsonForNotes = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const releaseNotesPath = path.join(root, 'RELEASE_NOTES.md');
+const releaseNotesSource = fs.readFileSync(releaseNotesPath, 'utf8');
+const releaseSections = releaseNotesSource.split(/(?=^## \[)/m);
+const currentReleaseSection = releaseSections.find(section => {
+  const match = section.match(/^## \[([^\]]+)\]/m);
+  return match && match[1] === packageJsonForNotes.version;
+});
+if (!currentReleaseSection) throw new Error(`No release notes found for ${packageJsonForNotes.version}`);
+const releaseLines = currentReleaseSection.split(/\r?\n/).slice(1);
+const releaseText = ["What’s new", "", ...releaseLines.flatMap(line => {
+  if (line.startsWith('### ')) return [line.slice(4) + ":"];
+  if (line.startsWith('- ')) return ["• " + line.slice(2)];
+  return [];
+})].join("\\n");
+rendererSource = rendererSource.replace(
+  /const CURRENT_RELEASE_NOTES_VERSION='[^']*';\\s*const CURRENT_RELEASE_NOTES_TEXT='(?:\\\\.|[^'])*';/,
+  `const CURRENT_RELEASE_NOTES_VERSION='${packageJsonForNotes.version}';\\nconst CURRENT_RELEASE_NOTES_TEXT='${releaseText.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/\r?\n/g, "\\\\n")}';`
+);
 rendererSource = rendererSource.replace(/<\/?webview\b/gi, tag => tag.replace(/webview/i, 'schoology-webview'));
 fs.writeFileSync(renderer, rendererSource);
 const styles = path.join(out, 'styles.css');

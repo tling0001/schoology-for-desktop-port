@@ -3113,10 +3113,10 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 :root[data-theme="dark"] .sharedPostCard{box-shadow:0 1px 4px rgba(0,0,0,.22)!important}
 @media(max-width:600px){.sharedPostCard{margin:8px 8px 12px!important}.sharedPostCard .sharedPostCommentPreview{margin-left:0}.sharedPostCard .activityBody{padding-left:0}.sharedPostCard .activityMeta{padding-left:0}.sharedPostCard .activityActions{padding-left:0}}
 
-/* Keep the light-mode area behind shared posts distinct from the white post cards. */
-:root:not([data-theme="dark"]) .courseMainPane:has(.sectionFullUpdate){background:#dfe3e7!important}
+/* Match the light-mode backdrop behind shared posts to the native course dashboard. */
+:root:not([data-theme="dark"]) .courseMainPane:has(.sectionFullUpdate){background:#f5f6f7!important}
 :root[data-theme="dark"] .courseMainPane:has(.sectionFullUpdate){background:var(--theme-bg)!important}
 
-/* Apply the course-dashboard-style page backdrop wherever shared post cards are shown. */
-:root:not([data-theme="dark"]) #content:has(.sharedPostCard){background:#dfe3e7!important}
+/* Apply the same course-dashboard backdrop wherever shared post cards are shown. */
+:root:not([data-theme="dark"]) #content:has(.sharedPostCard){background:#f5f6f7!important}
 :root[data-theme="dark"] #content:has(.sharedPostCard){background:var(--theme-bg)!important}

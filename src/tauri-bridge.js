@@ -299,7 +299,7 @@
     const session = ${JSON.stringify(session && typeof session === 'object' ? session : null)};
     const nativeLabel = ${JSON.stringify(String(viewLabel || ''))};
     const host = String(location.hostname || '').toLowerCase();
-    if (session && (host === 'app.schoology.com' || host.endsWith('.schoology.com') || host === 'app.schoologyca.com' || host.endsWith('.schoologyca.com'))) {
+    if (session && (host === 'schoology.com' || host.endsWith('.schoology.com') || host === 'schoologyca.com' || host.endsWith('.schoologyca.com'))) {
       const setCookie = (name, value, path = '/', domain = '') => {
         if (!name || /[\\r\\n;,=]/.test(name) || /[\\r\\n;,]/.test(value)) return;
         let line = name + '=' + value + '; Path=' + (String(path || '/').startsWith('/') ? path : '/');
@@ -310,7 +310,7 @@
       };
       const defaultDomain = host === 'app.schoologyca.com' || host.endsWith('.schoologyca.com') ? '.schoologyca.com' : '.schoology.com';
       for (const cookie of (Array.isArray(session.cookies) ? session.cookies : [])) {
-        setCookie(String(cookie.key || cookie.name || ''), String(cookie.value || ''), String(cookie.path || '/'), String(cookie.domain || defaultDomain));
+        setCookie(String(cookie.key || cookie.name || ''), String(cookie.value || cookie.val || ''), String(cookie.path || '/'), String(cookie.domain || defaultDomain));
       }
       if (session.mobileCookie) setCookie('s_mobile', String(session.mobileCookie), '/', defaultDomain);
       window.__schoologySessionBootstrapReady = true;

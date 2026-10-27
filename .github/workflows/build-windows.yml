@@ -167,11 +167,7 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
       - uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
-            ndk;27.0.12077973
+          packages: "platform-tools,platforms;android-35,build-tools;35.0.0,ndk;27.0.12077973"
       - name: Pin the Android NDK for all Rust targets
         shell: bash
         run: |

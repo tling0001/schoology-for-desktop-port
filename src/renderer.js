@@ -790,7 +790,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  state.toolbarTitle=courseToolbarTitleOf(course)||'Course';syncToolbar();
  const title=courseTitleOf(course), section=sectionTitleOf(course);
  const image=normalizeImageUrl(course.profile_url||course.profileUrl||course.course_profile_url||course.courseProfileUrl||course.course_theme||course.courseTheme||course.image||course.course_image||'');
- const landscape=window.matchMedia('(min-width: 1000px)').matches;
+ const landscape=window.matchMedia('(min-width: 801px) and (orientation: landscape)').matches;
  const baseTabs=[['materials','Materials'],['updates','Updates'],['grades','Grades'],['members','Members']];
  let effectiveTab=activeTab;if(landscape&&['upcoming','courseapp'].includes(effectiveTab))effectiveTab='materials';
  state.courseTab=effectiveTab;
@@ -822,7 +822,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const contentEl=document.getElementById('sectionProfileContent');if(contentEl)contentEl.innerHTML='<div class="loading courseTabLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
  loadCourseTab(course,effectiveTab).catch(e=>{const el=document.getElementById('sectionProfileContent');if(el)el.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`});
  loadCourseUpcomingPane(course).catch(e=>{const el=document.getElementById('courseUpcomingContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});
- loadCourseApps(course,document.querySelector('.courseSidebarNav')).catch(e=>{const el=document.getElementById('courseAppsSideContent');if(el)el.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`});installCourseLayoutWatcher();
+ if(landscape)loadCourseApps(course,document.querySelector('.courseSidebarNav')).catch(e=>{const nav=document.querySelector('.courseSidebarNav');if(nav)nav.insertAdjacentHTML('beforeend',`<div class="error apiError">${esc(e.message)}</div>`)});installCourseLayoutWatcher();
 }
 async function schoologyAssignmentSupportsAnnotations(sectionId,assignmentId){
   if(!sectionId||!assignmentId||!A.annotationRequest)return false;
@@ -1639,6 +1639,8 @@ async function loadAttendanceTab(course){
 
 async function loadCourseApps(course,targetEl){
   const el=targetEl||document.querySelector('.courseSidebarNav');if(!el)return;
+  const landscapeApps=window.matchMedia('(min-width: 801px) and (orientation: landscape)').matches&&el.classList.contains('courseSidebarNav');
+  if(!landscapeApps)el.innerHTML='';
   const sid=course.id||course.section_id||course.sectionId;
   const x=await A.api({path:`v2/sections/${sid}/applications`,params:{}});
   const apps=x?.['@extra']||x.extra||x.data?.['@extra']||x.data?.extra||[];
@@ -1660,15 +1662,19 @@ async function loadCourseApps(course,targetEl){
     try{
       const appTitle=a.title||a.name||'Course App';
       const previousTab=state.courseTab||'materials';
-      state.embeddedReturn={tab:state.tab,homeTab:state.homeTab,title:courseToolbarTitleOf(course)||'Course',course,courseTab:previousTab};
-      document.querySelectorAll('.courseAppSidebarItem').forEach(item=>item.classList.toggle('active',item===b));
-      document.querySelectorAll('[data-course-tab]').forEach(item=>item.classList.remove('active'));
-      state.courseTab='courseapp';
+      if(landscapeApps){
+        state.embeddedReturn={tab:state.tab,homeTab:state.homeTab,title:courseToolbarTitleOf(course)||'Course',course,courseTab:previousTab};
+        document.querySelectorAll('.courseAppSidebarItem').forEach(item=>item.classList.toggle('active',item===b));
+        document.querySelectorAll('[data-course-tab]').forEach(item=>item.classList.remove('active'));
+        state.courseTab='courseapp';
+      }
+      await A.prepareWebSession();
       const launchResult=await A.launchCourseApp({launchUrl:href,appId:Number.isSafeInteger(appId)&&appId>0?appId:undefined,sectionId:Number(sid)});
       const url=launchResult?.url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl||launchResult?.launch_url||launchResult?.launchUrl||href;
       if(!url)throw new Error('Schoology did not return a course-app launch URL.');
-      showEmbeddedWeb(url,appTitle,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:false,courseApp:true});
-    }catch(e){const errorTarget=document.getElementById('sectionProfileContent')||el;errorTarget.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
+      if(landscapeApps)showEmbeddedWeb(url,appTitle,{openInitialExternalInBrowser:false,allowBrowser:true,externalLinks:false,courseApp:true});
+      else openWithPressTransition(b,async()=>{const result=await A.openExternal(url);if(typeof result==='string'&&result)showAppDialog('Unable to open course app',result)});
+    }catch(e){const errorTarget=landscapeApps?(document.getElementById('sectionProfileContent')||el):el;errorTarget.innerHTML=`<div class="error apiError"><b>Schoology could not launch this course app.</b><br>${esc(e.message)}</div>`}
   });
   await hydrateCourseImages(el);
 }

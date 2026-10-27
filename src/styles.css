@@ -3264,7 +3264,7 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   min-height:0!important;height:100%!important;max-height:100%!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
   transition:width .24s ease,background-color .18s ease!important;
  }
- .courseInfoSidePane .courseIdentityInfoBar,.groupInfoSidePane .groupHeader>div:last-child,.schoolProfileInfoSidePane .schoolProfileHeaderText{display:none!important}
+ .courseInfoSidePane .courseIdentityInfoBar,.groupInfoSidePane .groupHeader>div:not(.groupHero),.schoolProfileInfoSidePane .schoolProfileHeaderText{display:none!important}
  .courseMainPane>.courseIdentityMainInfo{display:flex!important;height:auto!important;min-height:82px!important;align-items:center!important;padding:14px 18px!important;margin:0!important;background:#fff!important;border-bottom:1px solid #d9dee2!important}
  .courseMainPane>.courseIdentityMainInfo .courseIdentityInfoBar{display:block!important;padding:0!important;min-width:0!important}
  .courseMainPane>.courseIdentityMainInfo .sectionProfileTitle{font-size:22px!important;font-weight:700!important;white-space:normal!important;overflow-wrap:anywhere!important;padding:0!important}

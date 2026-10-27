@@ -628,6 +628,8 @@
           const session = /^https:\/\/(?:[^/]+\.)?schoology(?:ca)?\.com(?:[/:?#]|$)/i.test(this._url)
             ? await prepareWebSession().catch(() => null) : null;
           this._darkTheme = dark;
+          // The sessionstart cookies are installed by the initialization script only after the first document starts. Retry the original URL once after that bootstrap load so its authenticated request carries those cookies.
+          this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length);
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
           let nativeCreated = false;
@@ -645,7 +647,7 @@
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
               jsNavigationHookAvailable: typeof tauri.webview.Webview.prototype?.onNavigation === 'function',
-              deferNavigation: false
+              deferNavigation: true
             });
             nativeCreated = true;
             this.nativeView = await tauri.webview.Webview.getByLabel(label);
@@ -738,6 +740,15 @@
               return;
             }
             if (eventName.includes('finished') || eventName === 'finish') {
+              // The bootstrap script has now installed Schoology cookies in this WebView's cookie store. Repeat the first request once so it is sent authenticated rather than showing a logged-out page until the next WebView is opened.
+              if (this._sessionBootstrapPending) {
+                this._sessionBootstrapPending = false;
+                this.loading = true;
+                try {
+                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
+                  return;
+                } catch (error) { console.warn('Could not retry initial Schoology navigation after session bootstrap:', error); }
+              }
               this._hasLoadedPage = true;
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
@@ -753,10 +764,11 @@
             // The native surface is still navigated and shown below, even without renderer load events.
             console.info('Schoology embedded webview: native onPageLoad hook unavailable; continuing without load events.');
           }
-          // The native child is created at the requested URL. Starting it at about:blank
-          // and issuing a second navigation has left a blank child surface on Windows.
-          // Mark the surface visible immediately; native load events still update loading state.
-          this._hasLoadedPage = true;
+          // Start from about:blank so load/navigation handlers are subscribed before the first Schoology request. The first completed request installs the JS-visible session cookies, then the handler retries the original URL once.
+          this._hasLoadedPage = false;
+          this.loading = true;
+          this.dispatchEvent(new Event('did-start-loading'));
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation }));
           await this._syncBounds();
           this._syncHandler();
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));

@@ -3099,3 +3099,16 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 
 /* Preserve release-note line breaks and bullets in the shared app dialog. */
 .appDialogMessage{white-space:pre-line;overflow-wrap:anywhere}
+
+
+/* Shared post cards use a complete card boundary so post content and its comment preview read as one unit across every shared-post surface. */
+.sharedPostCard{margin:10px 10px 14px!important;padding:12px 12px 10px!important;border:1px solid var(--theme-border,#dfe3e7)!important;border-bottom:1px solid var(--theme-border,#dfe3e7)!important;border-radius:8px!important;background:var(--theme-surface,#fff)!important;color:var(--theme-text,#263238)!important;box-shadow:0 1px 3px rgba(0,0,0,.07)!important;overflow:hidden}
+.sharedPostCard .activityBody{color:var(--theme-text,#263238)!important;overflow-wrap:anywhere}
+.sharedPostCard .activityUser,.sharedPostCard .activityAuthorLink{color:var(--theme-text,#263238)}
+.sharedPostCard .sharedPostCommentPreview{margin:10px 0 0 56px;padding:9px 0 0;border-top:1px solid var(--theme-divider,#e4e7eb)}
+.sharedPostCard .sharedPostPreviewList{padding:0 0 0 10px;border-left:2px solid var(--theme-divider,#e4e7eb)}
+.sharedPostCard .sharedPostPreviewList .updateCommentsList{background:transparent!important}
+.sharedPostCard .sharedPostPreviewList .updateComment{padding:8px 0;border-bottom:1px solid var(--theme-divider,#e5e7eb)}
+.sharedPostCard .sharedPostPreviewList .updateComment:last-child{border-bottom:0}
+:root[data-theme="dark"] .sharedPostCard{box-shadow:0 1px 4px rgba(0,0,0,.22)!important}
+@media(max-width:600px){.sharedPostCard{margin:8px 8px 12px!important}.sharedPostCard .sharedPostCommentPreview{margin-left:0}.sharedPostCard .activityBody{padding-left:0}.sharedPostCard .activityMeta{padding-left:0}.sharedPostCard .activityActions{padding-left:0}}

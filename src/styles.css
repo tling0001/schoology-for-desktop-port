@@ -3120,3 +3120,84 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 /* Apply the same course-dashboard backdrop wherever shared post cards are shown. */
 :root:not([data-theme="dark"]) #content:has(.sharedPostCard){background:#f5f6f7!important}
 :root[data-theme="dark"] #content:has(.sharedPostCard){background:var(--theme-bg)!important}
+
+
+/* Wide/landscape profile layout: identity stays in the left rail, content in the
+   center, and the existing Upcoming list remains in the fixed right rail. */
+@media (min-width: 801px) and (orientation: landscape) {
+  .courseLandscapePage {
+    grid-template-columns: minmax(220px, 24%) minmax(0, 1fr) minmax(260px, 27%) !important;
+  }
+  .courseAppsSidePane.courseInfoSidePane {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    border-right: 1px solid #d9dee2 !important;
+  }
+  .courseInfoSidePane .courseIdentityCard {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 104px !important;
+    padding: 16px 12px !important;
+    border-bottom: 1px solid #d9dee2 !important;
+    flex: 0 0 auto !important;
+  }
+  .courseInfoSidePane .courseIdentityImageWrap { flex: 0 0 56px !important; width: 56px !important; height: 56px !important; margin-right: 10px !important; }
+  .courseInfoSidePane .sectionProfileImage,
+  .courseInfoSidePane .sectionProfileFallback { width: 56px !important; height: 56px !important; flex: 0 0 56px !important; margin: 0 !important; }
+  .courseInfoSidePane .courseIdentityInfoBar { min-width: 0 !important; }
+  .courseInfoSidePane .sectionProfileTitle { overflow-wrap: anywhere; }
+  .courseInfoSidePane .courseAppsSideDivider { display: none; }
+  .courseInfoSidePane .courseAppsSideHeading { flex: 0 0 48px !important; }
+  .courseInfoSidePane .courseAppsSideContent { height: auto !important; flex: 1 1 auto !important; min-height: 0 !important; overflow: auto !important; }
+  .courseMainPane .sectionProfileHeader.courseIdentityCard { display: none !important; }
+  .groupLandscapeSplit {
+    grid-template-columns: minmax(220px, 24%) minmax(0, 1fr) minmax(260px, 27%) !important;
+    height: 100% !important;
+  }
+  .groupInfoSidePane {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    background: #fff !important;
+    border-right: 1px solid #d9dee2 !important;
+  }
+  .groupInfoSidePane .groupHeader {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    padding: 18px 16px !important;
+    border-bottom: 0 !important;
+  }
+  .groupInfoSidePane .groupHero { margin: 0 0 12px !important; }
+  .groupInfoSidePane .groupHeader h1 { overflow-wrap: anywhere; }
+  .groupMainPane { min-width: 0 !important; min-height: 0 !important; }
+  .groupMainPane .groupTabs { flex: 0 0 48px !important; }
+  .groupMainPane #groupTabContent { flex: 1 1 auto !important; min-height: 0 !important; overflow: auto !important; }
+  .schoolProfileLandscapeSplit {
+    grid-template-columns: minmax(220px, 24%) minmax(0, 1fr) minmax(260px, 27%) !important;
+  }
+  .schoolProfileInfoSidePane {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    background: #fff !important;
+    border-right: 1px solid #d9dee2 !important;
+  }
+  .schoolProfileInfoSidePane .schoolProfileHeader {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    padding: 18px 16px !important;
+    border-bottom: 0 !important;
+  }
+  .schoolProfileInfoSidePane .schoolProfileHeaderImage { margin: 0 0 12px !important; }
+  .schoolProfileInfoSidePane .schoolProfileHeaderText h1 { overflow-wrap: anywhere; }
+  .schoolProfileMainPane { min-width: 0 !important; min-height: 0 !important; }
+}
+@media (max-width: 800px), (orientation: portrait) {
+  .courseLandscapePage { display: block !important; height: auto !important; min-height: 100% !important; overflow: visible !important; }
+  .courseAppsSidePane.courseInfoSidePane { display: none !important; }
+  .groupInfoSidePane, .schoolProfileInfoSidePane { display: none !important; }
+  .groupLandscapeSplit, .schoolProfileLandscapeSplit { display: flex !important; flex-direction: column !important; height: auto !important; min-height: 100% !important; overflow: visible !important; }
+}

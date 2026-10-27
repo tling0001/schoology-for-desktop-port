@@ -3424,7 +3424,6 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .courseLandscapePage.upcoming-collapsed .courseUpcomingPane .courseUpcomingContent,.groupProfilePage.upcoming-collapsed .groupUpcomingPane #groupUpcomingContent,.schoolProfileNativePage.upcoming-collapsed .schoolProfileUpcomingPane .schoolProfileUpcomingContent{height:100%!important}
   .groupLandscapeSplit,.schoolProfileLandscapeSplit{grid-template-columns:minmax(210px,17%) minmax(0,1fr) minmax(56px,22%)!important}
   .groupProfilePage.upcoming-collapsed .groupLandscapeSplit,.schoolProfileNativePage.upcoming-collapsed .schoolProfileLandscapeSplit{grid-template-columns:minmax(210px,17%) minmax(0,1fr) 76px!important}
-  .groupInfoSidePane .groupHeader>div:last-child{display:none!important}
   .schoolProfileInfoSidePane .schoolProfileHeaderText .schoolProfileSubtitle{display:none!important}
 }
 :root:not([data-theme="dark"]) .activity:has(.sharedPostCard){background:#f5f6f7!important}

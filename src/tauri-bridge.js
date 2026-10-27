@@ -613,6 +613,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
               openPopupsExternally: this.getAttribute('data-open-popups-external') === 'true',
+              courseApp: this.getAttribute('data-course-app') === 'true',
               jsNavigationHookAvailable: typeof tauri.webview.Webview.prototype?.onNavigation === 'function',
               deferNavigation: true
             });

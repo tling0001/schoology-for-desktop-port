@@ -1,4 +1,11 @@
-# Schoology Desktop Port release history
+# Schoology Desktop Port
+
+## [2026.10.0-port.2]
+- Render the two-comment post preview through the same shared comments renderer as the full comments dialog, retaining comment actions and oldest-to-newest ordering.
+- Rename the discussion page’s second tab to “Discussion”.
+- Build the create-event dialog through the shared dialog shell while retaining its event-specific full-screen layout.
+- Position Windows shared WebViews at their actual initial layout bounds instead of creating them off-screen at 1×1 before moving them into view.
+ release history
 
 ## [2026.10.0-port.1]
 

@@ -68,8 +68,8 @@ const releaseText = ["What’s new", "", ...releaseLines.flatMap(line => {
   return [];
 })].join("\\n");
 rendererSource = rendererSource.replace(
-  /const CURRENT_RELEASE_NOTES_VERSION='[^']*';\\s*const CURRENT_RELEASE_NOTES_TEXT='(?:\\\\.|[^'])*';/,
-  `const CURRENT_RELEASE_NOTES_VERSION='${packageJsonForNotes.version}';\\nconst CURRENT_RELEASE_NOTES_TEXT='${releaseText.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/\r?\n/g, "\\\\n")}';`
+  /const CURRENT_RELEASE_NOTES_VERSION=.*;\\r?\\nconst CURRENT_RELEASE_NOTES_TEXT=.*;/,
+  `const CURRENT_RELEASE_NOTES_VERSION=${JSON.stringify(packageJsonForNotes.version)};\\nconst CURRENT_RELEASE_NOTES_TEXT=${JSON.stringify(releaseText)};`
 );
 rendererSource = rendererSource.replace(/<\/?webview\b/gi, tag => tag.replace(/webview/i, 'schoology-webview'));
 fs.writeFileSync(renderer, rendererSource);

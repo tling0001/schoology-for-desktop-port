@@ -1,5 +1,11 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.6]
+
+### Fixed
+- Match wide/landscape course, group, and school profile pages to a three-column layout with profile information at left and the existing Upcoming pane at right.
+- Fix Android SDK package installation in GitHub Actions by passing the package list in the expected format.
+
 ## [2026.10.0-port.5]
 
 ### Fixed

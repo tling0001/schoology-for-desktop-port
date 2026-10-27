@@ -3428,3 +3428,13 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .schoolProfileInfoSidePane .schoolProfileHeaderText .schoolProfileSubtitle{display:none!important}
 }
 :root:not([data-theme="dark"]) .activity:has(.sharedPostCard){background:#f5f6f7!important}
+
+@media (min-width:801px) and (orientation:landscape){
+  .courseLandscapePage.schoologyLandscapeLayout{grid-template-columns:minmax(176px,17%) minmax(0,1fr) minmax(56px,22%)!important}
+  .courseLandscapePage.upcoming-collapsed{grid-template-columns:minmax(176px,17%) minmax(0,1fr) 76px!important}
+  .groupLandscapeSplit,.schoolProfileLandscapeSplit{grid-template-columns:minmax(176px,19%) minmax(0,1fr) minmax(56px,22%)!important}
+  .groupProfilePage.upcoming-collapsed .groupLandscapeSplit,.schoolProfileNativePage.upcoming-collapsed .schoolProfileLandscapeSplit{grid-template-columns:minmax(176px,19%) minmax(0,1fr) 76px!important}
+  .sectionProfileContent.courseAppEmbeddedContent{position:relative!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;padding:0!important;margin:0!important;flex:1 1 auto!important;background:#fff!important}
+  .sectionProfileContent.courseAppEmbeddedContent .embeddedPage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+  .sectionProfileContent.courseAppEmbeddedContent webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
+}

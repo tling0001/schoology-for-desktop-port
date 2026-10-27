@@ -1,5 +1,16 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.16]
+
+### Fixed
+- Move elastic scrolling into the content areas for messages, assignments, discussions, and event details so their tab strips remain fixed.
+- Replace shared-WebView native load-event cookie retries with a guarded Schoology-origin bootstrap script that writes session cookies before navigating to the original destination.
+- Use embedded iOS app icons for the course Materials, Updates, Grades, and Members sidebar entries.
+- Add permission-gated group Albums and Resources app-bar actions with native-style composers.
+- Darken app-bar hover feedback without outlines, round right-side app-bar buttons, notifications, group Resources rows, drawer options, and message list cards.
+- Add a smooth landscape Upcoming pane collapse/expand transition, respecting reduced-motion preferences.
+- Hide the shared-post “View more comments” control when the post has only two comments in total.
+
 ## [2026.10.0-port.15]
 
 ### Fixed

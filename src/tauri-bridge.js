@@ -599,14 +599,9 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
             catch (error) { console.warn('Could not prepare the authenticated Schoology WebView session:', error); }
           }
           this._darkTheme = dark;
-          // The native WebView's first HTTP request cannot carry cookies written by
-          // an initialization script. Save the session and explicitly install it
-          // again into the first Schoology document before retrying the original URL.
-          this._sessionBootstrapData = session;
+          // Match the last known working session flow: load the requested destination
+          // once so the bootstrap can write prepared cookies, then retry that URL.
           this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length);
-          this._sessionBootstrapUrl = this._url;
-          const sessionWebHost = String(session?.webHost || '').toLowerCase() === 'app.schoologyca.com' ? 'app.schoologyca.com' : 'app.schoology.com';
-          this._sessionBootstrapFirstUrl = this._sessionBootstrapPending ? `https://${sessionWebHost}/` : this._url;
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
           let nativeCreated = false;
@@ -619,7 +614,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               width: Math.max(1, rect.width),
               height: Math.max(1, rect.height),
               userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.10.0',
-              initializationScript: makeEmbeddedThemeBootstrap(dark, session, label, this._sessionBootstrapUrl),
+              initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
               forceDark: dark,
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
@@ -720,9 +715,15 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               return;
             }
             if (eventName.includes('finished') || eventName === 'finish') {
-              // The initialization script has installed the sessionstart cookies by
-              // the time the first document finishes. Retry the ORIGINAL destination,
-              // not a login redirect that may have replaced this._url.
+              // Retry the original URL after the bootstrap document has installed cookies.
+              if (this._sessionBootstrapPending) {
+                this._sessionBootstrapPending = false;
+                this.loading = true;
+                try {
+                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
+                  return;
+                } catch (error) { console.warn('Could not retry initial Schoology navigation after session bootstrap:', error); }
+              }
               this._hasLoadedPage = true;
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
@@ -743,10 +744,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           // bootstrap URL with the original protected destination.
           this._hasLoadedPage = false;
           this.loading = true;
-          this._sessionBootstrapPending = false;
           this.dispatchEvent(new Event('did-start-loading'));
-          const firstNavigationUrl = this._sessionBootstrapFirstUrl || this._url;
-          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(firstNavigationUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(firstNavigationUrl) : invoke('navigate-embedded-webview', { label: this._label, url: firstNavigationUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
+          await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
           await this._syncBounds();
           this._syncHandler();
           requestAnimationFrame(()=>requestAnimationFrame(()=>this._syncHandler()));

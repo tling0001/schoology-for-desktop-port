@@ -30,6 +30,11 @@ on:
         required: false
         type: boolean
         default: false
+      android_only:
+        description: Build only the Android APK (useful for retrying a transient Android runner failure)
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,7 +45,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.ios_adhoc_only != true && inputs.android_only != true }}
     name: Tauri ${{ matrix.platform }} build
     strategy:
       fail-fast: false
@@ -228,7 +233,7 @@ jobs:
           retention-days: 14
 
   ios-adhoc:
-    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.linux_only != true }}
+    if: ${{ inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.linux_only != true && inputs.android_only != true }}
     name: Optional iPhone QR installation package
     runs-on: macos-26
     steps:
@@ -461,7 +466,7 @@ jobs:
 
   release:
     name: Publish versioned Tauri release
-    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.linux_only != true
+    if: always() && github.ref == 'refs/heads/main' && inputs.generate_ios_certificate != true && inputs.generate_macos_certificate != true && inputs.linux_only != true && inputs.android_only != true
     needs: [build, android, ios-adhoc]
     runs-on: ubuntu-latest
     steps:

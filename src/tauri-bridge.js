@@ -290,7 +290,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWindowControls, { once: true });
   else installWindowControls();
 
-  const makeEmbeddedThemeBootstrap = (dark, session = null, viewLabel = '') => `(() => {
+  const makeEmbeddedThemeBootstrap = (dark, session = null, viewLabel = '', nativeForceDark = false) => `(() => {
     const session = ${JSON.stringify(session && typeof session === 'object' ? session : null)};
     const nativeLabel = ${JSON.stringify(String(viewLabel || ''))};
     const host = String(location.hostname || '').toLowerCase();
@@ -311,6 +311,7 @@
       window.__schoologySessionBootstrapReady = true;
     }
     const dark = ${JSON.stringify(!!dark)};
+    const nativeForceDark = ${JSON.stringify(!!nativeForceDark)};
     const styleId = 'schoology-shared-webview-theme-style';
     const css = 'html[data-schoology-shade-inversion="true"]{color-scheme:dark!important;background:#17191c!important}html[data-schoology-shade-inversion="true"] body{filter:invert(1) hue-rotate(180deg)!important}html[data-schoology-shade-inversion="true"] img,html[data-schoology-shade-inversion="true"] picture,html[data-schoology-shade-inversion="true"] video,html[data-schoology-shade-inversion="true"] canvas,html[data-schoology-shade-inversion="true"] svg,html[data-schoology-shade-inversion="true"] iframe,html[data-schoology-shade-inversion="true"] object,html[data-schoology-shade-inversion="true"] embed{filter:invert(1) hue-rotate(180deg)!important}';
     const root = document.documentElement;
@@ -353,7 +354,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
       const nodes = [document.querySelector('main'), document.querySelector('[role="main"]'), document.querySelector('#page'), document.querySelector('#container'), document.querySelector('#content'), body, root].filter(Boolean);
       const surfaces = nodes.map(el => { const c = rgb(getComputedStyle(el).backgroundColor); if (!c || c.a < .08) return null; const r = el.getBoundingClientRect(); return {area:Math.max(0,r.width)*Math.max(0,r.height), luminance:.2126*c.r+.7152*c.g+.0722*c.b, chroma:Math.max(c.r,c.g,c.b)-Math.min(c.r,c.g,c.b)}; }).filter(Boolean).sort((a,b) => b.area-a.area);
       const light = surfaces.length ? surfaces[0].luminance >= 145 && surfaces[0].chroma < 100 : true;
-      root.toggleAttribute('data-schoology-shade-inversion', dark && light);
+      root.toggleAttribute('data-schoology-shade-inversion', dark && !nativeForceDark && light);
       root.style.colorScheme = dark ? 'dark' : 'light';
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, {once:true}); else apply();
@@ -425,11 +426,28 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
       connectedCallback() {
         this._closingNativeView = false;
         embeddedViews.add(this);
-        this._themeHandler = () => {
+        this._themeHandler = async () => {
           if (!this.nativeView) return;
           const dark = resolvedDark();
+          let platform = '';
+          try { platform = String((await invoke('get-window-chrome-mode'))?.platform || ''); } catch (_) {}
+          const nextNativeForceDark = dark && platform === 'windows';
+          if (nextNativeForceDark !== !!this._nativeForceDark) {
+            const label = this._label;
+            const url = this._url;
+            this.nativeView = null;
+            this._unlistenNavigation?.(); this._unlistenNavigation = null;
+            this._unlistenPageLoad?.(); this._unlistenPageLoad = null;
+            try { if (label) await invoke('close-embedded-webview', { label }); }
+            catch (error) { console.warn('Could not recreate shared WebView after theme change:', error); }
+            if (this.isConnected && url) {
+              try { await this.loadURL(url); }
+              catch (error) { console.warn('Could not reopen shared WebView after theme change:', error); }
+            }
+            return;
+          }
           this._darkTheme = dark;
-          this.nativeView.eval(makeEmbeddedThemeBootstrap(dark, null, this._label)).catch(() => {});
+          this.nativeView.eval(makeEmbeddedThemeBootstrap(dark, null, this._label, !!this._nativeForceDark)).catch(() => {});
         };
         window.addEventListener('schoology-tauri-theme-changed', this._themeHandler);
         this.style.display = 'block';
@@ -579,6 +597,10 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           currentThemeMode = await invoke('get-theme-mode').catch(() => currentThemeMode);
           forceDarkMode = await invoke('get-experimental-force-dark').catch(() => forceDarkMode);
           const dark = resolvedDark();
+          let platform = '';
+          try { platform = String((await invoke('get-window-chrome-mode'))?.platform || ''); } catch (_) {}
+          const nativeForceDark = dark && platform === 'windows';
+          this._nativeForceDark = nativeForceDark;
           let session = null;
           if (/^https:\/\/(?:[^/]+\.)?schoology(?:ca)?\.com(?:[/:?#]|$)/i.test(this._url)) {
             try { session = await prepareWebSession(); }
@@ -598,10 +620,10 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               width: Math.max(1, rect.width),
               height: Math.max(1, rect.height),
               userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.10.0',
-              initializationScript: makeEmbeddedThemeBootstrap(dark, null, label),
+              initializationScript: makeEmbeddedThemeBootstrap(dark, null, label, nativeForceDark),
               sessionCookies: Array.isArray(session?.cookies) ? session.cookies : [],
               mobileCookie: String(session?.mobileCookie || ""),
-              forceDark: dark,
+              forceDark: nativeForceDark,
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
               openPopupsExternally: this.getAttribute('data-open-popups-external') === 'true',
@@ -706,7 +728,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               this.dispatchEvent(new Event('did-stop-loading'));
               this.dispatchEvent(new Event('did-finish-load'));
               dispatchCompatEvent(this, 'did-navigate', { url: this._url, isMainFrame: true });
-              try { await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, null, this._label)); } catch (_) {}
+              try { await this.nativeView.eval(makeEmbeddedThemeBootstrap(!!this._darkTheme, null, this._label, !!this._nativeForceDark)); } catch (_) {}
               await this._syncBounds();
               await this.nativeView.show().catch(() => {});
             }

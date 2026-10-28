@@ -488,16 +488,21 @@ function bind(){
         'Your school is currently using SSO/Remote Authentication.'+(suggestion?' Did you mean to log in from '+suggestion+'?':''),
         [
           {label:'Cancel',action:null},
-          {label:'Continue',action:async()=>{
-            si.disabled=true;si.textContent='Opening school sign-in…';
-            try{
-              state.auth=await A.loginExternalSchool({url:safeRemoteUrl,domain:String(remoteSchool.domain||emailDomain)});
-              await afterLogin();
-            }catch(e){
-              state.loading=false;
-              state.error=typeof e==='string'?e:(e?.message||String(e||'School sign-in failed.'));
-              render();
+          {label:'Continue',action:()=>{
+            // Reuse the exact same browser-login screen and OAuth handoff as
+            // choosing a school from the Schoology sign-in screen.
+            let remoteHost='';
+            try{remoteHost=new URL(safeRemoteUrl).host}catch{}
+            if(!remoteHost){
+              state.error='Your school did not provide a valid browser sign-in address.';
+              render();return;
             }
+            state.school={...remoteSchool,title:String(remoteSchool.title||remoteSchool.name||'School'),domain:remoteHost,url:safeRemoteUrl};
+            state.schools=[];
+            state.error='';
+            state.screen='externalSelect';
+            render();
+            void startSchoolBrowserLogin();
           }}
         ]);
       return;

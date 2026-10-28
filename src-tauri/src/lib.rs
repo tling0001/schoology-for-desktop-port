@@ -1443,6 +1443,17 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             })?;
             Ok(json!(schools))
         },
+        "school-lookup" => {
+            let domain = args.as_str().unwrap_or("").trim().trim_start_matches('@').to_ascii_lowercase();
+            if domain.is_empty() || domain.len() > 253 || !domain.contains('.') || domain.chars().any(|c| !(c.is_ascii_alphanumeric() || c == '.' || c == '-')) {
+                return Ok(json!([]));
+            }
+            let url = Url::parse_with_params(&format!("https://{}/v1/login/school_lookup", api_host()), &[("domain", domain.as_str())]).map_err(|e| e.to_string())?;
+            let response = request("GET", url, None, None, &state, true, None, false).await?;
+            let value = response_value(response).await?;
+            let schools = value.get("school").and_then(Value::as_array).cloned().unwrap_or_default();
+            Ok(json!(schools))
+        },
         "api" => api_call(&app,&state,&args).await,
         "fetch-image" => fetch_image(&app,&state,args.as_str().unwrap_or("")).await,
         "submit-assignment-text" => submit_assignment_text(&app,&state,&args).await,

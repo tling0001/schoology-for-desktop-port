@@ -439,7 +439,54 @@ function bind(){
 
   const browserLogin=document.getElementById('browserLogin');
   if(browserLogin)browserLogin.onclick=()=>{void startSchoolBrowserLogin()};
-  const si=document.getElementById('signIn');if(si)si.onclick=async()=>{const user=document.getElementById('user')?.value||'',password=document.getElementById('pass')?.value||'';state.error='';if(!user||!password){state.error='Enter your username or email and password.';render();return}si.disabled=true;si.textContent='Logging you in…';try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}catch(e){state.error=e.message||'Login failed.';render()}};
+  const si=document.getElementById('signIn');
+  if(si)si.onclick=async()=>{
+    const user=document.getElementById('user')?.value||'';
+    const password=document.getElementById('pass')?.value||'';
+    state.error='';
+    if(!user||!password){state.error='Enter your username or email and password.';render();return}
+    const originalSignInLabel=si.textContent;
+    si.disabled=true;si.textContent='Checking sign-in…';
+    let remoteSchool=null, emailDomain='';
+    const normalizedUser=String(user).trim();
+    const at=normalizedUser.lastIndexOf('@');
+    if(at>0&&at<normalizedUser.length-1&&A.schoolLookup){
+      emailDomain=normalizedUser.slice(at+1).trim().toLowerCase();
+      if(/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(emailDomain)&&emailDomain.includes('.')){
+        try{
+          const schools=await A.schoolLookup(emailDomain);
+          if(Array.isArray(schools))remoteSchool=schools.find(s=>String(s?.login_type||s?.loginType||'').toLowerCase()==='remote_auth')||null;
+        }catch(_){/* Lookup is advisory; preserve normal credential login if it is unavailable. */}
+      }
+    }
+    const remoteUrl=String(remoteSchool?.login_url||remoteSchool?.loginUrl||'').trim();
+    let safeRemoteUrl='';
+    try{const parsed=new URL(remoteUrl);if(parsed.protocol==='https:')safeRemoteUrl=parsed.href}catch{}
+    if(remoteSchool&&safeRemoteUrl){
+      const suggestion=String(remoteSchool.login_url_suggest||remoteSchool.loginUrlSuggest||safeRemoteUrl).trim();
+      si.disabled=false;si.textContent=originalSignInLabel;
+      showAppDialog('Your school uses SSO/Remote Authentication',
+        'Your school is currently using SSO/Remote Authentication.'+(suggestion?' Did you mean to log in from '+suggestion+'?':''),
+        [
+          {label:'Cancel',action:null},
+          {label:'Continue',action:async()=>{
+            si.disabled=true;si.textContent='Opening school sign-in…';
+            try{
+              state.auth=await A.loginExternalSchool({url:safeRemoteUrl,domain:String(remoteSchool.domain||emailDomain)});
+              await afterLogin();
+            }catch(e){
+              state.loading=false;
+              state.error=typeof e==='string'?e:(e?.message||String(e||'School sign-in failed.'));
+              render();
+            }
+          }}
+        ]);
+      return;
+    }
+    si.textContent='Logging you in…';
+    try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}
+    catch(e){state.error=e.message||'Login failed.';render()}
+  };
 
   const shade=document.getElementById('drawerShade'),drawer=document.getElementById('drawer');
   const setDrawer=(open)=>{drawer?.classList.toggle('open',open);shade?.classList.toggle('open',open);if(!open)state.drawerPage=null;try{syncWindowChrome()}catch(error){console.warn('Could not synchronize window chrome after drawer change:',error)}};

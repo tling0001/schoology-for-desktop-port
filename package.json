@@ -1,6 +1,6 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.10.0-port.19",
+  "version": "2026.10.0-port.20",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.10.0 source",
   "main": "src/main.js",
   "scripts": {

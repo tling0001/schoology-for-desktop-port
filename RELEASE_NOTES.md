@@ -6,6 +6,7 @@
 - Restore the working shared-WebView document-cookie bootstrap and one-time initial navigation retry alongside native cookie-store installation, so the first unauthenticated request is retried after the Schoology cookies are written.
 - Stop silently opening Schoology pages when sessionstart fails or returns no cookies; surface the session preparation failure instead of leaving the page appearing logged out.
 - Route email domains ending in `lausd.net` (and the common `lauds.net` typo) to the LAUSD SSO/Remote Authentication confirmation for `https://lms.lausd.net`, independent of the optional school lookup endpoint.
+- After Remote Authentication confirmation, reuse the existing school browser-login screen, spinner, external browser launch, and OAuth callback flow instead of opening a separate district login window.
 - Apply the dark surface to the actual landscape school-profile info pane and its nested info rows, overriding the legacy white pane background.
 
 ### Changed

@@ -178,6 +178,7 @@
     loginExternalSchool: value => loginExternalSchool(value),
     logout: async () => { const result = await invoke('logout'); webSessionCache = null; webSessionPending = null; return result; },
     schoolSearch: query => invoke('school-search', query),
+    schoolLookup: domain => invoke('school-lookup', domain),
     api: value => invoke('api', value),
     prepareWebSession,
     fetchImage: url => invoke('fetch-image', url),
@@ -289,10 +290,9 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWindowControls, { once: true });
   else installWindowControls();
 
-  const makeEmbeddedThemeBootstrap = (dark, session = null, viewLabel = '', bootstrapDestination = '') => `(() => {
+  const makeEmbeddedThemeBootstrap = (dark, session = null, viewLabel = '') => `(() => {
     const session = ${JSON.stringify(session && typeof session === 'object' ? session : null)};
     const nativeLabel = ${JSON.stringify(String(viewLabel || ''))};
-    const bootstrapDestination = ${JSON.stringify(String(bootstrapDestination || ''))};
     const host = String(location.hostname || '').toLowerCase();
     if (session && (host === 'schoology.com' || host.endsWith('.schoology.com') || host === 'schoologyca.com' || host.endsWith('.schoologyca.com'))) {
       const setCookie = (name, value, path = '/', domain = '') => {
@@ -309,20 +309,6 @@
       }
       if (session.mobileCookie) setCookie('s_mobile', String(session.mobileCookie), '/', defaultDomain);
       window.__schoologySessionBootstrapReady = true;
-      // Install sessionstart cookies on the Schoology origin before retrying the
-      // requested protected URL. sessionStorage prevents a redirect/reload loop.
-      try {
-        const bootstrapKey = '__schoologySessionBootstrapReloaded';
-        if (!sessionStorage.getItem(bootstrapKey)) {
-          sessionStorage.setItem(bootstrapKey, '1');
-          window.addEventListener('load', () => setTimeout(() => {
-            try {
-              if (bootstrapDestination && location.href !== bootstrapDestination) location.replace(bootstrapDestination);
-              else location.reload();
-            } catch (_) {}
-          }, 180), { once: true });
-        }
-      } catch (_) {}
     }
     const dark = ${JSON.stringify(!!dark)};
     const styleId = 'schoology-shared-webview-theme-style';

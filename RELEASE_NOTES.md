@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.18]
+
+### Fixed
+- Match course/grade subdrawer hover feedback to the main drawer's rounded, higher-contrast hover state.
+- Increase dark-mode contrast for course materials hover, left-sidebar hover, and selected sidebar items.
+- Keep the Messages split view at the existing 801px breakpoint and explicitly enforce two side-by-side grid columns to prevent Inbox and Sent from stacking.
+
+### Changed
+- Bump the package version to 2026.10.0-port.18.
+
 ## [2026.10.0-port.17]
 
 ### Fixed

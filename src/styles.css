@@ -4194,3 +4194,22 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
   box-shadow:none!important;
   filter:none!important;
 }
+
+
+/* Port.22: the dark-mode override must cover the actual school-profile info pane, whose
+   landscape layout has its own background:#fff!important declaration. */
+:root[data-theme="dark"] .schoolProfileInfoSidePane,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeader,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeaderText,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileIdentityInfoBar,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileInfoRows,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileInfoRow,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileDivider {
+  background:var(--theme-surface,#202327)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;
+}
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeaderImage,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeaderImage img {
+  background:var(--theme-surface,#202327)!important;
+}

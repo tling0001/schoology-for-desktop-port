@@ -453,10 +453,17 @@ function bind(){
     if(at>0&&at<normalizedUser.length-1&&A.schoolLookup){
       emailDomain=normalizedUser.slice(at+1).trim().toLowerCase();
       if(/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(emailDomain)&&emailDomain.includes('.')){
-        try{
-          const schools=await A.schoolLookup(emailDomain);
-          if(Array.isArray(schools))remoteSchool=schools.find(s=>String(s?.login_type||s?.loginType||'').toLowerCase()==='remote_auth')||null;
-        }catch(_){/* Lookup is advisory; preserve normal credential login if it is unavailable. */}
+        // LAUSD's district login is known and should not depend on the optional school_lookup API.
+        // Accept the common misspelling too, but always send it to the real LAUSD login host.
+        const lausdDomain=emailDomain==='lausd.net'||emailDomain.endsWith('.lausd.net')||emailDomain==='lauds.net'||emailDomain.endsWith('.lauds.net');
+        if(lausdDomain){
+          remoteSchool={login_type:'remote_auth',login_url:'https://lms.lausd.net',login_url_suggest:'https://lms.lausd.net',domain:'lausd.net'};
+        }else{
+          try{
+            const schools=await A.schoolLookup(emailDomain);
+            if(Array.isArray(schools))remoteSchool=schools.find(s=>String(s?.login_type||s?.loginType||'').toLowerCase()==='remote_auth')||null;
+          }catch(_){/* Lookup is advisory; preserve normal credential login if it is unavailable. */}
+        }
       }
     }
     const suggestedRemoteUrl=String(remoteSchool?.login_url_suggest||remoteSchool?.loginUrlSuggest||'').trim();

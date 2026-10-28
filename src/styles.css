@@ -3679,3 +3679,68 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 :root[data-theme="dark"] .messageListItem{background:var(--theme-surface,#202327)!important;color:var(--theme-text,#e6e8eb)!important}
 :root[data-theme="dark"] .messageListItem.unread{background:var(--theme-hover,#292d32)!important}
 @media(prefers-reduced-motion:reduce){.messagesAndroidPage,.assignmentAndroidPage,.nativeGradeItemPage,.calendarAndroidPage,.profileSidebarNavItem,.groupTab,.sectionProfileTab,.homeTab,.messageTab,.assignmentTab,.notificationRow,.notificationItem,.notificationCard,.notificationList button,.groupResourceRow,.albumListRow,.drawerItem,.messageListItem,.shell .toolbar button,.courseLandscapePage,.groupProfilePage .groupLandscapeSplit,.schoolProfileNativePage .schoolProfileLandscapeSplit{transition:none!important;scroll-behavior:auto!important}}
+
+
+/* Follow-up fixes: consistent app-bar actions, square content tabs, and dark landscape side panes. */
+.shell .toolbar button,
+.shell .toolbar [role="button"],
+.shell .toolbar .toolbarActionSlot,
+.shell .toolbar .toolbarActionSlot button {
+  border-radius:50%!important;
+  outline:none!important;
+  box-shadow:none!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.shell .toolbar button:hover,
+.shell .toolbar button:focus,
+.shell .toolbar button:focus-visible,
+.shell .toolbar [role="button"]:hover,
+.shell .toolbar [role="button"]:focus,
+.shell .toolbar [role="button"]:focus-visible,
+.shell .toolbar .toolbarActionSlot:hover,
+.shell .toolbar .toolbarActionSlot:focus-visible {
+  background:#001827!important;
+  border-color:transparent!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+.shell .toolbar button:active,
+.shell .toolbar [role="button"]:active {
+  background:#00131f!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+.messageTabs .messageTab,
+.assignmentTabs .assignmentTab,
+#discussionTabs .assignmentTab,
+#eventTabs .assignmentTab {
+  border-radius:0!important;
+}
+:root[data-theme="dark"] .courseLandscapePage .courseAppsSidePane,
+:root[data-theme="dark"] .courseLandscapePage .courseSidebarNav,
+:root[data-theme="dark"] .courseLandscapePage .courseAppsSideContent,
+:root[data-theme="dark"] .groupProfilePage .groupInfoSidePane,
+:root[data-theme="dark"] .groupProfilePage .groupSidebarNav,
+:root[data-theme="dark"] .schoolProfileNativePage .schoolProfileInfoSidePane,
+:root[data-theme="dark"] .schoolProfileNativePage .schoolSidebarNav {
+  background:var(--theme-surface,#202327)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;
+}
+:root[data-theme="dark"] .schoolProfileNativePage .schoolProfileInfoRows,
+:root[data-theme="dark"] .schoolProfileNativePage .schoolProfileInfoRow {
+  background:var(--theme-surface,#202327)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;
+}
+@media (orientation:landscape) and (min-width:600px) {
+  .messagesSplitLayout {
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+  }
+  .messagesSplitLayout>.messagesSplitColumn {display:flex!important;min-width:0!important;min-height:0!important;}
+}

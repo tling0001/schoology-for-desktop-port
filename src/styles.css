@@ -3850,3 +3850,140 @@ html[data-reduced-motion="true"] .schoolProfileTabs .schoolProfileTab,
 html[data-reduced-motion="true"] .profileAndroidPage .profileTabs .profileTab {
   transition:none!important;
 }
+
+
+/* Port.20: remove hover/selection bars and keep toolbar feedback circular and darkening-only. */
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem:hover,
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem:focus-visible,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem:hover,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem:focus-visible,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem:hover,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem:focus-visible,
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .schoolProfileTabs .schoolProfileTab:hover,
+:root[data-theme="dark"] .schoolProfileTabs .schoolProfileTab:focus-visible,
+:root[data-theme="dark"] .schoolProfileTabs .schoolProfileTab:active,
+:root[data-theme="dark"] .profileAndroidPage .profileTabs .profileTab:hover,
+:root[data-theme="dark"] .profileAndroidPage .profileTabs .profileTab:focus-visible,
+:root[data-theme="dark"] .profileAndroidPage .profileTabs .profileTab:active {
+  box-shadow:none!important;
+  outline:none!important;
+}
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem.active {
+  border-left:0!important;
+}
+#courseUpdateComposer .androidCreatePostDialog,
+#courseUpdateComposer .androidCreatePostDialog .androidCreatePostBody {
+  background:var(--theme-surface,#fff)!important;
+  color:var(--theme-text,#263238)!important;
+}
+#courseUpdateComposer .androidPostToField {
+  background:var(--theme-surface-raised,#f7f9fb)!important;
+  color:var(--theme-text,#263238)!important;
+  border-color:var(--theme-border,#dfe3e7)!important;
+}
+#courseUpdateComposer textarea {
+  background:var(--theme-surface,#fff)!important;
+  color:var(--theme-text,#263238)!important;
+  border-color:var(--theme-border,#cfd6dd)!important;
+  color-scheme:light;
+}
+#courseUpdateComposer textarea::placeholder {color:var(--theme-muted,#687782)!important}
+:root[data-theme="dark"] #courseUpdateComposer .androidCreatePostDialog,
+:root[data-theme="dark"] #courseUpdateComposer .androidCreatePostDialog .androidCreatePostBody {
+  background:var(--theme-surface,#202327)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+}
+:root[data-theme="dark"] #courseUpdateComposer .androidPostToField {
+  background:var(--theme-surface-raised,#282d33)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;
+}
+:root[data-theme="dark"] #courseUpdateComposer textarea {
+  background:var(--theme-surface-raised,#282d33)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#4b5561)!important;
+  color-scheme:dark;
+}
+:root[data-theme="dark"] #courseUpdateComposer textarea::placeholder {color:var(--theme-muted,#a7b0ba)!important}
+
+/* App-bar hover/press uses only a darker fill; never draw a white ring or indicator. */
+.shell .toolbar .iconButton,
+.shell .toolbar .toolbarActionSlot>button,
+.shell .toolbar button[aria-label],
+.shell .toolbar button[title],
+.sharedPdfViewerAppBar button {
+  box-sizing:border-box!important;
+  width:48px!important;
+  min-width:48px!important;
+  max-width:48px!important;
+  height:48px!important;
+  min-height:48px!important;
+  max-height:48px!important;
+  flex:0 0 48px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:50%!important;
+  outline:none!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.shell .toolbar .toolbarActionSlot {
+  background:transparent!important;
+  border:0!important;
+  outline:none!important;
+  box-shadow:none!important;
+  border-radius:0!important;
+}
+.shell .toolbar .iconButton:hover,
+.shell .toolbar .iconButton:focus,
+.shell .toolbar .iconButton:focus-visible,
+.shell .toolbar .toolbarActionSlot>button:hover,
+.shell .toolbar .toolbarActionSlot>button:focus,
+.shell .toolbar .toolbarActionSlot>button:focus-visible,
+.shell .toolbar button[aria-label]:hover,
+.shell .toolbar button[aria-label]:focus-visible,
+.shell .toolbar button[title]:hover,
+.shell .toolbar button[title]:focus-visible,
+.sharedPdfViewerAppBar button:hover,
+.sharedPdfViewerAppBar button:focus,
+.sharedPdfViewerAppBar button:focus-visible {
+  background:#001827!important;
+  border-color:transparent!important;
+  outline:none!important;
+  outline-offset:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+.shell .toolbar .iconButton:active,
+.shell .toolbar .toolbarActionSlot>button:active,
+.shell .toolbar button[aria-label]:active,
+.shell .toolbar button[title]:active,
+.sharedPdfViewerAppBar button:active {
+  background:#00131f!important;
+  border-color:transparent!important;
+  outline:none!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.shell .toolbar .toolbarActionSlot:hover,
+.shell .toolbar .toolbarActionSlot:focus,
+.shell .toolbar .toolbarActionSlot:focus-visible,
+.shell .toolbar .toolbarActionSlot:active {
+  background:transparent!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+@media(prefers-reduced-motion:reduce) {
+  .shell .toolbar .iconButton,
+  .shell .toolbar .toolbarActionSlot>button,
+  .sharedPdfViewerAppBar button {transition:none!important}
+}
+html[data-reduced-motion="true"] .shell .toolbar .iconButton,
+html[data-reduced-motion="true"] .shell .toolbar .toolbarActionSlot>button,
+html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!important}

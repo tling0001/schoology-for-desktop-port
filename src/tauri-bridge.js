@@ -585,9 +585,7 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
             catch (error) { console.warn('Could not prepare the authenticated Schoology WebView session:', error); }
           }
           this._darkTheme = dark;
-          // Match the last known working session flow: load the requested destination
-          // once so the bootstrap can write prepared cookies, then retry that URL.
-          this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length);
+          // Native cookie-store installation happens inside create-embedded-webview before navigation.
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
           let nativeCreated = false;
@@ -600,7 +598,9 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               width: Math.max(1, rect.width),
               height: Math.max(1, rect.height),
               userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UQ1A.240205.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.0.0 Mobile Safari/537.36 Schoology Android v2026.10.0',
-              initializationScript: makeEmbeddedThemeBootstrap(dark, session, label),
+              initializationScript: makeEmbeddedThemeBootstrap(dark, null, label),
+              sessionCookies: Array.isArray(session?.cookies) ? session.cookies : [],
+              mobileCookie: String(session?.mobileCookie || ""),
               forceDark: dark,
               lti: this._ltiNavigation,
               allowExternalNavigation: this.getAttribute('data-external-links') !== 'false',
@@ -701,15 +701,6 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
               return;
             }
             if (eventName.includes('finished') || eventName === 'finish') {
-              // Retry the original URL after the bootstrap document has installed cookies.
-              if (this._sessionBootstrapPending) {
-                this._sessionBootstrapPending = false;
-                this.loading = true;
-                try {
-                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
-                  return;
-                } catch (error) { console.warn('Could not retry initial Schoology navigation after session bootstrap:', error); }
-              }
               this._hasLoadedPage = true;
               this.loading = false;
               this.dispatchEvent(new Event('did-stop-loading'));
@@ -725,9 +716,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
             // The native surface is still navigated and shown below, even without renderer load events.
             console.info('Schoology embedded webview: native onPageLoad hook unavailable; continuing without load events.');
           }
-          // Start from about:blank so native handlers are attached before navigation.
-          // The init script installs cookies on the Schoology origin, then replaces the
-          // bootstrap URL with the original protected destination.
+          // Start from about:blank so native handlers are attached and Rust installs
+          // session cookies before the original protected destination is requested.
           this._hasLoadedPage = false;
           this.loading = true;
           this.dispatchEvent(new Event('did-start-loading'));

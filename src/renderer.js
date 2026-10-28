@@ -459,11 +459,23 @@ function bind(){
         }catch(_){/* Lookup is advisory; preserve normal credential login if it is unavailable. */}
       }
     }
-    const remoteUrl=String(remoteSchool?.login_url||remoteSchool?.loginUrl||'').trim();
-    let safeRemoteUrl='';
-    try{const parsed=new URL(remoteUrl);if(parsed.protocol==='https:')safeRemoteUrl=parsed.href}catch{}
+    const suggestedRemoteUrl=String(remoteSchool?.login_url_suggest||remoteSchool?.loginUrlSuggest||'').trim();
+    const remoteUrl=String(remoteSchool?.login_url||remoteSchool?.loginUrl||suggestedRemoteUrl).trim();
+    const safeSchoolLoginUrl=value=>{
+      try{
+        const parsed=new URL(String(value||'').trim());
+        if(parsed.protocol==='https:')return parsed.href;
+        // Schoology's official LAUSD suggestion has historically been HTTP; upgrade
+        // this one known host to HTTPS instead of rejecting the SSO prompt entirely.
+        if(parsed.protocol==='http:'&&(parsed.hostname.toLowerCase()==='lms.lausd.net'||parsed.hostname.toLowerCase().endsWith('.lms.lausd.net'))){
+          parsed.protocol='https:';return parsed.href;
+        }
+      }catch{}
+      return '';
+    };
+    const safeRemoteUrl=safeSchoolLoginUrl(remoteUrl)||safeSchoolLoginUrl(suggestedRemoteUrl);
     if(remoteSchool&&safeRemoteUrl){
-      const suggestion=String(remoteSchool.login_url_suggest||remoteSchool.loginUrlSuggest||safeRemoteUrl).trim();
+      const suggestion=suggestedRemoteUrl||safeRemoteUrl;
       si.disabled=false;si.textContent=originalSignInLabel;
       showAppDialog('Your school uses SSO/Remote Authentication',
         'Your school is currently using SSO/Remote Authentication.'+(suggestion?' Did you mean to log in from '+suggestion+'?':''),
@@ -482,6 +494,11 @@ function bind(){
           }}
         ]);
       return;
+    }
+    if(remoteSchool&&!safeRemoteUrl){
+      si.disabled=false;si.textContent=originalSignInLabel;
+      state.error='Your school requires SSO/Remote Authentication, but did not provide a secure sign-in URL.';
+      render();return;
     }
     if(!password){state.error='Enter your username or email and password.';render();return}
     si.textContent='Logging you in…';
@@ -861,8 +878,8 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  if(renderToken!==courseRenderToken||state.screen!=='app'||state.courseView!=='course'||state.selectedCourse!==course)return;
  const sectionDetail=sectionResponse?.section||sectionResponse||course;
  let school=await resolveCourseSchoolName(sectionDetail)||schoolFromList;
- const schoolId=sectionDetail?.school_id??sectionDetail?.schoolId??'';
- document.querySelectorAll('.courseSchoolName').forEach(schoolEl=>{if(!school)return;const safeSchoolId=Number(schoolId||0);schoolEl.innerHTML=safeSchoolId?`<button class="courseSchoolLink" data-course-school-id="${safeSchoolId}" type="button">${esc(school)}</button>`:`<span class="courseSchoolLink">${esc(school)}</span>`;const btn=schoolEl.querySelector('button');if(btn)btn.onclick=()=>{const id=Number(btn.dataset.courseSchoolId||0);if(id)openSchoolProfile(id,btn.textContent||'School')}})
+ const schoolId=sectionDetail?.school_id??sectionDetail?.schoolId??sectionDetail?.school?.id??course?.school_id??course?.schoolId??course?.school?.id??'';
+ document.querySelectorAll('.courseSchoolName').forEach(schoolEl=>{if(!school)return;const safeSchoolId=Number(schoolId||0);schoolEl.innerHTML=`<button class="courseSchoolLink" data-course-school-id="${safeSchoolId||''}" type="button">${esc(school)}</button>`;const btn=schoolEl.querySelector('button');if(btn)btn.onclick=async()=>{const id=Number(btn.dataset.courseSchoolId||0);if(id){openSchoolProfile(id,btn.textContent||'School');return}try{const matches=await A.schoolSearch(btn.textContent||'');const results=Array.isArray(matches)?matches:[];const name=String(btn.textContent||'').trim().toLowerCase();const exact=results.find(item=>Number(item?.id)>0&&String(item?.title||'').trim().toLowerCase()===name);const resolved=exact||(results.length===1&&Number(results[0]?.id)>0?results[0]:null);if(resolved)openSchoolProfile(Number(resolved.id),String(resolved.title||btn.textContent||'School'));else showAppDialog('School unavailable','Schoology did not return a unique school profile for this course.')}catch(error){showAppDialog('Unable to open school',error?.message||'Schoology could not find this school profile.')}}})
  const canGradebook=!!navPerms?.sectionGradesPut,canGrades=!!navPerms?.userGradesGet,attendanceEnabled=!!navPerms?.attendanceGet;
  const tabs=[['materials','Materials'],['updates','Updates'],['members','Members'],...(landscape?[]:[['upcoming','Upcoming']]),...(canGradebook?[['gradebook','Gradebook']]:canGrades?[['grades','Grades']]:[]),...(attendanceEnabled?[['attendance','Attendance']]:[]),...(landscape?[]:[['courseapp','Course App']])];
  if(effectiveTab==='grades'&&canGradebook)effectiveTab='gradebook';if(effectiveTab==='gradebook'&&!canGradebook)effectiveTab=canGrades?'grades':'materials';if(effectiveTab==='attendance'&&!attendanceEnabled)effectiveTab='materials';

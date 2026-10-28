@@ -3737,11 +3737,18 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 
 
 /* Port.18: align course subdrawer hover with the main drawer and strengthen dark selection states. */
+.drawerSub .courseSubItem {
+  width:calc(100% - 16px)!important;
+  margin:2px 8px!important;
+  border-radius:9px!important;
+  transition:background-color .14s ease,box-shadow .14s ease!important;
+}
 .drawerSub .courseSubItem:hover,
 .drawerSub .courseSubItem:focus-visible,
 .drawerSub .courseSubItem:active {
   background:rgba(255,255,255,.14)!important;
   outline:none!important;
+  box-shadow:none!important;
 }
 :root[data-theme="dark"] .courseLandscapePage .materialRow:hover,
 :root[data-theme="dark"] .courseLandscapePage .materialRow:focus-visible,

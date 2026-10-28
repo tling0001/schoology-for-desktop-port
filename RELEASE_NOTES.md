@@ -1,5 +1,16 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.19]
+
+### Fixed
+- Widen the expanded Upcoming pane in landscape course, group, and school-profile layouts while preserving the collapsed icon-rail layout.
+- Keep homepage, course, and group tabs square.
+- Add clear hover, keyboard-focus, and pressed feedback to school-profile and person-profile tabs.
+- Remove the stray literal angle-bracket fragment rendered between the app bar and portrait profile tabs.
+
+### Changed
+- Bump the package version to 2026.10.0-port.19.
+
 ## [2026.10.0-port.18]
 
 ### Fixed

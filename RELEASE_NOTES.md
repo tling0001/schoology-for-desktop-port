@@ -1,5 +1,18 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.20]
+
+### Fixed
+- Remove extra outline/indicator bars from dark-mode sidebar selection and profile-tab feedback.
+- Restore darkening-only app-bar hover/pressed feedback and enforce circular app-bar action hit areas.
+- Give the course update composer, destination field, and editor proper dark-mode surfaces and text colors.
+- Restore the single-retry shared-WebView session-cookie bootstrap used by the known-working earlier implementation.
+- Detect Remote Authentication schools before credential login using Schoology's official pre-login school lookup and offer Cancel/Continue to the school's HTTPS login flow.
+
+### Changed
+- Add an Android-only manual GitHub Actions run option that skips desktop, iOS Ad Hoc, and release publishing jobs.
+- Bump the package version to 2026.10.0-port.20.
+
 ## [2026.10.0-port.19]
 
 ### Fixed

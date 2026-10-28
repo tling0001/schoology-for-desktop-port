@@ -1,5 +1,17 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.17]
+
+### Fixed
+- Restore the shared WebView's first-load cookie bootstrap and retry sequence from commit 86ed40ae6d3b5d641727a020efeef11c8fdeb521 while preserving newer navigation and cleanup behavior.
+- Make right-side app-bar actions circular and replace lighter hover feedback with a darker, outline-free state.
+- Keep Messages, Assignments, Discussions, and Events tab buttons square.
+- Restore the Inbox/Unread and Sent side-by-side message layout on landscape screens wider than 600px.
+- Apply dark surfaces to landscape course, group, and school-profile sidebars and the school-profile information panel.
+
+### Changed
+- Bump the package version to 2026.10.0-port.17.
+
 ## [2026.10.0-port.16]
 
 ### Fixed

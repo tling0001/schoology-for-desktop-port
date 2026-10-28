@@ -924,7 +924,7 @@ function showAssignmentAttachmentDialog(attachments){
 }
 async function showAssignment(sectionId,assignmentId){
   const c=document.getElementById('content'); if(!c)return;
-  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSupportsAnnotations=false; state.assignmentSubpage=null; state.submissionMenu=false; state.assignmentAllowComments=false; state.assignmentLandscape=window.matchMedia('(min-width: 801px), (orientation: landscape) and (min-width: 600px)').matches; syncToolbar();
+  state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSupportsAnnotations=false; state.assignmentSubpage=null; state.submissionMenu=false; state.assignmentAllowComments=false; state.assignmentLandscape=window.matchMedia('(min-width: 801px)').matches; syncToolbar();
   c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading assignment…</span></div></section>`;
   try{
     const uid=state.auth?.userId||state.auth?.user?.id;
@@ -1702,7 +1702,7 @@ let courseLayoutMediaQuery=null;
 let lastWindowLayout='';
 let resizeRefreshTimer=null;
 let courseRenderToken=0;
-function currentWindowLayout(){return window.matchMedia('(min-width: 801px), (orientation: landscape) and (min-width: 600px)').matches?'landscape':'portrait'}
+function currentWindowLayout(){return window.matchMedia('(min-width: 801px)').matches?'landscape':'portrait'}
 function installCourseLayoutWatcher(){
   const mq=window.matchMedia('(min-width: 801px)');
   const handler=()=>{

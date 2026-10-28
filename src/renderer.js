@@ -444,7 +444,7 @@ function bind(){
     const user=document.getElementById('user')?.value||'';
     const password=document.getElementById('pass')?.value||'';
     state.error='';
-    if(!user||!password){state.error='Enter your username or email and password.';render();return}
+    if(!user){state.error='Enter your username or email.';render();return}
     const originalSignInLabel=si.textContent;
     si.disabled=true;si.textContent='Checking sign-in…';
     let remoteSchool=null, emailDomain='';
@@ -483,6 +483,7 @@ function bind(){
         ]);
       return;
     }
+    if(!password){state.error='Enter your username or email and password.';render();return}
     si.textContent='Logging you in…';
     try{state.auth=await A.loginCredentials({user,password,schoolId:state.school?.id??null});await afterLogin()}
     catch(e){state.error=e.message||'Login failed.';render()}

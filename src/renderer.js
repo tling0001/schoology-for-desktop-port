@@ -2839,11 +2839,11 @@ async function loadTab(){
         <section class="profilePane"><h2>Updates</h2><div id="profilePaneUpdates" class="profilePaneContent"></div></section>
         <section class="profilePane"><h2>Info</h2><div id="profilePaneInfo" class="profilePaneContent"></div></section>
         <section class="profilePane"><h2>Badges</h2><div id="profilePaneBadges" class="profilePaneContent"></div></section>
-      </div>`:`<><div class="profileTabs">
+      </div>`:`<div class="profileTabs">
         <button class="profileTab ${state.profileTab==='updates'?'active':''}" data-profile-tab="updates">Updates</button>
         <button class="profileTab ${state.profileTab==='info'?'active':''}" data-profile-tab="info">Info</button>
         <button class="profileTab ${state.profileTab==='badges'?'active':''}" data-profile-tab="badges">Badges</button>
-      </div><div id="profileTabContent"></div></>`}
+      </div><div id="profileTabContent"></div>`}
     </section>`;
     const pc=document.getElementById('profileTabContent');
     const loadProfileTab=async(tab)=>{

@@ -1,5 +1,19 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.21]
+
+### Fixed
+- Install validated Schoology sessionstart cookies into the native child WebView cookie store before the first protected navigation, removing reliance on load-event retries.
+- Apply WebContentsForceDark only to Windows shared child WebViews when the app theme is dark, using a dedicated WebView2 data directory and preserving Wry's default disabled features.
+- Correct remote-auth URL detection by falling back to Schoology's suggested login URL and upgrading the known LAUSD HTTP suggestion to HTTPS before showing the Cancel/Continue dialog.
+- Keep the School link blue and actionable in portrait course information, while rendering the course section/period as muted metadata.
+- Apply dark surfaces to both update-composer variants and the landscape school-profile information card.
+- Remove remaining inset indicator bars from dark-mode materials/sidebar rows, lighten tab and app-bar hover/press feedback, and enforce circular app-bar button hit areas.
+- Reduce expanded landscape Upcoming panes to 6/7 of their previous width and keep the left navigation track fixed during collapse/expand.
+
+### Changed
+- Bump the package version to 2026.10.0-port.21.
+
 ## [2026.10.0-port.20]
 
 ### Fixed

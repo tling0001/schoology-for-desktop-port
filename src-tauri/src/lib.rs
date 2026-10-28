@@ -446,6 +446,11 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
     let height = info.get("height").and_then(Value::as_f64).unwrap_or(1.0).clamp(1.0, 100000.0);
     let user_agent = info.get("userAgent").and_then(Value::as_str).unwrap_or(ANDROID_UA).to_owned();
     let initialization_script = info.get("initializationScript").and_then(Value::as_str).unwrap_or("").to_owned();
+    let session_cookies = info.get("sessionCookies").and_then(Value::as_array).cloned().unwrap_or_default();
+    let mobile_cookie = info.get("mobileCookie").and_then(Value::as_str).unwrap_or("").to_owned();
+    let target_host = url.host_str().unwrap_or_default().to_ascii_lowercase();
+    #[cfg(target_os = "windows")]
+    let force_dark = info.get("forceDark").and_then(Value::as_bool).unwrap_or(false);
     let downloads_dir = app.path().download_dir().ok().filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(app.path().app_cache_dir().map_err(|e| e.to_string())?.join("downloads"));
     fs::create_dir_all(&downloads_dir).map_err(|e| format!("Could not prepare the downloads folder: {e}"))?;
@@ -534,12 +539,47 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 _ => true,
             }
         });
-    // Keep child WebView2 creation on the same default environment options as the
-    // main Tauri webview. Per-child additional_browser_args can request a different
-    // WebView2 environment for the shared user-data folder and fail with HRESULT
-    // 0x8007139F on Windows. Schoology dark styling is applied by the injected script.
+    // WebView2 command-line arguments are scoped to this child and use a dedicated
+    // data directory, as required by Tauri/Wry when browser arguments differ.
+    #[cfg(target_os = "windows")]
+    let builder = if force_dark {
+        let data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?
+            .join("shared-webview-force-dark").join(&label);
+        fs::create_dir_all(&data_dir).map_err(|e| format!("Could not prepare the shared WebView data directory: {e}"))?;
+        builder.additional_browser_args("--enable-features=WebContentsForceDark --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection")
+            .data_directory(data_dir)
+    } else { builder };
     parent.add_child(builder, LogicalPosition::new(x, y), LogicalSize::new(width, height))
         .map_err(|e| format!("Could not create the embedded Schoology webview: {e}"))?;
+
+    // Install sessionstart cookies into the native cookie store before the first
+    // remote navigation. JavaScript document.cookie runs too late to authenticate
+    // the initial HTTP request, and cannot set HttpOnly cookies.
+    if !session_cookies.is_empty() || !mobile_cookie.is_empty() {
+        if target_host == "app.schoology.com" || target_host.ends_with(".schoology.com") ||
+            target_host == "app.schoologyca.com" || target_host.ends_with(".schoologyca.com") {
+            if let Some(view) = app.get_webview(&label) {
+                let default_domain = if target_host == "app.schoologyca.com" || target_host.ends_with(".schoologyca.com") { "schoologyca.com" } else { "schoology.com" };
+                let mut cookie_entries: Vec<(String, String, String, String)> = session_cookies.iter().filter_map(|cookie| {
+                    let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str)?.trim();
+                    let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str)?;
+                    let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(default_domain).trim().trim_start_matches(".").to_ascii_lowercase();
+                    let path = cookie.get("path").and_then(Value::as_str).filter(|path| path.starts_with("/")).unwrap_or("/");
+                    let valid_domain = domain == "schoology.com" || domain.ends_with(".schoology.com") || domain == "schoologyca.com" || domain.ends_with(".schoologyca.com");
+                    if name.is_empty() || !valid_domain || name.chars().any(|ch| ch.is_control() || ch == ';' || ch == '=' || ch == ',') || value.chars().any(|ch| ch.is_control() || ch == ';' || ch == ',') { return None; }
+                    Some((name.to_owned(), value.to_owned(), domain, path.to_owned()))
+                }).collect();
+                if !mobile_cookie.is_empty() { cookie_entries.push(("s_mobile".to_owned(), mobile_cookie, default_domain.to_owned(), "/".to_owned())); }
+                for (name, value, domain, path) in cookie_entries {
+                    let cookie = tauri::webview::Cookie::build((name.clone(), value)).domain(domain).path(path).secure(true).build();
+                    if let Err(error) = view.set_cookie(cookie) {
+                        let _ = view.close();
+                        return Err(format!("Could not install the shared WebView session cookie {name}: {error}"));
+                    }
+                }
+            }
+        }
+    }
     Ok(json!({"label":label,"created":true}))
 }
 

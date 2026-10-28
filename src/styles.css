@@ -3987,3 +3987,173 @@ html[data-reduced-motion="true"] .profileAndroidPage .profileTabs .profileTab {
 html[data-reduced-motion="true"] .shell .toolbar .iconButton,
 html[data-reduced-motion="true"] .shell .toolbar .toolbarActionSlot>button,
 html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!important}
+
+
+/* Port.21: remove leftover dark-mode inset bars across rows and sidebar selections. */
+:root[data-theme="dark"] .courseLandscapePage .materialRow:hover,
+:root[data-theme="dark"] .courseLandscapePage .materialRow:focus-visible,
+:root[data-theme="dark"] .courseLandscapePage .courseAppRow:hover,
+:root[data-theme="dark"] .courseLandscapePage .courseAppRow:focus-visible,
+:root[data-theme="dark"] .courseLandscapePage .gradeAssignmentRow:hover,
+:root[data-theme="dark"] .courseLandscapePage .gradeAssignmentRow:focus-visible,
+:root[data-theme="dark"] .courseLandscapePage .resourceCategoryHeader:hover,
+:root[data-theme="dark"] .courseLandscapePage .resourceCategoryHeader:focus-visible,
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem:hover,
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem:focus-visible,
+:root[data-theme="dark"] .courseLandscapePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem:hover,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem:focus-visible,
+:root[data-theme="dark"] .groupProfilePage .profileSidebarNavItem.active,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem:hover,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem:focus-visible,
+:root[data-theme="dark"] .schoolProfileNativePage .profileSidebarNavItem.active {
+  box-shadow:none!important;
+  border-left:0!important;
+  outline:none!important;
+}
+
+/* Port.21: use subtle lightening for tabs and circular app-bar controls. */
+.schoolProfileTabs .schoolProfileTab:hover,
+.schoolProfileTabs .schoolProfileTab:focus-visible,
+.profileAndroidPage .profileTabs .profileTab:hover,
+.profileAndroidPage .profileTabs .profileTab:focus-visible {
+  background:rgba(255,255,255,.09)!important;
+  color:#fff!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+.schoolProfileTabs .schoolProfileTab:active,
+.profileAndroidPage .profileTabs .profileTab:active {
+  background:rgba(255,255,255,.15)!important;
+  color:#fff!important;
+  filter:none!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+.shell .toolbar button:not(#tauriWindowControls button),
+.sharedPdfViewerAppBar button {
+  box-sizing:border-box!important;
+  width:48px!important;
+  min-width:48px!important;
+  max-width:48px!important;
+  height:48px!important;
+  min-height:48px!important;
+  max-height:48px!important;
+  flex:0 0 48px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:50%!important;
+  outline:none!important;
+  box-shadow:none!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.shell .toolbar button:not(#tauriWindowControls button):hover,
+.shell .toolbar button:not(#tauriWindowControls button):focus-visible,
+.sharedPdfViewerAppBar button:hover,
+.sharedPdfViewerAppBar button:focus-visible {
+  background:rgba(255,255,255,.12)!important;
+  border-color:transparent!important;
+  outline:none!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+.shell .toolbar button:not(#tauriWindowControls button):active,
+.sharedPdfViewerAppBar button:active {
+  background:rgba(255,255,255,.18)!important;
+  border-color:transparent!important;
+  outline:none!important;
+  box-shadow:none!important;
+  filter:none!important;
+  transform:none!important;
+}
+@media(prefers-reduced-motion:reduce) {
+  .schoolProfileTabs .schoolProfileTab,
+  .profileAndroidPage .profileTabs .profileTab,
+  .shell .toolbar button,
+  .sharedPdfViewerAppBar button {transition:none!important}
+}
+html[data-reduced-motion="true"] .schoolProfileTabs .schoolProfileTab,
+html[data-reduced-motion="true"] .profileAndroidPage .profileTabs .profileTab,
+html[data-reduced-motion="true"] .shell .toolbar button,
+html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!important}
+
+/* Port.21: darken all update-composer layers, including the home/update composer variant. */
+:root[data-theme="dark"] #homeUpdateComposer .androidCreatePostDialog,
+:root[data-theme="dark"] #homeUpdateComposer .androidCreatePostBody,
+:root[data-theme="dark"] #courseUpdateComposer .androidCreatePostDialog,
+:root[data-theme="dark"] #courseUpdateComposer .androidCreatePostBody {
+  background:var(--theme-surface,#202327)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+}
+:root[data-theme="dark"] #homeUpdateComposer .androidPostToSelect,
+:root[data-theme="dark"] #homeUpdateComposer .androidPostToField,
+:root[data-theme="dark"] #homeUpdateComposer textarea,
+:root[data-theme="dark"] #courseUpdateComposer .androidPostToSelect,
+:root[data-theme="dark"] #courseUpdateComposer .androidPostToField,
+:root[data-theme="dark"] #courseUpdateComposer textarea {
+  background:var(--theme-surface-raised,#282d33)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;
+  color-scheme:dark!important;
+}
+:root[data-theme="dark"] #homeUpdateComposer textarea::placeholder,
+:root[data-theme="dark"] #courseUpdateComposer textarea::placeholder {
+  color:var(--theme-muted,#a7b0ba)!important;
+}
+
+/* The landscape school identity card is a surface too, not a white island in dark mode. */
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeader,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeaderText,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileIdentityInfoBar {
+  background:var(--theme-surface,#202327)!important;
+  color:var(--theme-text,#e6e8eb)!important;
+  border-color:var(--theme-border,#3a3f46)!important;
+}
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileHeaderText h1,
+:root[data-theme="dark"] .schoolProfileInfoSidePane .schoolProfileSubtitle {
+  color:var(--theme-text,#e6e8eb)!important;
+}
+
+/* In portrait, the section/period is metadata; the School link is the blue action. */
+@media (max-width:800px), (orientation:portrait) {
+  .courseMainPane>.courseIdentityMainInfo .sectionProfileSubtitle {
+    color:var(--theme-muted,#687782)!important;
+  }
+  .courseMainPane>.courseIdentityMainInfo .courseSchoolLink {
+    display:inline-block!important;
+    color:var(--theme-blue,#3183c8)!important;
+    background:transparent!important;
+    border:0!important;
+    padding:2px 0!important;
+    margin:4px 0 0!important;
+    text-align:left!important;
+    text-decoration:none!important;
+    cursor:pointer!important;
+    pointer-events:auto!important;
+  }
+  .courseMainPane>.courseIdentityMainInfo button.courseSchoolLink:hover,
+  .courseMainPane>.courseIdentityMainInfo button.courseSchoolLink:focus-visible {
+    color:var(--theme-blue,#3183c8)!important;
+    text-decoration:underline!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+}
+
+/* Keep the left navigation track identical when Upcoming collapses; narrow the expanded pane to 6/7. */
+@media (min-width:801px) and (orientation:landscape) {
+  .courseLandscapePage:not(.upcoming-collapsed) {
+    grid-template-columns:minmax(176px,19%) minmax(0,1fr) minmax(257px,27.43%)!important;
+  }
+  .courseLandscapePage.upcoming-collapsed {
+    grid-template-columns:minmax(176px,19%) minmax(0,1fr) 76px!important;
+  }
+  .groupProfilePage:not(.upcoming-collapsed) .groupLandscapeSplit,
+  .schoolProfileNativePage:not(.upcoming-collapsed) .schoolProfileLandscapeSplit {
+    grid-template-columns:minmax(176px,19%) minmax(0,1fr) minmax(257px,27.43%)!important;
+  }
+  .groupProfilePage.upcoming-collapsed .groupLandscapeSplit,
+  .schoolProfileNativePage.upcoming-collapsed .schoolProfileLandscapeSplit {
+    grid-template-columns:minmax(176px,19%) minmax(0,1fr) 76px!important;
+  }
+}

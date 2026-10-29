@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.29]
+
+### Fixed
+- Allow the shared WebView to make its initial Schoology navigation when sessionstart returns ordinary cookies but omits the HttpOnly SESS cookie, so the browser response and one-time original-URL retry can establish the session.
+- Keep the empty native cookie-store check as a safeguard against opening the embedded page with no cookies installed.
+- Left-align Upcoming date headings above their date sections.
+
+### Changed
+- Bump the package version to 2026.10.0-port.29.
+
 ## [2026.10.0-port.28]
 
 ### Fixed

@@ -571,12 +571,27 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 }).collect();
                 if !mobile_cookie.is_empty() { cookie_entries.push(("s_mobile".to_owned(), mobile_cookie, default_domain.to_owned(), "/".to_owned())); }
                 for (name, value, domain, path) in cookie_entries {
-                    let cookie = tauri::webview::Cookie::build((name.clone(), value)).domain(domain).path(path).secure(true).build();
+                    // Preserve an explicit domain cookie for sibling Schoology hosts.
+                    // A leading dot is ignored by modern browsers but makes the intended
+                    // domain scope explicit to native WebView cookie managers.
+                    let cookie_domain = format!(".{}", domain.trim_start_matches('.'));
+                    let cookie = tauri::webview::Cookie::build((name.clone(), value)).domain(cookie_domain).path(path).secure(true).build();
                     if let Err(error) = view.set_cookie(cookie) {
                         let _ = view.close();
                         return Err(format!("Could not install the shared WebView session cookie {name}: {error}"));
                     }
                 }
+                // Verify that the native cookie manager exposes the installed session
+                // to the actual initial URL before allowing navigation to begin.
+                let verification_url = Url::parse(&format!("https://{}/", target_host)).map_err(|e| e.to_string())?;
+                let installed = view.cookies_for_url(verification_url)
+                    .map_err(|error| format!("Could not verify the shared WebView session cookies: {error}"))?;
+                if installed.is_empty() {
+                    let _ = view.close();
+                    return Err("The shared WebView was created, but its native cookie store did not retain the Schoology session. Please retry.".into());
+                }
+                let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
+                eprintln!("Schoology shared WebView: installed {} native session cookies for {} (names: {}).", installed.len(), target_host, installed_names.join(", "));
             }
         }
     }

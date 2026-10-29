@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.23]
+
+### Fixed
+- Use the official Schoology materials and grades icon artwork embedded in the renderer for the landscape course sidebar.
+- Give the drawer profile button the same hover and pressed feedback as the other navigation buttons.
+- Replace the Grades drawer submenu with one all-courses Grades page; each course starts collapsed and loads its existing course-grade view when expanded, without changing the Grades tab inside an individual course.
+
+### Changed
+- Bump the package version to 2026.10.0-port.23.
+
 ## [2026.10.0-port.22]
 
 ### Fixed

@@ -566,7 +566,12 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                     let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(default_domain).trim().trim_start_matches(".").to_ascii_lowercase();
                     let path = cookie.get("path").and_then(Value::as_str).filter(|path| path.starts_with("/")).unwrap_or("/");
                     let valid_domain = domain == "schoology.com" || domain.ends_with(".schoology.com") || domain == "schoologyca.com" || domain.ends_with(".schoologyca.com");
-                    if name.is_empty() || !valid_domain || name.chars().any(|ch| ch.is_control() || ch == ';' || ch == '=' || ch == ',') || value.chars().any(|ch| ch.is_control() || ch == ';' || ch == ',') { return None; }
+                    // A cookie can be returned by sessionstart yet belong to a different
+                    // Schoology domain (for example, a stale Canadian-domain cookie).
+                    // Installing it still makes cookies_for_url() non-empty, but the
+                    // browser will not send it to the requested page and the view logs out.
+                    let applies_to_target = target_host == domain || target_host.ends_with(&format!(".{domain}"));
+                    if name.is_empty() || !valid_domain || !applies_to_target || name.chars().any(|ch| ch.is_control() || ch == ';' || ch == '=' || ch == ',') || value.chars().any(|ch| ch.is_control() || ch == ';' || ch == ',') { return None; }
                     Some((name.to_owned(), value.to_owned(), domain, path.to_owned()))
                 }).collect();
                 if !mobile_cookie.is_empty() { cookie_entries.push(("s_mobile".to_owned(), mobile_cookie, default_domain.to_owned(), "/".to_owned())); }
@@ -587,11 +592,12 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 let installed = view.cookies_for_url(verification_url)
                     .map_err(|error| format!("Could not verify the shared WebView session cookies: {error}"))?;
                 let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
-                if installed.is_empty() {
+                let has_session_cookie = installed.iter().any(|cookie| cookie.name().to_ascii_uppercase().starts_with("SESS"));
+                if !has_session_cookie {
                     let _ = view.close();
-                    return Err(format!("The shared WebView cookie store did not retain any Schoology cookies for {}. Please retry sign-in and reopen the page.", target_host));
+                    return Err(format!("The shared WebView did not receive a usable Schoology SESS cookie for {} (cookies visible: {}). The page was not opened logged out; retry the page or sign in again.", target_host, installed_names.join(", ")));
                 }
-                eprintln!("Schoology shared WebView: verified {} native cookies for {} (names: {}). Cookie names vary by Schoology login flow.", installed.len(), target_host, installed_names.join(", "));
+                eprintln!("Schoology shared WebView: verified {} native cookies including a SESS session cookie for {} (names: {}).", installed.len(), target_host, installed_names.join(", "));
             }
         }
     }

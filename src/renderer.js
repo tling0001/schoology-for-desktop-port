@@ -144,7 +144,13 @@ function schoologySidebarIcon(name,alt=''){
  const key=String(name||'');
  if(key.startsWith('ios-')||key==='grades'){
    const image=schoologyIosSidebarIconData[key.startsWith('ios-')?key.slice(4):key];
-   if(image)return '<img class="schoologyIosSidebarIcon'+(key==='ios-members'?' schoologyIosPeopleIcon':'')+(key==='grades'?' schoologyGradesSidebarIcon':'')+'" src="data:image/png;base64,'+image+'" alt="" aria-label="'+esc(alt)+'">';
+   if(image){
+     // WebView2 can fail to paint this embedded Grades PNG as an <img> in the
+     // landscape sidebar. Keep iOS on its known-good image path and use a CSS
+     // background image on Windows to avoid conflicting sidebar img rules.
+     if(key==='ios-grades'&&/Windows/i.test(navigator.userAgent||''))return '<span class="schoologyGradesSidebarIcon" role="img" aria-label="'+esc(alt)+'" style="display:inline-block;flex:0 0 20px;width:20px;height:20px;background-image:url(data:image/png;base64,'+image+');background-repeat:no-repeat;background-position:center;background-size:contain"></span>';
+     return '<img class="schoologyIosSidebarIcon'+(key==='ios-members'?' schoologyIosPeopleIcon':'')+((key==='grades'||key==='ios-grades')?' schoologyGradesSidebarIcon':'')+'" src="data:image/png;base64,'+image+'" alt="" aria-label="'+esc(alt)+'">';
+   }
  }
 
  const indexes={materials:0,updates:1,grades:2,members:3,upcoming:4,discussions:5,albums:6,resources:7};

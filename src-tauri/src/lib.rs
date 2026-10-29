@@ -896,22 +896,47 @@ async fn update_assignment_grade(app: &AppHandle, state: &HostState, info: &Valu
 }
 
 async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value, String> {
-    let _auth = auth_state(app).ok_or("Not signed in")?;
+    let auth = auth_state(app).ok_or("Not signed in")?;
     let mut url = Url::parse(&format!("https://{}/v1/sessionstart", api_host())).map_err(|e| e.to_string())?;
     url.query_pairs_mut().append_pair("for_domain", web_host());
-    let response = api_json(app, state, "GET", url, None, false).await?;
-    let cookies = response.get("cookie").or_else(|| response.get("cookies")).and_then(Value::as_array).cloned().unwrap_or_default();
+
+    // sessionstart may set the HttpOnly SESS cookie in HTTP Set-Cookie headers
+    // while its JSON body only lists ordinary analytics cookies. api_json()
+    // discards those headers, leaving the shared browser unauthenticated.
+    let response = request("GET", url, None, Some(&auth), state, true, None, false).await?;
+    let header_cookies: Vec<Value> = response.headers().get_all(reqwest::header::SET_COOKIE).iter()
+        .filter_map(|header| header.to_str().ok())
+        .filter_map(|header| {
+            let mut parts = header.split(';');
+            let pair = parts.next()?.trim();
+            let (name, value) = pair.split_once('=')?;
+            let mut domain = if web_host() == "app.schoologyca.com" { ".schoologyca.com".to_owned() } else { ".schoology.com".to_owned() };
+            let mut path = "/".to_owned();
+            for attribute in parts {
+                let (key, value) = attribute.trim().split_once('=').unwrap_or((attribute.trim(), ""));
+                if key.eq_ignore_ascii_case("domain") && !value.trim().is_empty() { domain = value.trim().to_owned(); }
+                if key.eq_ignore_ascii_case("path") && value.trim().starts_with('/') { path = value.trim().to_owned(); }
+            }
+            Some(json!({"key":name.trim(),"value":value.trim(),"domain":domain,"path":path}))
+        }).collect();
+    let response = response_value(response).await?;
+    let mut cookies = response.get("cookie").or_else(|| response.get("cookies"))
+        .and_then(Value::as_array).cloned().unwrap_or_default();
+    for cookie in header_cookies {
+        let name = cookie.get("key").and_then(Value::as_str).unwrap_or("");
+        if !cookies.iter().any(|existing| existing.get("key").or_else(|| existing.get("name")).and_then(Value::as_str) == Some(name)) {
+            cookies.push(cookie);
+        }
+    }
     if cookies.is_empty() { return Err("Schoology did not return web-session cookies.".into()); }
-    // Electron installs the sessionstart cookies without an HttpOnly flag.
-    // Tauri has no cross-platform cookie setter, so the trusted adapter installs
-    // the same ordinary cookies through an initialization script restricted to
-    // Schoology hosts. Never pass cookies for arbitrary domains to the renderer.
+    // Keep cookie material scoped to Schoology hosts. Native desktop adapters
+    // install session cookies in the browser store before the first navigation.
     let safe_cookies: Vec<Value> = cookies.into_iter().filter(|cookie| {
         let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("");
         let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str).unwrap_or("");
         let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(if web_host() == "app.schoologyca.com" { ".schoologyca.com" } else { ".schoology.com" }).trim_start_matches('.').to_ascii_lowercase();
         !name.is_empty() && !value.is_empty()
-            && !name.chars().any(|c| c.is_control() || c == ';' || c == '=')
+            && !name.chars().any(|c| c.is_control() || c == ';' || c == '=' || c == ',')
             && !value.chars().any(|c| c.is_control() || c == ';' || c == ',')
             && (domain == "schoology.com" || domain.ends_with(".schoology.com") || domain == "schoologyca.com" || domain.ends_with(".schoologyca.com"))
     }).collect();

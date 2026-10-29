@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.24]
+
+### Fixed
+- Render the Grades sidebar icon from its embedded image on desktop as well as iOS, avoiding the blank Grades slot in the desktop sprite while preserving the Materials sprite icon.
+- Use the shared Schoology liked-state parser for Recent Activity posts so existing likes correctly display `Unlike`, including `user_like_action` and other API response variants.
+
+### Changed
+- Bump the package version to 2026.10.0-port.24.
+
 ## [2026.10.0-port.23]
 
 ### Fixed

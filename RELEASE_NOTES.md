@@ -1,5 +1,17 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.27]
+
+### Fixed
+- Preserve HTTP `Set-Cookie` headers from Schoology's authenticated `sessionstart` response, including session cookies omitted from its JSON cookie list.
+- Restore the drawer profile button's inset padding and rounded hover/pressed surface.
+- Group Upcoming items by date into one rounded, elevated section per date, with date labels outside sections and inset separators/row feedback.
+- Render each message tab as one rounded list surface with inset separators and rounded row hover/pressed states.
+- Keep profile update cards white while setting the surrounding updates area to the light/dark app background colors.
+
+### Changed
+- Bump the package version to 2026.10.0-port.27.
+
 ## [2026.10.0-port.26]
 
 ### Fixed

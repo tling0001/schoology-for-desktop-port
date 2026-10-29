@@ -586,12 +586,14 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 let verification_url = Url::parse(&format!("https://{}/", target_host)).map_err(|e| e.to_string())?;
                 let installed = view.cookies_for_url(verification_url)
                     .map_err(|error| format!("Could not verify the shared WebView session cookies: {error}"))?;
-                if installed.is_empty() {
+                let has_schoology_session = installed.iter().any(|cookie| cookie.name().to_ascii_uppercase().starts_with("SESS"));
+                if !has_schoology_session {
                     let _ = view.close();
-                    return Err("The shared WebView was created, but its native cookie store did not retain the Schoology session. Please retry.".into());
+                    let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
+                    return Err(format!("The shared WebView cookie store did not retain a Schoology SESS session cookie for {} (cookies visible: {}). Please retry sign-in and reopen the page.", target_host, installed_names.join(", ")));
                 }
                 let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
-                eprintln!("Schoology shared WebView: installed {} native session cookies for {} (names: {}).", installed.len(), target_host, installed_names.join(", "));
+                eprintln!("Schoology shared WebView: verified {} native cookies including a SESS session cookie for {} (names: {}).", installed.len(), target_host, installed_names.join(", "));
             }
         }
     }

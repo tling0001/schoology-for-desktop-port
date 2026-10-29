@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.28]
+
+### Fixed
+- Move Upcoming and message-list separators onto the list surface rather than applying borders to individual row buttons.
+- Place Upcoming date labels directly above their sections and remove the divider line beneath each date.
+
+### Changed
+- Bump the package version to 2026.10.0-port.28.
+
 ## [2026.10.0-port.27]
 
 ### Fixed

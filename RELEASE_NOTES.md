@@ -1,5 +1,13 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.26]
+
+### Fixed
+- Add the missing release-notes section for the current package version so `npm run prepare:tauri` and GitHub Actions release-note staging can complete instead of failing with “No release notes found for 2026.10.0-port.26”.
+
+### Changed
+- Keep the release notes version aligned with `package.json` version `2026.10.0-port.26`.
+
 ## [2026.10.0-port.25]
 
 ### Fixed

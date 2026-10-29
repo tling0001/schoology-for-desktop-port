@@ -617,6 +617,9 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
           // to native cookie-store installation. The first request may already have left before
           // WebView2/WebKit applies a cookie added to a newly-created native view.
           this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length);
+          // Preserve the originally requested destination before Schoology can
+          // redirect an unauthenticated first request to its login page.
+          this._sessionBootstrapUrl = this._url;
           // Native cookie-store installation happens inside create-embedded-webview before navigation.
           const label = `schoology-embedded-${Math.random().toString(36).slice(2, 10)}`;
           this._label = label;
@@ -740,7 +743,8 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
                 this._sessionBootstrapPending = false;
                 this.loading = true;
                 try {
-                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(this._url) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(this._url) : invoke('navigate-embedded-webview', { label: this._label, url: this._url, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
+                  const retryUrl = this._sessionBootstrapUrl || this._url;
+                  await (typeof this.nativeView.navigate === 'function' ? this.nativeView.navigate(retryUrl) : typeof this.nativeView.setUrl === 'function' ? this.nativeView.setUrl(retryUrl) : invoke('navigate-embedded-webview', { label: this._label, url: retryUrl, lti: this._ltiNavigation, courseApp: this.getAttribute('data-course-app') === 'true' }));
                   return;
                 } catch (error) { console.warn('Could not retry initial Schoology navigation after session bootstrap:', error); }
               }

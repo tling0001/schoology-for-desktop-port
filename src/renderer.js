@@ -142,9 +142,9 @@ members:'iVBORw0KGgoAAAANSUhEUgAAADQAAAA8CAYAAAApK5mGAAAIeklEQVR42t3Ye1BTVx4H8Ow
 };
 function schoologySidebarIcon(name,alt=''){
  const key=String(name||'');
- if(key.startsWith('ios-')){
-   const image=schoologyIosSidebarIconData[key.slice(4)];
-   if(image)return '<img class="schoologyIosSidebarIcon'+(key==='ios-members'?' schoologyIosPeopleIcon':'')+'" src="data:image/png;base64,'+image+'" alt="" aria-label="'+esc(alt)+'">';
+ if(key.startsWith('ios-')||key==='grades'){
+   const image=schoologyIosSidebarIconData[key.startsWith('ios-')?key.slice(4):key];
+   if(image)return '<img class="schoologyIosSidebarIcon'+(key==='ios-members'?' schoologyIosPeopleIcon':'')+(key==='grades'?' schoologyGradesSidebarIcon':'')+'" src="data:image/png;base64,'+image+'" alt="" aria-label="'+esc(alt)+'">';
  }
 
  const indexes={materials:0,updates:1,grades:2,members:3,upcoming:4,discussions:5,albums:6,resources:7};
@@ -3156,7 +3156,7 @@ async function loadHomeTab(){
       const activityGroup=groupMap[activityGroupId]||{};
       const activityGroupName=x.group_name||x.groupName||x.realm_title||x.realmTitle||activityGroup.name||activityGroup.title||'';
       const groupContext=['group','groups'].includes(activityRealm)&&activityGroupId>0&&activityGroupName;
-      return renderSharedPostCard({update:x,id:x.id||'',author:name,avatar,authorId:u.user_id||u.uid||u.author_id||u.authorId||u.creator_id||u.creatorId||'',authorAttr:'data-author-id',realm:({'section':'sections','sections':'sections','group':'groups','groups':'groups','school':'schools','schools':'schools','user':'users','users':'users'})[activityRealm]||activityRealm,realmId:activityGroupId||Number(x.realm_id||x.realmId||x.section_id||x.user_id||0),comments,likes:x.likes||0,liked:x.liked||x.is_liked,contextLabel:groupContext?activityGroupName:'',contextAttr:'data-activity-group-id',contextId:activityGroupId,commentAttr:'data-activity-comments',commentCountAttr:'data-activity-comment-count',likeAttr:'data-activity-like',likeCountAttr:'data-activity-like-count'});
+      return renderSharedPostCard({update:x,id:x.id||'',author:name,avatar,authorId:u.user_id||u.uid||u.author_id||u.authorId||u.creator_id||u.creatorId||'',authorAttr:'data-author-id',realm:({'section':'sections','sections':'sections','group':'groups','groups':'groups','school':'schools','schools':'schools','user':'users','users':'users'})[activityRealm]||activityRealm,realmId:activityGroupId||Number(x.realm_id||x.realmId||x.section_id||x.user_id||0),comments,likes:x.likes||x.like_count||x.likeCount||0,liked:isSchoologyUpdateLiked(x),contextLabel:groupContext?activityGroupName:'',contextAttr:'data-activity-group-id',contextId:activityGroupId,commentAttr:'data-activity-comments',commentCountAttr:'data-activity-comment-count',likeAttr:'data-activity-like',likeCountAttr:'data-activity-like-count'});
     }).join(''):'<div class="empty"><h2>No recent activity</h2><p>Your recent Schoology activity will appear here.</p></div>';
     await hydrateMediaImages(c);
     c.querySelectorAll('.activityBody a[href]').forEach(a=>a.addEventListener('click',async ev=>{

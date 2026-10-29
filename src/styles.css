@@ -4248,3 +4248,45 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 .gradePeriod.collapsed>[id*="grade-period-body"],.gradeCategory.collapsed .gradeCategoryBody{display:none}
 :root[data-theme="dark"] .userGradeCourseImage{background:var(--theme-hover,#303b46)}
 @media (prefers-reduced-motion: reduce){.userGradeCourseImage{transition:none}}
+
+
+/* Port.27: rounded group surfaces with inset row feedback. */
+.profileRow{width:calc(100% - 16px)!important;margin:8px!important;padding:10px 16px!important;border:0!important;border-radius:9px!important;overflow:hidden}
+.profileRow:hover,.profileRow:focus-visible{border-radius:9px!important;background:rgba(255,255,255,.14)!important}
+.profileRow:active{border-radius:9px!important;background:rgba(255,255,255,.2)!important}
+.upcomingDateGroups{background:#f5f6f7!important;padding:12px 16px 24px!important}
+.upcomingDateGroup{margin:0 0 20px!important}
+.upcomingDateGroup:last-child{margin-bottom:0!important}
+.upcomingDateHeader{display:flex!important;align-items:center!important;gap:10px!important;min-height:30px!important;margin:0 0 8px!important;padding:0 2px!important;color:#44505d!important;font-size:14px!important;font-weight:600!important}
+.upcomingDateSection{overflow:hidden!important;border-radius:10px!important;background:#fff!important;box-shadow:0 1px 4px rgba(25,35,45,.09)!important}
+.upcomingDateSection .upcomingAssignment{width:calc(100% - 16px)!important;min-height:68px!important;margin:0 8px!important;padding:12px 8px!important;border:0!important;border-bottom:1px solid #e1e4e8!important;border-radius:8px!important;background:transparent!important;box-shadow:none!important;transform:none!important;text-align:left!important;transition:background-color .14s ease,box-shadow .14s ease!important}
+.upcomingDateSection .upcomingAssignment:last-child{border-bottom-color:transparent!important}
+.upcomingDateSection .upcomingAssignment:hover,.upcomingDateSection .upcomingAssignment:focus-visible{border-radius:8px!important;background:#edf3f7!important;box-shadow:0 1px 3px rgba(0,0,0,.08)!important;outline:none!important}
+.upcomingDateSection .upcomingAssignment:active{background:#e1eaf1!important;transform:none!important}
+:root[data-theme="dark"] .upcomingDateGroups{background:#17191c!important}
+:root[data-theme="dark"] .upcomingDateHeader{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .upcomingDateSection{background:#202327!important;box-shadow:0 1px 4px rgba(0,0,0,.24)!important}
+:root[data-theme="dark"] .upcomingDateSection .upcomingAssignment{background:transparent!important;border-bottom-color:var(--theme-border,#393d43)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .upcomingDateSection .upcomingAssignment:hover,:root[data-theme="dark"] .upcomingDateSection .upcomingAssignment:focus-visible{background:#292d32!important;box-shadow:0 1px 3px rgba(0,0,0,.24)!important}
+:root[data-theme="dark"] .upcomingDateSection .upcomingAssignment:active{background:#343a42!important}
+:root[data-theme="dark"] .upcomingDateSection .assignmentInfo b{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .upcomingDateSection .assignmentInfo small{color:var(--theme-muted,#a9afb7)!important}
+.messagesAndroidPage,.messagesSplitColumn{background:#f5f6f7!important}
+.messagesAndroidPage .messageList,.messagesSplitColumn .messageList{margin:12px 16px!important;padding:0 8px!important;border-radius:10px!important;background:#fff!important;box-shadow:0 1px 4px rgba(25,35,45,.09)!important}
+.messagesAndroidPage .messageListItem,.messagesSplitColumn .messageListItem{width:100%!important;min-height:78px!important;margin:0!important;padding:12px 8px!important;border:0!important;border-bottom:1px solid #e1e4e8!important;border-radius:8px!important;background:transparent!important;box-shadow:none!important;transition:background-color .14s ease,box-shadow .14s ease!important}
+.messagesAndroidPage .messageListItem:last-child,.messagesSplitColumn .messageListItem:last-child{border-bottom-color:transparent!important}
+.messagesAndroidPage .messageListItem:hover,.messagesAndroidPage .messageListItem:focus-visible,.messagesSplitColumn .messageListItem:hover,.messagesSplitColumn .messageListItem:focus-visible{border-radius:8px!important;background:#edf3f7!important;box-shadow:0 1px 3px rgba(0,0,0,.08)!important;outline:none!important}
+.messagesAndroidPage .messageListItem:active,.messagesSplitColumn .messageListItem:active{background:#e1eaf1!important}
+.messagesAndroidPage .messageListItem.unread,.messagesSplitColumn .messageListItem.unread{background:transparent!important}
+:root[data-theme="dark"] .messagesAndroidPage,:root[data-theme="dark"] .messagesSplitColumn{background:#17191c!important}
+:root[data-theme="dark"] .messagesAndroidPage .messageList,:root[data-theme="dark"] .messagesSplitColumn .messageList{background:#202327!important;box-shadow:0 1px 4px rgba(0,0,0,.24)!important}
+:root[data-theme="dark"] .messagesAndroidPage .messageListItem,:root[data-theme="dark"] .messagesSplitColumn .messageListItem{background:transparent!important;border-bottom-color:var(--theme-border,#393d43)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messagesAndroidPage .messageListItem:hover,:root[data-theme="dark"] .messagesAndroidPage .messageListItem:focus-visible,:root[data-theme="dark"] .messagesSplitColumn .messageListItem:hover,:root[data-theme="dark"] .messagesSplitColumn .messageListItem:focus-visible{background:#292d32!important;box-shadow:0 1px 3px rgba(0,0,0,.24)!important}
+:root[data-theme="dark"] .messagesAndroidPage .messageListItem:active,:root[data-theme="dark"] .messagesSplitColumn .messageListItem:active{background:#343a42!important}
+:root[data-theme="dark"] .messageListText b,:root[data-theme="dark"] .messageListText strong{color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messageListText small{color:var(--theme-muted,#a9afb7)!important}
+:root:not([data-theme="dark"]) .schoolProfileUpdates,:root:not([data-theme="dark"]) .profileUpdates,:root:not([data-theme="dark"]) #profileTabContent:has(.sharedPostCard){background:#f5f6f7!important}
+:root[data-theme="dark"] .schoolProfileUpdates,:root[data-theme="dark"] .profileUpdates,:root[data-theme="dark"] #profileTabContent:has(.sharedPostCard){background:#17191c!important}
+.schoolProfileUpdates .sharedPostCard,.profileUpdates .sharedPostCard,#profileTabContent .sharedPostCard{background:#fff!important}
+:root[data-theme="dark"] .schoolProfileUpdates .sharedPostCard,:root[data-theme="dark"] .profileUpdates .sharedPostCard,:root[data-theme="dark"] #profileTabContent .sharedPostCard{background:#fff!important;color:#263238!important}
+@media(prefers-reduced-motion:reduce){.upcomingDateSection .upcomingAssignment,.messagesAndroidPage .messageListItem,.messagesSplitColumn .messageListItem{transition:none!important}}

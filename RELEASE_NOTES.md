@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.25]
+
+### Fixed
+- Render the Grades icon through an embedded CSS background on Windows landscape while preserving the existing iOS image path.
+- Preserve the original shared-WebView destination for the one-time authenticated navigation retry instead of retrying a login redirect.
+- Explicitly scope native Schoology session cookies to the parent domain and verify the native cookie store before opening the shared WebView; report a clear error if the cookie store is empty.
+
+### Changed
+- Bump the package version to 2026.10.0-port.25.
+
 ## [2026.10.0-port.24]
 
 ### Fixed

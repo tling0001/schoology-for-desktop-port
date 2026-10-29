@@ -592,12 +592,16 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 let installed = view.cookies_for_url(verification_url)
                     .map_err(|error| format!("Could not verify the shared WebView session cookies: {error}"))?;
                 let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
-                let has_session_cookie = installed.iter().any(|cookie| cookie.name().to_ascii_uppercase().starts_with("SESS"));
-                if !has_session_cookie {
+                // sessionstart does not consistently return the HttpOnly SESS cookie.
+                // The first protected navigation can establish it through Schoology's
+                // normal response headers. Requiring SESS before making that request
+                // prevents the document-cookie bootstrap and one-time original-URL
+                // retry in tauri-bridge.js from ever running.
+                if installed.is_empty() {
                     let _ = view.close();
-                    return Err(format!("The shared WebView did not receive a usable Schoology SESS cookie for {} (cookies visible: {}). The page was not opened logged out; retry the page or sign in again.", target_host, installed_names.join(", ")));
+                    return Err(format!("The shared WebView cookie store is empty for {}. The page was not opened; retry the page or sign in again.", target_host));
                 }
-                eprintln!("Schoology shared WebView: verified {} native cookies including a SESS session cookie for {} (names: {}).", installed.len(), target_host, installed_names.join(", "));
+                eprintln!("Schoology shared WebView: verified {} native cookies for {} (names: {}). The initial navigation will complete the session bootstrap if SESS was not returned by sessionstart.", installed.len(), target_host, installed_names.join(", "));
             }
         }
     }

@@ -4290,3 +4290,17 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 .schoolProfileUpdates .sharedPostCard,.profileUpdates .sharedPostCard,#profileTabContent .sharedPostCard{background:#fff!important}
 :root[data-theme="dark"] .schoolProfileUpdates .sharedPostCard,:root[data-theme="dark"] .profileUpdates .sharedPostCard,:root[data-theme="dark"] #profileTabContent .sharedPostCard{background:#fff!important;color:#263238!important}
 @media(prefers-reduced-motion:reduce){.upcomingDateSection .upcomingAssignment,.messagesAndroidPage .messageListItem,.messagesSplitColumn .messageListItem{transition:none!important}}
+
+
+/* Port.28 correction: separators belong to the list surface, not the buttons. */
+.upcomingDateHeader{margin-bottom:0!important;padding-bottom:0!important;min-height:26px!important}
+.upcomingDateHeader .upcomingDateRule{display:none!important}
+.upcomingDateSection .upcomingAssignment{position:relative!important;border-bottom:0!important}
+.upcomingDateSection .upcomingAssignment+.upcomingAssignment::before{content:"";position:absolute;top:0;left:16px;right:16px;height:1px;background:#e1e4e8;pointer-events:none}
+:root[data-theme="dark"] .upcomingDateSection .upcomingAssignment+.upcomingAssignment::before{background:var(--theme-border,#393d43)}
+.messagesAndroidPage .messageList,.messagesSplitColumn .messageList{padding:4px 8px 12px!important}
+.messagesAndroidPage .messageListItem,.messagesSplitColumn .messageListItem{position:relative!important;border:0!important;border-radius:8px!important;margin:0!important}
+.messagesAndroidPage .messageListItem+.messageListItem::before,.messagesSplitColumn .messageListItem+.messageListItem::before{content:"";position:absolute;top:0;left:16px;right:16px;height:1px;background:#e1e4e8;pointer-events:none}
+:root[data-theme="dark"] .messagesAndroidPage .messageListItem+.messageListItem::before,:root[data-theme="dark"] .messagesSplitColumn .messageListItem+.messageListItem::before{background:var(--theme-border,#393d43)}
+.messagesAndroidPage .messageListItem:hover,.messagesAndroidPage .messageListItem:focus-visible,.messagesSplitColumn .messageListItem:hover,.messagesSplitColumn .messageListItem:focus-visible{border:0!important}
+@media(prefers-reduced-motion:reduce){.upcomingDateSection .upcomingAssignment,.messagesAndroidPage .messageListItem,.messagesSplitColumn .messageListItem{transition:none!important}}

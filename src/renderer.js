@@ -3040,7 +3040,7 @@ async function loadTab(){
       });
     };
     c.innerHTML=`<section class="page userGradesPage"><h1>Grades</h1><p class="userGradesIntro">Select a course to view its grades.</p><div class="userGradesCourseList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading grades…</span></div></div></section>`;
-    window.__schoologyUserGradeSections=normalized;renderGradeRows();await hydrateUserCourseGrades(normalized);if(generation===loadTabGeneration&&state.tab==='grades')renderGradeRows();
+    window.__schoologyUserGradeSections=normalized;renderGradeRows();await hydrateUserCourseGrades(normalized);if(generation===loadTabGeneration&&state.tab==='grades')normalized.forEach((course,i)=>{const summary=c.querySelector('[data-user-grade-toggle="'+i+'"] .userGradeCourseSummary > span:first-child');if(summary)summary.textContent=getFinalGradeDisplay(course).value});
   }else if(state.tab==='messages'){
     await loadMessagesPage(c);
   }else if(state.tab==='requests'){

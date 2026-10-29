@@ -3,7 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const source = path.join(root, 'updater-tauri', 'target', 'release', process.platform === 'win32' ? 'SchoologyUpdater.exe' : 'SchoologyUpdater');
+const cargoTarget = path.resolve(process.env.CARGO_TARGET_DIR || path.join(root, 'updater-tauri', 'target'));
+const source = path.join(cargoTarget, 'release', process.platform === 'win32' ? 'SchoologyUpdater.exe' : 'SchoologyUpdater');
 const destination = path.join(root, 'updater-tauri', 'dist', 'SchoologyUpdater.exe');
 if (!fs.existsSync(source)) throw new Error('The Tauri updater executable was not built: ' + source);
 fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -11,7 +12,7 @@ fs.copyFileSync(source, destination);
 console.log('Staged Tauri updater at ' + path.relative(root, destination));
 
 if (process.platform === 'win32') {
-  const targetRoot = path.join(root, 'updater-tauri', 'target');
+  const targetRoot = cargoTarget;
   const findLoader = directory => {
     if (!fs.existsSync(directory)) return null;
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

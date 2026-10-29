@@ -2229,7 +2229,7 @@ function renderUpcoming(events){
 }
 function formatSchoologyDate(v){if(v===null||v===undefined||v==='')return '';const n=Number(v);const d=(Number.isFinite(n)&&n>0)?new Date(n*1000):new Date(String(v).replace(' ','T'));if(Number.isNaN(d.getTime()))return String(v);return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
-async function loadSectionGrades(course,targetEl=null,idPrefix=''){
+async function loadSectionGrades(course,targetEl=null,idPrefix='',collapseSectionsInitially=false){
  const el=targetEl||document.getElementById('sectionProfileContent')||document.getElementById('gradesContent');if(!el)return;
  const sid=course.id||course.section_id||course.sectionId;
  const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
@@ -2250,7 +2250,7 @@ async function loadSectionGrades(course,targetEl=null,idPrefix=''){
   for(const ga of (per.assignment||per.assignments||[]))byId[String(ga.assignment_id||ga.id)]={...ga};
  }
  const rows=assignments.map(a=>({...a,gradeData:byId[String(a.id)]||{}}));
- el.innerHTML=`<div class="gradesAndroid">${renderOverallGrade(current)}${renderGradePeriods(rows,periods,categories,idPrefix)}</div>`;
+ el.innerHTML=`<div class="gradesAndroid">${renderOverallGrade(current)}${renderGradePeriods(rows,periods,categories,idPrefix,collapseSectionsInitially)}</div>`;
  el.querySelectorAll('[data-grade-assignment]').forEach(b=>b.onclick=async()=>{const type=String(b.dataset.gradeType||'assignment').toLowerCase(),id=Number(b.dataset.gradeAssignment);if(!id)return;if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,b.textContent?.trim()||'Quiz',{allowBrowser:false,quiz:true,assessment:true});}else if(type==='discussion'){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/section/${sid}/discussion/view/${id}`,b.textContent?.trim()||'Discussion');}else showAssignment(sid,id)});
  el.querySelectorAll('[data-grade-toggle]').forEach(b=>b.onclick=()=>{
    const target=document.getElementById(b.dataset.gradeToggle);if(!target)return;
@@ -2314,6 +2314,10 @@ async function hydrateUserCourseGrades(sections){
     A.api({path:`sections/${sid}/enrollments`,params:{start:0,limit:200,enrollment_status:1}}).catch(()=>null),
     A.api({path:`sections/${sid}`,params:{}}).catch(()=>null)
    ]);
+   const detail=sectionDetail?.section??sectionDetail?.data?.section??sectionDetail?.data??sectionDetail??{};
+   sec.section_title=sec.section_title||sec.sectionTitle||detail.section_title||detail.sectionTitle||detail.title||detail.name||detail.course?.title||detail.course?.name;
+   sec.course_title=sec.course_title||sec.courseTitle||detail.course_title||detail.courseTitle||detail.course?.title||detail.course?.name||sec.section_title;
+   sec.picture_url=sec.picture_url||sec.pictureUrl||sec.image_url||sec.imageUrl||detail.picture_url||detail.pictureUrl||detail.image_url||detail.imageUrl||detail.course?.picture_url||detail.course?.pictureUrl||detail.course?.image_url;
    const all=grades?.final_grade??grades?.finalGrade??grades?.final_grades??[];const list=Array.isArray(all)?all:(all?[all]:[]);
    const enrollmentList=enrollments?.enrollment??enrollments?.enrollments??[];
    const myEnrollment=enrollmentList.find(en=>String(en.uid??en.user_id??en.userId??'')===String(uid));
@@ -2337,7 +2341,7 @@ function renderOverallGrade(sec){
  const comment=typeof final.comment==='string'?final.comment:(final.comment?.comment||final.comment?.body||'');
  return `<div class="gradeOverallCard"><div class="label">Overall Grade</div><div class="value">${esc(display.value)}</div>${comment?`<div class="gradeOverallTeacherComment"><b>Teacher Comment</b><div>${comment}</div></div>`:''}</div>`;
 }
-function renderGradePeriods(rows,periods,categories,idPrefix=''){
+function renderGradePeriods(rows,periods,categories,idPrefix='',collapseInitially=false){
  const ps=periods.grading_period||periods.gradePeriod||periods.period||periods.periods||[];
  const cats=categories.grading_category||categories.category||categories.categories||[];
  const catMap={};cats.forEach(c=>{catMap[String(c.id)]={title:c.title||c.name||'Category',weight:c.weight??c.percent??c.percentage??c.weight_percent??c.weightPercentage};});
@@ -2354,14 +2358,14 @@ function renderGradePeriods(rows,periods,categories,idPrefix=''){
  return pids.map((pid,pi)=>{
   const pg=periodGroups[pid], title=pg.__title||'Grading Period';
   const catIds=Object.keys(pg).filter(k=>k!=='__title');
-  return `<section class="gradePeriod" id="${idPrefix}grade-period-${pi}">
-   <button class="gradePeriodHeader" data-grade-toggle="${idPrefix}grade-period-body-${pi}" aria-expanded="true"><span>${esc(title.toUpperCase())}</span><span class="gradeChevron">⌃</span></button>
+  return `<section class="gradePeriod${collapseInitially ? " collapsed" : ""}" id="${idPrefix}grade-period-${pi}">
+   <button class="gradePeriodHeader" data-grade-toggle="${idPrefix}grade-period-body-${pi}" aria-expanded="${collapseInitially ? "false" : "true"}"><span>${esc(title.toUpperCase())}</span><span class="gradeChevron">⌃</span></button>
    <div id="${idPrefix}grade-period-body-${pi}">
    ${catIds.map((cid,ci)=>{
     const meta=catMap[cid]||{title:cid==='0'?'Ungraded':'Category',weight:null};const list=pg[cid];
     const weight=meta.weight!=null?`<span class="weight">${esc(meta.weight)}%</span>`:'';
-    return `<div class="gradeCategory" id="${idPrefix}grade-cat-${pi}-${ci}">
-      <button class="gradeCategoryHeader" data-grade-toggle="${idPrefix}grade-cat-body-${pi}-${ci}" aria-expanded="true"><span>${esc(meta.title)}</span>${weight}<span class="gradeChevron">⌃</span></button>
+    return `<div class="gradeCategory${collapseInitially ? " collapsed" : ""}" id="${idPrefix}grade-cat-${pi}-${ci}">
+      <button class="gradeCategoryHeader" data-grade-toggle="${idPrefix}grade-cat-body-${pi}-${ci}" aria-expanded="${collapseInitially ? "false" : "true"}"><span>${esc(meta.title)}</span>${weight}<span class="gradeChevron">⌃</span></button>
       <div class="gradeCategoryBody" id="${idPrefix}grade-cat-body-${pi}-${ci}">
       ${list.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''))).map(a=>{
        const g=a.gradeData||{};const raw=g.grade??g.calculated_grade??g.score??'—';const max=a.max_points??a.maxPoints??g.max_points??g.maxPoints;
@@ -3035,13 +3039,13 @@ async function loadTab(){
     const normalized=ss.map(s=>({...s,section_id:s.section_id??s.sectionId??s.id,section_title:s.section_title||s.sectionTitle||s.course_title||s.courseTitle||'Course',course_title:s.course_title||s.courseTitle||s.section_title||s.sectionTitle||'Course'})).filter(s=>s.section_id);
     const renderGradeRows=()=>{
       const list=c.querySelector('.userGradesCourseList');if(!list)return;
-      list.innerHTML=normalized.map((s,i)=>{const gd=getFinalGradeDisplay(s);const sid=String(s.section_id);return `<section class="userGradeCourse collapsed" data-user-grade-course="${esc(sid)}"><button type="button" class="userGradeCourseHeader" data-user-grade-toggle="${i}" aria-expanded="false"><span class="userGradeCourseTitle"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc(s.course_title||'')}</small></span><span class="userGradeCourseSummary"><span>${esc(gd.value)}</span><span class="gradeChevron" aria-hidden="true">⌄</span></span></button><div class="userGradeCourseBody" id="user-grade-course-body-${esc(sid)}" data-loaded="0"></div></section>`}).join('')||'<div class="empty"><h2>No grades</h2></div>';
+      list.innerHTML=normalized.map((s,i)=>{const gd=getFinalGradeDisplay(s);const sid=String(s.section_id);const image=s.picture_url||s.pictureUrl||s.image_url||s.imageUrl||'';return `<section class="userGradeCourse collapsed" data-user-grade-course="${esc(sid)}"><button type="button" class="userGradeCourseHeader" data-user-grade-toggle="${i}" aria-expanded="false">${image?`<img class="userGradeCourseImage" src="${esc(image)}" alt="" onerror="this.hidden=true">`:''}<span class="userGradeCourseTitle"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc(s.course_title||'')}</small></span><span class="userGradeCourseSummary"><span>${esc(gd.value)}</span><span class="gradeChevron" aria-hidden="true">⌄</span></span></button><div class="userGradeCourseBody" id="user-grade-course-body-${esc(sid)}" data-loaded="0"></div></section>`}).join('')||'<div class="empty"><h2>No grades</h2></div>';
       list.querySelectorAll('[data-user-grade-toggle]').forEach(button=>button.onclick=async()=>{
         const course=normalized[Number(button.dataset.userGradeToggle)];const section=button.closest('.userGradeCourse');const body=section?.querySelector('.userGradeCourseBody');if(!course||!section||!body)return;
         const expanded=section.classList.toggle('collapsed')===false;button.setAttribute('aria-expanded',String(expanded));
         if(!expanded||body.dataset.loaded==='1'||body.dataset.loaded==='loading')return;
         body.dataset.loaded='loading';body.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading course grades…</span></div>';
-        try{await loadSectionGrades(course,body,'user-grade-'+course.section_id+'-');if(body.isConnected)body.dataset.loaded='1'}
+        try{await loadSectionGrades(course,body,'user-grade-'+course.section_id+'-',true);if(body.isConnected)body.dataset.loaded='1'}
         catch(error){if(!body.isConnected)return;body.dataset.loaded='0';body.innerHTML=`<div class="error apiError">Unable to load grades.<br>${esc(error.message||String(error))}</div>`}
       });
     };

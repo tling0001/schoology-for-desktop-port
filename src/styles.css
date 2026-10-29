@@ -4242,3 +4242,9 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 :root[data-theme="dark"] .userGradeCourseHeader:active{background:var(--theme-active,rgba(255,255,255,.12))}
 :root[data-theme="dark"] .userGradeCourseTitle small{color:var(--theme-muted,#aab4bf)}
 @media(prefers-reduced-motion:reduce){.userGradeCourseSummary .gradeChevron{transition:none}}
+
+.userGradeCourseImage{width:42px;height:42px;object-fit:cover;flex:0 0 42px;border-radius:8px;background:var(--theme-hover,#eef2f5)}
+.userGradeCourse.collapsed .userGradeCourseBody{display:none}
+.gradePeriod.collapsed>[id*="grade-period-body"],.gradeCategory.collapsed .gradeCategoryBody{display:none}
+:root[data-theme="dark"] .userGradeCourseImage{background:var(--theme-hover,#303b46)}
+@media (prefers-reduced-motion: reduce){.userGradeCourseImage{transition:none}}

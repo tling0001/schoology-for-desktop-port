@@ -67,7 +67,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build the lightweight Tauri Windows updater
         if: matrix.platform == 'windows'
-        run: npm run build:updater
+        shell: pwsh
+        run: |
+          $env:CARGO_TARGET_DIR = Join-Path $env:GITHUB_WORKSPACE 'src-tauri/target'
+          npm run build:updater
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Check macOS signing configuration
         if: matrix.platform == 'macos'
         id: macos_signing

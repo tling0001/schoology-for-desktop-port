@@ -3378,6 +3378,7 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
 
 /* Keep official iOS sidebar PNGs crisp at their native-size scale and avoid sprite upscaling. */
 .profileNavIcon .schoologyIosSidebarIcon{display:block;width:20px;height:20px;max-width:20px;max-height:20px;object-fit:contain}
+.profileNavIcon .schoologyGradesSidebarIcon{width:26px;height:24px;max-width:26px;max-height:24px;object-fit:contain}
 .profileNavIcon .officialSidebarSpriteIcon{background-size:208px 24px!important}
 @media (min-width:801px) and (orientation:landscape){
   .profileNavIcon{width:26px!important;flex:0 0 26px!important}

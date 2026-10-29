@@ -4304,3 +4304,8 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 :root[data-theme="dark"] .messagesAndroidPage .messageListItem+.messageListItem::before,:root[data-theme="dark"] .messagesSplitColumn .messageListItem+.messageListItem::before{background:var(--theme-border,#393d43)}
 .messagesAndroidPage .messageListItem:hover,.messagesAndroidPage .messageListItem:focus-visible,.messagesSplitColumn .messageListItem:hover,.messagesSplitColumn .messageListItem:focus-visible{border:0!important}
 @media(prefers-reduced-motion:reduce){.upcomingDateSection .upcomingAssignment,.messagesAndroidPage .messageListItem,.messagesSplitColumn .messageListItem{transition:none!important}}
+
+
+/* Port.29: Upcoming date labels align with the left edge of their section. */
+.upcomingDateHeader{justify-content:flex-start!important;align-items:center!important;text-align:left!important}
+.upcomingDateHeader .upcomingDateFull,.upcomingDateHeader .upcomingDateCompact{align-self:flex-start!important;text-align:left!important}

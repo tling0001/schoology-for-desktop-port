@@ -2202,31 +2202,33 @@ function renderPeopleDirectoryInto(container,people,{placeholder='Search school 
  renderList();
 }
 function renderUpcoming(events){
- const arr=Array.isArray(events)?events:[];
- if(!arr.length)return '<div class="empty"><h2>No upcoming events</h2></div>';
- const groups=[];const byDate=new Map();
- const sorted=arr.slice().sort((a,b)=>new Date(String(a.start||'').replace(' ','T'))-new Date(String(b.start||'').replace(' ','T')));
- for(const e of sorted){
-   const d=new Date(String(e.start||'').replace(' ','T'));
-   const key=Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-   if(!byDate.has(key)){const g={key,date:d,items:[]};byDate.set(key,g);groups.push(g);}
-   byDate.get(key).items.push(e);
- }
- const html=[];
- for(const g of groups){
-   const dateLabel=Number.isNaN(g.date.getTime())?'':g.date.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'});
-   const compactDateLabel=Number.isNaN(g.date.getTime())?'':g.date.toLocaleDateString([], {month:'numeric',day:'numeric'});
-   html.push(`<div class="upcomingDateHeader"><span class="upcomingDateFull">${esc(dateLabel)}</span><span class="upcomingDateCompact">${esc(compactDateLabel)}</span><span class="upcomingDateRule"></span></div>`);
-   for(const e of g.items){
-     const type=String(e.type||'').toLowerCase();
-     const icon=type==='assignment'?'ic_assignment.png':type==='assessment'?'ic_test_quiz.png':['assessment_v2','managed_assessment','quiz'].includes(type)?'ic_assessment_48dp.png':type==='discussion'?'ic_discussion.png':type==='external_tool'?'ic_external_tool.png':type==='event'?'home_dash_upcoming.png':'ic_date_range_24px.png';
-     const allDay=String(e.all_day)==='1'||e.allDay===1;
-     const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
-     html.push(`<button class="upcomingAssignment" data-course-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon">${officialOrAssetIcon(icon,'')}</span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time)}</small></span><span class="rowChevron">›</span></button>`);
-   }
- }
- return `<div class="upcomingList">${html.join('')}</div>`;
+  const arr=Array.isArray(events)?events:[];
+  if(!arr.length)return '<div class="empty"><h2>No upcoming events</h2></div>';
+  const groups=[];const byDate=new Map();
+  const sorted=arr.slice().sort((a,b)=>new Date(String(a.start||'').replace(' ','T'))-new Date(String(b.start||'').replace(' ','T')));
+  for(const e of sorted){
+    const d=new Date(String(e.start||'').replace(' ','T'));
+    const key=Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    if(!byDate.has(key)){const g={key,date:d,items:[]};byDate.set(key,g);groups.push(g);}
+    byDate.get(key).items.push(e);
+  }
+  const html=[];
+  for(const g of groups){
+    const dateLabel=Number.isNaN(g.date.getTime())?'':g.date.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    const compactDateLabel=Number.isNaN(g.date.getTime())?'':g.date.toLocaleDateString([], {month:'numeric',day:'numeric'});
+    html.push(`<section class="upcomingDateGroup"><div class="upcomingDateHeader"><span class="upcomingDateFull">${esc(dateLabel)}</span><span class="upcomingDateCompact">${esc(compactDateLabel)}</span><span class="upcomingDateRule"></span></div><div class="upcomingDateSection">`);
+    for(const e of g.items){
+      const type=String(e.type||'').toLowerCase();
+      const icon=type==='assignment'?'ic_assignment.png':type==='assessment'?'ic_test_quiz.png':['assessment_v2','managed_assessment','quiz'].includes(type)?'ic_assessment_48dp.png':type==='discussion'?'ic_discussion.png':type==='external_tool'?'ic_external_tool.png':type==='event'?'home_dash_upcoming.png':'ic_date_range_24px.png';
+      const allDay=String(e.all_day)==='1'||e.allDay===1;
+      const time=!allDay&&e.start?new Date(String(e.start).replace(' ','T')).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
+      html.push(`<button class="upcomingAssignment" data-course-upcoming-id="${esc(e.id||'')}" data-upcoming-type="${esc(type)}"><span class="assignmentIcon officialEventIcon">${officialOrAssetIcon(icon,'')}</span><span class="assignmentInfo"><b>${esc(e.title||'Untitled')}</b><small>${esc(time)}</small></span><span class="rowChevron">›</span></button>`);
+    }
+    html.push('</div></section>');
+  }
+  return `<div class="upcomingList upcomingDateGroups">${html.join('')}</div>`;
 }
+
 function formatSchoologyDate(v){if(v===null||v===undefined||v==='')return '';const n=Number(v);const d=(Number.isFinite(n)&&n>0)?new Date(n*1000):new Date(String(v).replace(' ','T'));if(Number.isNaN(d.getTime()))return String(v);return d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 async function loadSectionGrades(course,targetEl=null,idPrefix='',collapseSectionsInitially=false){

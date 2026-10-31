@@ -4362,3 +4362,20 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader .messageThreadHeader b,
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader .messageThreadBody{color:var(--theme-text,#e6e8eb)!important}
 @media(prefers-reduced-motion:reduce){.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar *{transition:none!important;animation:none!important}}
+
+
+/* port.34: the existing Messages heading becomes the selected-message action bar. */
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane{padding:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;min-width:0!important;background:#F5F6F7!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitHeading.messagesSplitActionBar{flex:0 0 56px!important;min-height:56px!important;height:56px!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;gap:8px!important;padding:0 16px!important;background:#002137!important;color:#fff!important;border:0!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitHeadingTitle{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px;font-weight:600;color:#fff}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitHeading .androidDialogIcon{flex:0 0 40px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:transparent;color:#fff}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitHeading .androidDialogIcon:hover{background:rgba(255,255,255,.12)}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitHeading .androidDialogIcon:active{background:rgba(255,255,255,.2)}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail{flex:1 1 auto!important;width:100%!important;min-height:0!important;height:auto!important;max-height:none!important;overflow-y:auto!important;padding:16px!important;box-sizing:border-box!important;background:#F5F6F7!important;color:var(--theme-text,#20252a)!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail .messageThreadItem{margin:0 0 12px!important;border:0!important;border-radius:4px!important;background:#fff!important;box-shadow:0 1px 2px rgba(20,35,48,.08)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane,
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail{background:var(--theme-bg,#17191c)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail .messageThreadItem{background:var(--theme-surface,#24282d)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail .messageThreadHeader b,
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail .messageThreadBody{color:var(--theme-text,#e6e8eb)!important}
+@media(prefers-reduced-motion:reduce){.messagesAndroidPage.messagesSplitLayout .messagesSplitHeading *{transition:none!important;animation:none!important}}

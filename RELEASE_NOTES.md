@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.30]
+
+### Fixed
+- Restore the profile-to-Messages divider in the navigation drawer.
+- Refine landscape Messages into a homepage-proportioned split view: Inbox, Unread, and Sent folders on the narrower left side, with selected message content on the wider right side.
+
+### Changed
+- Bump the package version to 2026.10.0-port.30.
+
+
 ## [2026.10.0-port.29]
 
 ### Fixed

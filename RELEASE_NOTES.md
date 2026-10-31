@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.32]
+
+### Added
+- Add Home tabs for Overdue and Recently Completed assignments in portrait, and Upcoming / Overdue / Recently Completed tabs in the landscape right split pane.
+- Reuse the Upcoming date-group and row styling for assignment status lists, including earned / possible grade display for completed assignments.
+
+### Changed
+- Bump the package version to 2026.10.0-port.32.
+
+
 ## [2026.10.0-port.31]
 
 ### Fixed

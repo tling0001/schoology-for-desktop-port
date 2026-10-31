@@ -4309,3 +4309,18 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 /* Port.29: Upcoming date labels align with the left edge of their section. */
 .upcomingDateHeader{justify-content:flex-start!important;align-items:center!important;text-align:left!important}
 .upcomingDateHeader .upcomingDateFull,.upcomingDateHeader .upcomingDateCompact{align-self:flex-start!important;text-align:left!important}
+
+
+/* Port.30: landscape Messages mirrors the homepage split proportions, with folders on the left. */
+@media (min-width:801px) and (orientation:landscape){
+  .messagesAndroidPage.messagesSplitLayout{grid-template-columns:minmax(260px,32%) minmax(0,68%)!important}
+}
+.messagesAndroidPage.messagesSplitLayout>.messagesInboxSplitColumn{grid-column:1!important;border-right:1px solid var(--theme-border,#d8dde3)!important}
+.messagesAndroidPage.messagesSplitLayout>.messagesContentSplitColumn{grid-column:2!important;border-right:0!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane{flex:1 1 auto;min-height:0;overflow:auto;padding:20px;background:var(--theme-surface,#fff);color:var(--theme-text,#20252a)}
+.messagesSplitEmpty{height:100%;min-height:180px;display:flex;align-items:center;justify-content:center;color:var(--theme-muted,#737d88);text-align:center;padding:24px}
+.messagesAndroidPage.messagesSplitLayout .messageTabs{flex:0 0 auto}
+.messagesAndroidPage.messagesSplitLayout .messageListItem.selected{background:var(--theme-hover,#edf3f8)!important}
+.profileMessagesDivider{margin:0 16px 6px!important;height:1px!important;background:rgba(255,255,255,.24)!important}
+:root[data-theme="dark"] .profileMessagesDivider{background:var(--theme-border)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane{background:var(--theme-surface)!important;color:var(--theme-text)!important}

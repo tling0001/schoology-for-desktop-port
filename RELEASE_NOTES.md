@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.31]
+
+### Fixed
+- Render the complete shared message-detail view, including its standard toolbar and conversation layout, inside the landscape split reader instead of copying only its inner content.
+
+### Changed
+- Bump the package version to 2026.10.0-port.31.
+
+
 ## [2026.10.0-port.30]
 
 ### Fixed

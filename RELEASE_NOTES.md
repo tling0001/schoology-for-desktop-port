@@ -1,5 +1,20 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.34]
+
+### Fixed
+- Refine Home Overdue filtering using Schoology's authoritative `completed`, `published`, and `available` assignment fields, and parse Schoology due dates in local time.
+- Load section grade records from the official `sections/{id}/grades` response shape so completed assignment scores and possible points map to the correct assignment.
+- Refresh Home assignment data instead of keeping stale completion states indefinitely.
+- Replace the landscape Messages bar's static title with the selected message subject and show Reply / Refresh there only after selection; remove the duplicate reader action bar.
+
+### Changed
+- Bump the package version to 2026.10.0-port.34.
+
+### Notes
+- The official 2026.10.0 Assignment model exposes a completion flag but no completion timestamp. The Recently Completed list therefore includes assignments marked completed and sorts them by due date; it cannot reliably calculate the actual completion date.
+
+
 ## [2026.10.0-port.33]
 
 ### Fixed

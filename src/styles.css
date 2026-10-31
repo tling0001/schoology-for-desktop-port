@@ -4343,3 +4343,22 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 .homeUpcomingPane .homeUpcomingList,.homePortraitUpcomingScroll .upcomingList{min-height:100%}
 :root[data-theme="dark"] .homeUpcomingPane .homeUpcomingScroll{background:var(--theme-bg)!important}
 @media(prefers-reduced-motion:reduce){.homeUpcomingTabs{scroll-behavior:auto!important}}
+
+
+/* port.33: keep the landscape message reader free of a duplicate app bar. */
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane{padding:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;min-width:0!important;background:#F5F6F7!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitReader{width:100%;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#F5F6F7;color:var(--theme-text,#20252a)}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar{flex:0 0 auto;display:flex;align-items:center;gap:8px;min-height:56px;padding:0 16px;background:#002137;color:#fff}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar .androidDialogTitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar .androidDialogIcon{flex:0 0 40px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:transparent;color:#fff}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar .androidDialogIcon:hover{background:rgba(255,255,255,.12)}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar .androidDialogIcon:active{background:rgba(255,255,255,.2)}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitReader>.messageDetail{flex:1 1 auto;width:100%;min-height:0;height:auto!important;max-height:none;overflow-y:auto;padding:16px!important;box-sizing:border-box;background:#F5F6F7!important;color:var(--theme-text,#20252a)}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitReader .messageThreadItem{margin:0 0 12px;border:0;border-radius:4px;background:#fff;box-shadow:0 1px 2px rgba(20,35,48,.08)}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane,
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader,
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader>.messageDetail{background:var(--theme-bg,#17191c)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader .messageThreadItem{background:var(--theme-surface,#24282d)!important;color:var(--theme-text,#e6e8eb)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader .messageThreadHeader b,
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitReader .messageThreadBody{color:var(--theme-text,#e6e8eb)!important}
+@media(prefers-reduced-motion:reduce){.messagesAndroidPage.messagesSplitLayout .messagesSplitActionBar *{transition:none!important;animation:none!important}}

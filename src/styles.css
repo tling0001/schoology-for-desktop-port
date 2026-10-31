@@ -4334,3 +4334,12 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell,
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell>.messageDetail{background:var(--theme-bg,#17191c)!important;color:var(--theme-text,#e6e8eb)!important}
 @media(prefers-reduced-motion:reduce){.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+
+/* Home assignment status tabs share the Upcoming tab and date-group row treatment. */
+.homeUpcomingTabs{width:100%;height:48px!important;min-height:48px!important;flex:0 0 48px!important;justify-content:flex-start!important;overflow-x:auto!important}
+.homeUpcomingTabs .homeTab{flex:0 0 auto!important;padding-left:13px!important;padding-right:13px!important}
+.homeUpcomingPane .homeUpcomingScroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important}
+.homeUpcomingPane .homeUpcomingList,.homePortraitUpcomingScroll .upcomingList{min-height:100%}
+:root[data-theme="dark"] .homeUpcomingPane .homeUpcomingScroll{background:var(--theme-bg)!important}
+@media(prefers-reduced-motion:reduce){.homeUpcomingTabs{scroll-behavior:auto!important}}

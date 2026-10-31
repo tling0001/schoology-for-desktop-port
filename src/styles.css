@@ -4324,3 +4324,13 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 .profileMessagesDivider{margin:0 16px 6px!important;height:1px!important;background:rgba(255,255,255,.24)!important}
 :root[data-theme="dark"] .profileMessagesDivider{background:var(--theme-border)!important}
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane{background:var(--theme-surface)!important;color:var(--theme-text)!important}
+
+
+/* Port.30 follow-up: the split reader hosts the exact full-screen message-detail shell. */
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane{padding:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;min-width:0!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell{width:100%!important;height:100%!important;min-height:0!important;max-height:100%!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:var(--theme-bg,#fff)!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell>.toolbar{position:relative!important;flex:0 0 auto!important;min-width:0!important}
+.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell>.messageDetail{flex:1 1 auto!important;width:100%!important;min-height:0!important;height:auto!important;max-height:none!important;overflow-y:auto!important;padding:16px!important;box-sizing:border-box!important;background:var(--theme-bg,#fff)!important;color:var(--theme-text,#20252a)!important}
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell,
+:root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.shell>.messageDetail{background:var(--theme-bg,#17191c)!important;color:var(--theme-text,#e6e8eb)!important}
+@media(prefers-reduced-motion:reduce){.messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}

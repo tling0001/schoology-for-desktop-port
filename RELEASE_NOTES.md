@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.33]
+
+### Fixed
+- Remove the duplicate app bar from the landscape Messages reader; show Reply and Refresh in the blue message action bar.
+- Set the light-mode background behind landscape message cards to #F5F6F7 while retaining a theme-aware dark surface.
+
+### Changed
+- Bump the package version to 2026.10.0-port.33.
+
+
 ## [2026.10.0-port.32]
 
 ### Added

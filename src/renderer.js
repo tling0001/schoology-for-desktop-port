@@ -99,7 +99,7 @@ function messageDetail(splitPane=false){
    return `<article class="messageThreadItem sharedPostMessageCard"><div class="messageThreadHeader">${avatar?`<img class="messageThreadAvatar" data-media-image-url="${esc(avatar)}" alt="" style="display:none">`:`<span class="messageThreadAvatarFallback">${esc(String(name).charAt(0))}</span>`}<div class="messageThreadAuthorBlock"><b class="messageThreadAuthor">${esc(name)}</b><small>${esc(date)}</small></div></div><div class="messageThreadBody">${renderMessageBody(body)}</div>${attachments}</article>`;
  }).join(''):`<div class="messageThreadLoading">Loading message…</div>`;
  const actions=`<button id="messageRefresh" class="${splitPane?'androidDialogIcon':'iconButton messageActionButton'}" aria-label="Refresh">${officialIcon('ic_action_refresh.png','Refresh')||'↻'}</button><button id="messageReply" class="${splitPane?'androidDialogIcon':'iconButton messageActionButton'}" aria-label="Reply">${officialIcon('ic_action_reply.png','Reply')||'↩'}</button>`;
- if(splitPane)return `<div class="messagesSplitReader"><header class="androidCommentDialogBar messagesSplitActionBar"><div class="androidDialogTitle">${esc(subject)}</div>${actions}</header><main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main></div>`;
+ if(splitPane)return `<main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main>`;
  return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">${officialBackIcon()}</button><span class="toolbarTitle">${esc(subject)}</span>${actions}</header><main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main></div>`;
 }
 function renderMessageBody(value){const text=String(value??''),pattern=/https?:\/\/[^\s<>"']+/gi;let html='',last=0,m;while((m=pattern.exec(text))){let url=m[0],suffix='';while(/[),.!?;:]$/.test(url)){suffix=url.slice(-1)+suffix;url=url.slice(0,-1)}if(!url)continue;html+=esc(text.slice(last,m.index))+'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(url)+'</a>'+esc(suffix);last=m.index+m[0].length}return (html+esc(text.slice(last))).replace(/\n/g,'<br>')}
@@ -2632,6 +2632,20 @@ async function showGroupResourceFolder(gid,folderId,title,collectionId){
   }catch(e){gc.innerHTML=`<div class="error apiError">${esc(e.message)}</div>`}
 }
 
+function setMessagesSplitHeading(message,showActions=true){
+ const heading=document.querySelector('.messagesSplitHeading');if(!heading)return;
+ const subject=message?.subject||'Message';
+ const actions=showActions?`<button id="messageRefresh" class="androidDialogIcon" aria-label="Refresh">${officialIcon('ic_action_refresh.png','Refresh')||'↻'}</button><button id="messageReply" class="androidDialogIcon" aria-label="Reply">${officialIcon('ic_action_reply.png','Reply')||'↩'}</button>`:'';
+ heading.innerHTML=`<span class="messagesSplitHeadingTitle">${esc(subject)}</span>${actions}`;
+ if(showActions){
+  heading.querySelector('#messageRefresh')?.addEventListener('click',async()=>{
+   const button=heading.querySelector('#messageRefresh');button?.classList.add('spinning');
+   await loadMessageThread(message);
+   heading.querySelector('#messageRefresh')?.classList.remove('spinning');
+  });
+  heading.querySelector('#messageReply')?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();showComposeMessage(message,true);});
+ }
+}
 async function loadMessageThread(m){
   try{
     const id=m?.id||m?.message_id||m?.messageId; if(!id)throw new Error('Message ID is missing.');
@@ -2641,9 +2655,9 @@ async function loadMessageThread(m){
     for(const u of (Array.isArray(userList)?userList:[userList])){const id=Number(u?.id||u?.user_id||u?.uid||0);if(id)users[id]=u?.user||u}
     const ids=[...new Set(msgs.flatMap(v=>[v.author_id,v.authorId,v.author?.id,v.author?.user_id,v.user_id,v.uid,v.sender_id,v.senderId,v.sender?.id,v.sender?.user_id].map(Number).filter(Boolean)))];
     await Promise.all(ids.filter(id=>!users[id]).map(async uid=>{try{const u=await A.api({path:`users/${uid}`,params:{}});users[uid]=u?.user||u}catch{}}));
-    state.messageThread={messages:msgs,users}; const splitPane=document.querySelector('.messagesSplitContentPane'); if(splitPane){splitPane.innerHTML=messageDetail(true);await hydrateMediaImages(splitPane);}else{render();await hydrateMediaImages(document.querySelector('.messageDetail'));}document.querySelectorAll('.messageThreadBody a[href]').forEach(anchor=>anchor.addEventListener('click',async event=>{const href=anchor.href||anchor.getAttribute('href')||'';if(!(href.startsWith('http://')||href.startsWith('https://')))return;event.preventDefault();event.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error?.message||String(error))}})); document.getElementById('messageRefresh')?.addEventListener('click',async()=>{const b=document.getElementById('messageRefresh');b?.classList.add('spinning');await loadMessageThread(m);b?.classList.remove('spinning')}); document.getElementById('messageReply')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showComposeMessage(m,true)});
+    state.messageThread={messages:msgs,users}; const splitPane=document.querySelector('.messagesSplitContentPane'); if(splitPane){splitPane.innerHTML=messageDetail(true);await hydrateMediaImages(splitPane);}else{render();await hydrateMediaImages(document.querySelector('.messageDetail'));}document.querySelectorAll('.messageThreadBody a[href]').forEach(anchor=>anchor.addEventListener('click',async event=>{const href=anchor.href||anchor.getAttribute('href')||'';if(!(href.startsWith('http://')||href.startsWith('https://')))return;event.preventDefault();event.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error?.message||String(error))}})); if(!splitPane){document.getElementById('messageRefresh')?.addEventListener('click',async()=>{const b=document.getElementById('messageRefresh');b?.classList.add('spinning');await loadMessageThread(m);b?.classList.remove('spinning')});document.getElementById('messageReply')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showComposeMessage(m,true)});}else setMessagesSplitHeading(m,true);
     if(folder==='inbox')try{await A.api({path:`messages/inbox/${id}`,method:'PUT',params:{message_status:'read'},json:true})}catch{}
-  }catch(e){state.messageThread={messages:[],users:{},error:e.message};const splitPane=document.querySelector('.messagesSplitContentPane');if(splitPane){splitPane.innerHTML=messageDetail(true);const detail=splitPane.querySelector('.messageDetail');if(detail)detail.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`;}else{render();const el=document.querySelector('.messageDetail');if(el)el.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`}}
+  }catch(e){state.messageThread={messages:[],users:{},error:e.message};const splitPane=document.querySelector('.messagesSplitContentPane');if(splitPane){setMessagesSplitHeading(m,true);splitPane.innerHTML=messageDetail(true);const detail=splitPane.querySelector('.messageDetail');if(detail)detail.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`;}else{render();const el=document.querySelector('.messageDetail');if(el)el.innerHTML=`<div class="error apiError">Unable to load this message.<br>${esc(e.message)}</div>`}}
 }
 
 function showComposeMessage(replyMessage=null,isReply=false){
@@ -2859,8 +2873,8 @@ async function renderMessagesSplit(c,force=false){
  const folders=['inbox','sent'];state.messageCache=state.messageCache||{};
  await Promise.all(folders.map(async folder=>{if(!force&&state.messageCache[folder])return;const endpoint=folder==='sent'?'messages/sent':'messages/inbox';const x=await A.api({path:endpoint,params:{limit:50}});const arr=normalizeMessageRows(x);const ids=[...new Set(arr.map(m=>Number(folder==='sent'?(m.recipient_ids||m.recipientIds||'').split(',')[0]:(m.author_id||m.authorId))).filter(Boolean))];const users={};await Promise.all(ids.map(async id=>{try{const u=await A.api({path:'users/'+id,params:{}});users[id]=u?.user||u}catch{}}));state.messageCache[folder]={arr,users}}));
  const active=['inbox','unread','sent'].includes(state.messageTab)?state.messageTab:'inbox';
- c.innerHTML='<section class="messagesAndroidPage messagesSplitLayout"><section class="messagesSplitColumn messagesInboxSplitColumn"><div class="messageTabs messagesSplitTabs"><button class="messageTab '+(active==='inbox'?'active':'')+'" data-split-message-tab="inbox">Inbox</button><button class="messageTab '+(active==='unread'?'active':'')+'" data-split-message-tab="unread">Unread</button><button class="messageTab '+(active==='sent'?'active':'')+'" data-split-message-tab="sent">Sent</button></div><div class="messageList" data-split-folder="inbox" style="display:'+(active==='inbox'?'block':'none')+'"></div><div class="messageList" data-split-folder="unread" style="display:'+(active==='unread'?'block':'none')+'"></div><div class="messageList" data-split-folder="sent" style="display:'+(active==='sent'?'block':'none')+'"></div></section><section class="messagesSplitColumn messagesContentSplitColumn"><header class="messagesSplitHeading">Message</header><div class="messagesSplitContentPane"><div class="messagesSplitEmpty">Select a message to read it</div></div></section></section>';
- for(const folder of ['inbox','unread','sent']){const temp=document.createElement('div');renderMessageFolderInto(temp,folder);const source=temp.querySelector('.messageList');const list=c.querySelector('[data-split-folder="'+folder+'"]');if(!source||!list)continue;list.innerHTML=source.innerHTML;list.querySelectorAll('[data-message]').forEach(button=>{button.dataset.messageFolder=folder;button.onclick=async()=>{const cache=state.messageCache?.[folder==='unread'?'inbox':folder];const rows=folder==='unread'?(cache?.arr||[]).filter(isMessageUnread):(cache?.arr||[]);const message=rows[Number(button.dataset.message)];if(!message)return;state.messageTab=folder;state.messageFolder=folder;state.message=message;state.messageThread=null;list.querySelectorAll('[data-message]').forEach(item=>item.classList.toggle('selected',item===button));const pane=c.querySelector('.messagesSplitContentPane');if(pane)pane.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>';await loadMessageThread(message)}})}
+ c.innerHTML='<section class="messagesAndroidPage messagesSplitLayout"><section class="messagesSplitColumn messagesInboxSplitColumn"><div class="messageTabs messagesSplitTabs"><button class="messageTab '+(active==='inbox'?'active':'')+'" data-split-message-tab="inbox">Inbox</button><button class="messageTab '+(active==='unread'?'active':'')+'" data-split-message-tab="unread">Unread</button><button class="messageTab '+(active==='sent'?'active':'')+'" data-split-message-tab="sent">Sent</button></div><div class="messageList" data-split-folder="inbox" style="display:'+(active==='inbox'?'block':'none')+'"></div><div class="messageList" data-split-folder="unread" style="display:'+(active==='unread'?'block':'none')+'"></div><div class="messageList" data-split-folder="sent" style="display:'+(active==='sent'?'block':'none')+'"></div></section><section class="messagesSplitColumn messagesContentSplitColumn"><header class="messagesSplitHeading"><span class="messagesSplitHeadingTitle">Messages</span></header><div class="messagesSplitContentPane"><div class="messagesSplitEmpty">Select a message to read it</div></div></section></section>';
+ for(const folder of ['inbox','unread','sent']){const temp=document.createElement('div');renderMessageFolderInto(temp,folder);const source=temp.querySelector('.messageList');const list=c.querySelector('[data-split-folder="'+folder+'"]');if(!source||!list)continue;list.innerHTML=source.innerHTML;list.querySelectorAll('[data-message]').forEach(button=>{button.dataset.messageFolder=folder;button.onclick=async()=>{const cache=state.messageCache?.[folder==='unread'?'inbox':folder];const rows=folder==='unread'?(cache?.arr||[]).filter(isMessageUnread):(cache?.arr||[]);const message=rows[Number(button.dataset.message)];if(!message)return;state.messageTab=folder;state.messageFolder=folder;state.message=message;state.messageThread=null;setMessagesSplitHeading(message,true);list.querySelectorAll('[data-message]').forEach(item=>item.classList.toggle('selected',item===button));const pane=c.querySelector('.messagesSplitContentPane');if(pane)pane.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>';await loadMessageThread(message)}})}
  c.querySelectorAll('[data-split-message-tab]').forEach(button=>button.onclick=()=>{const next=button.dataset.splitMessageTab;state.messageTab=next;c.querySelectorAll('[data-split-message-tab]').forEach(item=>item.classList.toggle('active',item===button));for(const folder of ['inbox','unread','sent']){const list=c.querySelector('[data-split-folder="'+folder+'"]');if(list)list.style.display=folder===next?'block':'none';}});
  await hydrateMediaImages(c);
 }
@@ -3132,12 +3146,132 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
 }
 
 function upcomingDiscussionId(event){const nested=event&&event.discussion;const value=(event&&event.discussion_id)||(event&&event.discussionId)||(nested&&nested.discussion_id)||(nested&&nested.discussionId)||(nested&&nested.id)||((typeof nested==='number'||typeof nested==='string')?nested:null);return value&&typeof value==='object'?(value.id||value.discussion_id||value.discussionId||null):value;}
-function homeAssignmentDueDate(a){const v=a?.due??a?.due_date??a?.dueDate??'';if(!v)return null;const d=new Date(String(v).replace(' ','T'));return Number.isNaN(d.getTime())?null:d;}
-function homeAssignmentCompleted(a){const v=a?.completed??a?.is_completed??a?.isCompleted;if(v===true||v===1||String(v)==='1'||String(v).toLowerCase()==='true')return true;return ['complete','completed'].includes(String(a?.completion_status??a?.completionStatus??'').toLowerCase());}
-function homeAssignmentGradeMap(r){const raw=r?.section??r?.sections??r?.data?.section??[],sections=Array.isArray(raw)?raw:(raw?[raw]:[]),map={};for(const sec of sections){const ps=sec?.period??sec?.periods??[];for(const p of (Array.isArray(ps)?ps:(ps?[ps]:[]))){const rows=p?.assignment??p?.assignments??[];for(const g of (Array.isArray(rows)?rows:(rows?[rows]:[]))){const id=g?.assignment_id??g?.assignmentId??g?.id;if(id!=null)map[String(id)]=g;}}}return map;}
-async function loadHomeAssignmentData(){const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');if(state.homeAssignmentsCache)return state.homeAssignmentsCache;const res=await A.api({path:`users/${uid}/sections`,params:{limit:100}}),sections=res.section||res.sections||[],all=[];await Promise.all(sections.map(async sec=>{const sid=sec.id??sec.section_id??sec.sectionId;if(!sid)return;const [ar,gr]=await Promise.all([A.api({path:`sections/${sid}/assignments`,params:{start:0,limit:200}}),A.api({path:`users/${uid}/grades`,params:{section_id:sid}}).catch(()=>({}))]);const raw=ar.assignment??ar.assignments??ar.data?.assignment??ar.data?.assignments??[],grades=homeAssignmentGradeMap(gr);for(const a of (Array.isArray(raw)?raw:(raw?[raw]:[]))){const id=a.id??a.assignment_id??a.assignmentId;if(id==null)continue;const gid=a.grade_item_id??a.gradeItemId??id;all.push({...a,id,sectionId:sid,gradeData:grades[String(gid)]??grades[String(id)]??{}});}}));state.homeAssignmentsCache=all;return all;}
-function renderHomeAssignmentRows(rows,mode){const sorted=rows.slice().sort((a,b)=>{const x=homeAssignmentDueDate(a)?.getTime()||0,y=homeAssignmentDueDate(b)?.getTime()||0;return mode==='completed'?y-x:x-y;});if(!sorted.length)return `<div class="empty"><h2>${mode==='overdue'?'No overdue assignments':'No recently completed assignments'}</h2></div>`;const groups=[],map=new Map();for(const a of sorted){const d=homeAssignmentDueDate(a),key=d?`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`:'no-date';if(!map.has(key)){const g={date:d,items:[]};map.set(key,g);groups.push(g);}map.get(key).items.push(a);}const html=[];for(const g of groups){const full=g.date?g.date.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric',year:'numeric'}):(mode==='overdue'?'Overdue':'Completed'),compact=g.date?g.date.toLocaleDateString([],{month:'numeric',day:'numeric'}):'';html.push(`<section class="upcomingDateGroup"><div class="upcomingDateHeader"><span class="upcomingDateFull">${esc(full)}</span><span class="upcomingDateCompact">${esc(compact)}</span><span class="upcomingDateRule"></span></div><div class="upcomingDateSection">`);for(const a of g.items){const grade=a.gradeData?.grade??a.gradeData?.calculated_grade??a.grade??a.calculated_grade??'',max=a.max_points??a.maxPoints??'',has=grade!==null&&grade!==undefined&&String(grade).trim()!=='';const small=mode==='completed'?`Grade: ${has?`${grade} / ${max}`:' / '}`:`Due ${g.date?g.date.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'date unavailable'}`;html.push(`<button class="upcomingAssignment" data-home-assignment-id="${esc(a.id)}" data-home-assignment-section="${esc(a.sectionId)}"><span class="assignmentIcon officialEventIcon">${officialOrAssetIcon('ic_assignment.png','')}</span><span class="assignmentInfo"><b>${esc(a.title||'Untitled assignment')}</b><small>${esc(small)}</small></span><span class="rowChevron">›</span></button>`);}html.push('</div></section>');}return `<div class="upcomingList upcomingDateGroups">${html.join('')}</div>`;}
-async function loadHomeAssignmentTab(c,mode){c=c||document.getElementById('homeTabContent');if(!c)return;c.classList.remove('recentActivityScroll');c.classList.add('homePortraitUpcomingScroll');c.innerHTML='<div id="homeUpcomingList" class="homeUpcomingPortraitList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';const all=await loadHomeAssignmentData(),rows=all.filter(a=>{const due=homeAssignmentDueDate(a),done=homeAssignmentCompleted(a);return mode==='overdue'?!done&&!!due&&due.getTime()<Date.now():done;}),list=c.querySelector('#homeUpcomingList');if(list)list.innerHTML=renderHomeAssignmentRows(rows,mode);c.querySelectorAll('[data-home-assignment-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.homeAssignmentId,sid=b.dataset.homeAssignmentSection;if(id&&sid){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(sid,id));}});}
+function homeAssignmentDueDate(a){
+ const value=a?.due??a?.due_date??a?.dueDate??'';
+ if(!value)return null;
+ if(typeof value==='number')return new Date(value<1e12?value*1000:value);
+ const raw=String(value).trim();
+ // Schoology's Android model parses yyyy-MM-dd hh:mm:ss in the device's local timezone.
+ const match=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})(?:[ T](\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?$/);
+ if(match){
+  const [,year,month,day,hour='0',minute='0',second='0']=match;
+  const date=new Date(Number(year),Number(month)-1,Number(day),Number(hour),Number(minute),Number(second),0);
+  if(date.getFullYear()!==Number(year)||date.getMonth()!==Number(month)-1||date.getDate()!==Number(day))return null;
+  return date;
+ }
+ const parsed=new Date(raw);
+ return Number.isNaN(parsed.getTime())?null:parsed;
+}
+function homeAssignmentCompleted(a){
+ // The official 2026.10.0 Assignment model defines completion as completed == 1.
+ const value=a?.completed;
+ return value===1||value===true||String(value)==='1'||String(value).toLowerCase()==='true';
+}
+function homeAssignmentIsVisible(a){
+ const flag=value=>value===false||value===0||String(value)==='0'||String(value).toLowerCase()==='false';
+ if(a?.published!=null&&flag(a.published))return false;
+ if(a?.available!=null&&flag(a.available))return false;
+ return true;
+}
+function homeAssignmentGradeMap(response){
+ // Official GradesHolder shape: grades.grade[], each Grade is keyed by assignment_id.
+ const grades=response?.grades?.grade??response?.grades?.grades?.grade??response?.grade??response?.data?.grades?.grade??[];
+ const rows=Array.isArray(grades)?grades:(grades?[grades]:[]);
+ const map={};
+ for(const grade of rows){
+  const id=grade?.assignment_id??grade?.assignmentId;
+  if(id!=null)map[String(id)]=grade;
+ }
+ return map;
+}
+async function loadHomeSectionAssignments(sectionId){
+ const all=[];
+ // The official Android client requests up to 2,000 records and follows additional pages.
+ // Use the API's start/limit pagination so unusually large sections are not silently truncated.
+ for(let start=0,page=0;page<10;start+=2000,page++){
+  const response=await A.api({path:`sections/${sectionId}/assignments`,params:{start,limit:2000}});
+  const raw=response?.assignment??response?.assignments??response?.data?.assignment??response?.data?.assignments??[];
+  const rows=Array.isArray(raw)?raw:(raw?[raw]:[]);
+  if(!rows.length)break;
+  all.push(...rows);
+  if(rows.length<2000)break;
+ }
+ return all;
+}
+async function loadHomeAssignmentData(force=false){
+ const uid=state.auth?.userId||state.auth?.user?.id;
+ if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+ if(!force&&state.homeAssignmentsCache&&Date.now()-(state.homeAssignmentsCacheAt||0)<15000)return state.homeAssignmentsCache;
+ const response=await A.api({path:`users/${uid}/sections`,params:{start:0,limit:2000}});
+ const sections=response?.section??response?.sections??response?.data?.section??[];
+ const all=[];
+ await Promise.all((Array.isArray(sections)?sections:(sections?[sections]:[])).map(async section=>{
+  const sectionId=section.id??section.section_id??section.sectionId;
+  if(!sectionId)return;
+  const [assignmentsResponse,gradesResponse]=await Promise.all([
+   loadHomeSectionAssignments(sectionId),
+   // The official Android client obtains a section's grade data from sections/{id}/grades.
+   A.api({path:`sections/${sectionId}/grades`,params:{}}).catch(()=>({}))
+  ]);
+  const grades=homeAssignmentGradeMap(gradesResponse);
+  for(const assignment of assignmentsResponse){
+   const id=assignment.id??assignment.assignment_id??assignment.assignmentId;
+   if(id==null)continue;
+   all.push({...assignment,id,sectionId,gradeData:grades[String(id)]??{}});
+  }
+ }));
+ state.homeAssignmentsCache=all;
+ state.homeAssignmentsCacheAt=Date.now();
+ return all;
+}
+function homeAssignmentRowsForMode(all,mode){
+ return all.filter(assignment=>{
+  if(!homeAssignmentIsVisible(assignment))return false;
+  const due=homeAssignmentDueDate(assignment);
+  const completed=homeAssignmentCompleted(assignment);
+  if(mode==='overdue')return !completed&&!!due&&due.getTime()<Date.now();
+  return completed;
+ });
+}
+function renderHomeAssignmentRows(rows,mode){
+ const sorted=rows.slice().sort((a,b)=>{
+  const x=homeAssignmentDueDate(a)?.getTime()||0,y=homeAssignmentDueDate(b)?.getTime()||0;
+  return mode==='completed'?y-x:x-y;
+ });
+ if(!sorted.length)return `<div class="empty"><h2>${mode==='overdue'?'No overdue assignments':'No recently completed assignments'}</h2></div>`;
+ const groups=[],map=new Map();
+ for(const assignment of sorted){
+  const date=homeAssignmentDueDate(assignment),key=date?`${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`:'no-date';
+  if(!map.has(key)){const group={date,items:[]};map.set(key,group);groups.push(group);}
+  map.get(key).items.push(assignment);
+ }
+ const html=[];
+ for(const group of groups){
+  const full=group.date?group.date.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric',year:'numeric'}):(mode==='overdue'?'Overdue':'Completed');
+  const compact=group.date?group.date.toLocaleDateString([],{month:'numeric',day:'numeric'}):'';
+  html.push(`<section class="upcomingDateGroup"><div class="upcomingDateHeader"><span class="upcomingDateFull">${esc(full)}</span><span class="upcomingDateCompact">${esc(compact)}</span><span class="upcomingDateRule"></span></div><div class="upcomingDateSection">`);
+  for(const assignment of group.items){
+   const grade=assignment.gradeData?.grade??assignment.gradeData?.calculated_grade??assignment.grade??assignment.calculated_grade??'';
+   const max=assignment.gradeData?.max_points??assignment.max_points??assignment.maxPoints??'';
+   const has=grade!==null&&grade!==undefined&&String(grade).trim()!=='';
+   const small=mode==='completed'?`Grade: ${has?`${grade} / ${max}`:' / '}`:`Due ${group.date?group.date.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'date unavailable'}`;
+   html.push(`<button class="upcomingAssignment" data-home-assignment-id="${esc(assignment.id)}" data-home-assignment-section="${esc(assignment.sectionId)}"><span class="assignmentIcon officialEventIcon">${officialOrAssetIcon('ic_assignment.png','')}</span><span class="assignmentInfo"><b>${esc(assignment.title||'Untitled assignment')}</b><small>${esc(small)}</small></span><span class="rowChevron">›</span></button>`);
+  }
+  html.push('</div></section>');
+ }
+ return `<div class="upcomingList upcomingDateGroups">${html.join('')}</div>`;
+}
+async function loadHomeAssignmentTab(c,mode){
+ c=c||document.getElementById('homeTabContent');if(!c)return;
+ c.classList.remove('recentActivityScroll');c.classList.add('homePortraitUpcomingScroll');
+ c.innerHTML='<div id="homeUpcomingList" class="homeUpcomingPortraitList"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';
+ const all=await loadHomeAssignmentData(),rows=homeAssignmentRowsForMode(all,mode),list=c.querySelector('#homeUpcomingList');
+ if(list)list.innerHTML=renderHomeAssignmentRows(rows,mode);
+ c.querySelectorAll('[data-home-assignment-id]').forEach(button=>button.onclick=()=>{
+  const id=button.dataset.homeAssignmentId,sectionId=button.dataset.homeAssignmentSection;
+  if(id&&sectionId){state.homeUpcomingReturn=true;openWithPressTransition(button,()=>showAssignment(sectionId,id));}
+ });
+}
 async function renderUpcomingInto(c){
  const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
  const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:50}});
@@ -3147,7 +3281,7 @@ async function renderUpcomingInto(c){
  body.innerHTML=renderUpcoming(sorted);
  document.querySelectorAll('[data-course-upcoming-id]').forEach(b=>b.onclick=async()=>{const e=sorted.find(v=>String(v.id||'')===String(b.dataset.courseUpcomingId));if(!e)return;const type=String(e.type||'').toLowerCase();const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const sid=e.section_id??e.sectionId;if(type==='assignment'&&sid&&aid){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(sid,aid));return}if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){const id=aid??e.id;if(id){openWithPressTransition(b,async()=>{state.embeddedReturn={tab:'home',homeTab:state.homeTab,title:'Home'};await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true})});return}}if(type==='discussion'){const did=upcomingDiscussionId(e),eventRealm=String(e.realm||e.realm_name||e.realmName||'').toLowerCase(),realmId=e.realm_id??e.realmId,sectionId=e.section_id??e.sectionId??(['section','sections'].includes(eventRealm)?realmId:null),groupId=e.group_id??e.groupId??(['group','groups'].includes(eventRealm)?realmId:null);if(did&&sectionId){openWithPressTransition(b,()=>showDiscussionNative('sections',sectionId,did,e.title||'Discussion'));return}if(did&&groupId){openWithPressTransition(b,()=>showDiscussionNative('groups',groupId,did,e.title||'Discussion'));return}if(e.web_url||e.webUrl){openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Discussion'));return}}if(type==='event'&&e.id){openWithPressTransition(b,()=>showEventNative(e.section_id?'sections':'users',e.section_id||state.auth?.userId,e.id,e.title||'Event'));return}if(e.web_url||e.webUrl)openWithPressTransition(b,()=>showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming'));});
 }
-async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;const mode=state.homeUpcomingTab||'upcoming',list=c.querySelector('.homeUpcomingList');if(list)list.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';if(mode==='upcoming'){await renderUpcomingInto(c);return;}const all=await loadHomeAssignmentData(),rows=all.filter(a=>{const due=homeAssignmentDueDate(a),done=homeAssignmentCompleted(a);return mode==='overdue'?!done&&!!due&&due.getTime()<Date.now():done;}),target=c.querySelector('.homeUpcomingList');if(target)target.innerHTML=renderHomeAssignmentRows(rows,mode);c.querySelectorAll('[data-home-assignment-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.homeAssignmentId,sid=b.dataset.homeAssignmentSection;if(id&&sid){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(sid,id));}});}
+async function loadHomeUpcomingPane(){const c=document.getElementById('homeUpcomingPane');if(!c)return;const mode=state.homeUpcomingTab||'upcoming',list=c.querySelector('.homeUpcomingList');if(list)list.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';if(mode==='upcoming'){await renderUpcomingInto(c);return;}const all=await loadHomeAssignmentData(),rows=homeAssignmentRowsForMode(all,mode),target=c.querySelector('.homeUpcomingList');if(target)target.innerHTML=renderHomeAssignmentRows(rows,mode);c.querySelectorAll('[data-home-assignment-id]').forEach(b=>b.onclick=()=>{const id=b.dataset.homeAssignmentId,sid=b.dataset.homeAssignmentSection;if(id&&sid){state.homeUpcomingReturn=true;openWithPressTransition(b,()=>showAssignment(sid,id));}});}
 async function loadHomeTab(){
  const c=document.getElementById('homeTabContent');if(!c)return;
  homePostableUpdatePromise=getPostableUpdateDestinations().then(destinations=>(homePostableUpdateDestinations=destinations)).catch(error=>{console.warn('Unable to preload Home update permissions:',error?.message||error);homePostableUpdateDestinations=[];return []});

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ClassWire",
-  "version": "2026.10.0-port.122",
+  "version": "2026.10.0-port.123",
   "identifier": "com.schoologytauri.app",
   "build": {
     "beforeDevCommand": "npm run prepare:tauri",

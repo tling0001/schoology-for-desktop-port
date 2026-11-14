@@ -26,7 +26,7 @@ let pendingDeepLinkAfterLogin=null;
 let schoologyStartupComplete=false;
 let queuedIncomingDeepLink=null;
 let queuedNotificationOpen=null;
-let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,parentChildren:[],activeStudent:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,pageView:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false,groupCanCreateAlbum:false,groupCanAddResources:false};
+let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,parentChildren:[],activeStudent:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,resourceCanCreateCollection:false,resourceCreatableCollections:[],resourceCreatePermissions:{},pageView:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false,groupCanCreateAlbum:false,groupCanAddResources:false};
 window.__classWireAINavigate=async(kind,id,sectionId)=>{if(kind==='course'){const r=await A.api({path:'sections/'+Number(id),params:{}});await showCourse(r?.section||r,'materials',true);return true}if(kind==='group'){const r=await A.api({path:'groups/'+Number(id),params:{}});await showGroup(r?.group||r,'updates');return true}if(kind==='assignment'){if(!sectionId)throw new Error('Course ID missing for assignment navigation.');await showAssignment(Number(sectionId),Number(id));return true}if(kind==='messages'){state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.assignmentView=null;state.tab='messages';state.toolbarTitle='Messages';render();await loadTab();return true}throw new Error('Unsupported navigation target.')};
 window.__classWireAIContext=()=>({page:state.assignmentView?'assignment':state.pageView?'page':state.embeddedTitle?'embedded':state.currentGroup?'group':state.selectedCourse?'course':state.message?'message':state.tab||'home',title:state.toolbarTitle||'ClassWire',course:state.selectedCourse?{id:state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId,title:courseTitleOf(state.selectedCourse),section:sectionTitleOf(state.selectedCourse)}:null,assignment:state.assignmentView?{sectionId:state.assignmentView.sectionId,assignmentId:state.assignmentView.assignmentId}:null,gradeContext:state.aiGradeContext||null,group:state.currentGroup?{id:state.currentGroup.id||state.currentGroup.group_id,name:state.currentGroup.name||state.currentGroup.title}:null,tab:state.courseTab||state.groupTab||state.homeTab||state.tab||'',embeddedUrl:state.embeddedUrl||'',embeddedTitle:state.embeddedTitle||'',pageText:String(document.querySelector('#content')?.innerText||'').slice(0,24000)});
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
@@ -840,6 +840,21 @@ function syncToolbar(){
   const title=header.querySelector('.toolbarTitle');if(title)title.textContent=state.toolbarTitle||'Home';header.classList.toggle('toolbarAccountInfo',state.embeddedTheme==='account');header.classList.toggle('toolbarLti',state.embeddedTheme==='lti');
   const slot=header.querySelector('#toolbarActionSlot');if(!slot)return;
   slot.innerHTML='';
+  if(state.resourceCollection){
+    const collectionId=Number(state.resourceCollection.collection_id||state.resourceCollection.collectionID||state.resourceCollection.id||0);
+    if(collectionId>0&&state.resourceCreatePermissions?.[String(collectionId)]){
+      slot.innerHTML='<button id="standaloneResourceCreatePlus" class="iconButton toolbarImageButton" aria-label="Create resource in this collection" title="Create resource">'+officialIcon('ic_action_new.png','')+'</button>';
+      document.getElementById('standaloneResourceCreatePlus')?.addEventListener('click',()=>showResourceTemplateCreateDialog(collectionId));
+    }
+    return;
+  }
+  if(state.tab==='resources'&&!state.resourceCollection){
+    if(state.resourceCanCreateCollection||state.resourceCreatableCollections?.length){
+      slot.innerHTML='<button id="standaloneResourcesCreatePlus" class="iconButton toolbarImageButton" aria-label="Create resource or collection" title="Create">'+officialIcon('ic_action_new.png','')+'</button>';
+      document.getElementById('standaloneResourcesCreatePlus')?.addEventListener('click',showStandaloneResourceCreateMenu);
+    }
+    return;
+  }
   if(state.tab==='home'&&!state.courseView&&!state.assignmentView&&!state.embeddedTitle){slot.innerHTML=`<button id="homeCreatePlus" class="iconButton toolbarImageButton" aria-label="Create">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('homeCreatePlus')?.addEventListener('click',async()=>{await homePostableUpdatePromise;showHomeCreateMenu()});return;}
   if(state.tab==='calendar'&&!state.courseView&&!state.embeddedTitle){if(state.calendarCanCreate){slot.innerHTML=`<button id="calendarCreatePlus" class="iconButton toolbarImageButton" aria-label="Create event">${officialIcon('ic_action_new.png','')}</button>`;document.getElementById('calendarCreatePlus')?.addEventListener('click',()=>showCreatePostDialog('event','',null));}return;}
   if(state.eventView){
@@ -3323,10 +3338,121 @@ function setResourceLoading(button,text='Loading…'){
  if(button){button.disabled=true;button.classList.add('resourceBusy')}
  return()=>{overlay.remove();if(button){button.disabled=false;button.classList.remove('resourceBusy')}};
 }
+async function refreshResourceCreationPermissions(collections=[]){
+ state.resourceCanCreateCollection=false;state.resourceCreatableCollections=[];state.resourceCreatePermissions={};
+ const paths=['/v1/collections',...collections.map(item=>Number(item.collection_id||item.collectionID||item.id||0)).filter(id=>id>0).map(id=>'/v1/collections/'+id+'/resources')];
+ try{
+  const result=await A.api({path:'multioptions',method:'POST',params:{request:paths}});
+  const rows=Array.isArray(result?.response)?result.response:(Array.isArray(result?.responses)?result.responses:[]);
+  const postable=new Set();
+  for(const row of rows){if(!row?.location)continue;const body=typeof row.body==='string'?row.body:JSON.stringify(row.body??'');if(/\bpost\b/i.test(body))postable.add(String(row.location));}
+  state.resourceCanCreateCollection=postable.has('/v1/collections');
+  const seen=new Set();
+  state.resourceCreatableCollections=collections.filter(item=>{
+   const id=String(item.collection_id||item.collectionID||item.id||'');if(!id||seen.has(id)||!postable.has('/v1/collections/'+id+'/resources'))return false;seen.add(id);return true;
+  });
+  state.resourceCreatePermissions=Object.fromEntries([...seen].map(id=>[id,postable.has('/v1/collections/'+id+'/resources')]));
+ }catch(error){console.warn('Could not verify standalone resource creation permissions; creation remains hidden.',error)}
+ syncToolbar();
+}
+
+function showStandaloneResourceCreateMenu(){
+ const old=document.getElementById('standaloneResourceCreateMenu');old?.remove();
+ const actions=[];
+ if(state.resourceCanCreateCollection)actions.push('<button type="button" id="resourceCreateCollectionChoice" class="androidPrimary"><span><b>New collection</b><small>Create a personal resource collection</small></span></button>');
+ if(state.resourceCreatableCollections?.length)actions.push('<button type="button" id="resourceCreateTemplateChoice" class="androidSecondary"><span><b>New resource</b><small>Create a page, discussion, assignment, or document link</small></span></button>');
+ if(!actions.length)return;
+ const wrap=createSchoologyDialogShell({id:'standaloneResourceCreateMenu',title:'Create in Resources',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:'<div class="androidSimpleDialogBody resourceCreateChoices">'+actions.join('')+'</div>'});
+ document.body.appendChild(wrap);
+ const close=()=>wrap.remove();
+ wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
+ wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
+ wrap.querySelector('#resourceCreateCollectionChoice')?.addEventListener('click',()=>{close();showResourceCollectionCreateDialog()});
+ wrap.querySelector('#resourceCreateTemplateChoice')?.addEventListener('click',()=>{close();showResourceTemplateCreateDialog()});
+}
+async function verifyResourcePostPermission(path){
+ const result=await A.api({path:'multioptions',method:'POST',params:{request:[path]}});
+ const rows=Array.isArray(result?.response)?result.response:(Array.isArray(result?.responses)?result.responses:[]);
+ const row=rows.find(item=>String(item?.location||'')===path);
+ const body=typeof row?.body==='string'?row.body:JSON.stringify(row?.body??'');
+ return /\bpost\b/i.test(body);
+}
+async function showResourceCollectionCreateDialog(){
+ const wrap=createSchoologyDialogShell({id:'resourceCollectionCreateDialog',title:'New Resource Collection',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:'<div class="androidSimpleDialogBody"><label for="resourceCollectionTitle">Collection name</label><input id="resourceCollectionTitle" class="androidDialogInput" maxlength="120" placeholder="Enter a collection name"><p id="resourceCollectionCreateError" role="alert"></p></div><footer><button type="button" id="resourceCollectionCreateCancel" class="androidSecondary">Cancel</button><button type="button" id="resourceCollectionCreateSubmit" class="androidPrimary">Create</button></footer>'});
+ document.body.appendChild(wrap);const close=()=>wrap.remove();
+ wrap.querySelector('#resourceCollectionCreateCancel')?.addEventListener('click',close);
+ wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
+ wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
+ const input=wrap.querySelector('#resourceCollectionTitle'),button=wrap.querySelector('#resourceCollectionCreateSubmit'),error=wrap.querySelector('#resourceCollectionCreateError');
+ requestAnimationFrame(()=>input?.focus());
+ button?.addEventListener('click',async()=>{
+  const title=String(input?.value||'').trim();if(!title){error.textContent='Enter a collection name.';input?.focus();return}
+  button.disabled=true;error.textContent='Creating…';
+  try{
+   if(!await verifyResourcePostPermission('/v1/collections'))throw new Error('Schoology no longer allows this account to create resource collections.');
+   await A.api({path:'collections',method:'POST',params:{title},json:true});
+   close();state.resourceCollection=null;await loadResourcesHome(document.getElementById('content'));
+  }catch(e){error.textContent='Unable to create collection: '+(e.message||String(e));button.disabled=false}
+ });
+}
+async function showResourceTemplateCreateDialog(preferredCollectionId=null){
+ const writable=(state.resourceCreatableCollections||[]).filter(item=>{
+  const id=String(item.collection_id||item.collectionID||item.id||'');return id&&state.resourceCreatePermissions?.[id]===true;
+ });
+ const preferred=preferredCollectionId?String(preferredCollectionId):'';
+ const destinations=preferred?writable.filter(item=>String(item.collection_id||item.collectionID||item.id)===preferred):writable;
+ if(!destinations.length){showAppDialog('No writable collections','Schoology has not granted permission to add resources to any available collection.');return}
+ const collectionOptions=preferred?'':'<label for="resourceTemplateCollection">Save to collection</label><select id="resourceTemplateCollection" class="androidDialogInput">'+destinations.map(item=>{const id=item.collection_id||item.collectionID||item.id;return '<option value="'+esc(id)+'">'+esc(item.collection_title||item.title||item.name||'Collection')+'</option>'}).join('')+'</select>';
+ const bodyHtml='<div class="androidSimpleDialogBody">'+collectionOptions+
+  '<label for="resourceTemplateType">Resource type</label><select id="resourceTemplateType" class="androidDialogInput"><option value="page">Page</option><option value="discussion">Discussion</option><option value="assignment">Assignment</option><option value="document">Document link</option></select>'+
+  '<label for="resourceTemplateTitle">Title</label><input id="resourceTemplateTitle" class="androidDialogInput" maxlength="180" placeholder="Resource title">'+
+  '<div id="resourceTemplateBodyField"><label for="resourceTemplateBody">Body</label><textarea id="resourceTemplateBody" class="androidDialogInput" rows="5" placeholder="Describe this resource…"></textarea></div>'+
+  '<div id="resourceTemplateLinkField" hidden><label for="resourceTemplateLink">Web address</label><input id="resourceTemplateLink" class="androidDialogInput" type="url" placeholder="https://example.com"></div>'+
+  '<div id="resourceTemplatePointsField" hidden><label for="resourceTemplatePoints">Maximum points</label><input id="resourceTemplatePoints" class="androidDialogInput" type="number" min="0" max="10000" value="100"></div>'+
+  '<label for="resourceTemplateNotes">Resource notes (optional)</label><textarea id="resourceTemplateNotes" class="androidDialogInput" rows="2" placeholder="Notes"></textarea><p id="resourceTemplateCreateError" role="alert"></p></div>'+
+  '<footer><button type="button" id="resourceTemplateCreateCancel" class="androidSecondary">Cancel</button><button type="button" id="resourceTemplateCreateSubmit" class="androidPrimary">Create</button></footer>';
+ const wrap=createSchoologyDialogShell({id:'resourceTemplateCreateDialog',title:'New Schoology Resource',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:bodyHtml});
+ document.body.appendChild(wrap);const close=()=>wrap.remove();
+ const type=wrap.querySelector('#resourceTemplateType'),bodyField=wrap.querySelector('#resourceTemplateBodyField'),linkField=wrap.querySelector('#resourceTemplateLinkField'),pointsField=wrap.querySelector('#resourceTemplatePointsField');
+ const updateFields=()=>{const selected=type?.value||'page';bodyField.hidden=selected==='document';linkField.hidden=selected!=='document';pointsField.hidden=selected!=='assignment'};
+ type?.addEventListener('change',updateFields);updateFields();
+ wrap.querySelector('#resourceTemplateCreateCancel')?.addEventListener('click',close);
+ wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
+ wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
+ const titleInput=wrap.querySelector('#resourceTemplateTitle'),button=wrap.querySelector('#resourceTemplateCreateSubmit'),error=wrap.querySelector('#resourceTemplateCreateError');
+ requestAnimationFrame(()=>titleInput?.focus());
+ button?.addEventListener('click',async()=>{
+  const collectionId=preferred||String(wrap.querySelector('#resourceTemplateCollection')?.value||'');
+  const title=String(titleInput?.value||'').trim(),kind=String(type?.value||'page');
+  const text=String(wrap.querySelector('#resourceTemplateBody')?.value||'').trim();
+  const notes=String(wrap.querySelector('#resourceTemplateNotes')?.value||'').trim();
+  const link=String(wrap.querySelector('#resourceTemplateLink')?.value||'').trim();
+  const points=Math.max(0,Math.min(10000,Number(wrap.querySelector('#resourceTemplatePoints')?.value||100)));
+  if(!collectionId||!title){error.textContent='Choose a collection and enter a title.';return}
+  if(kind==='document'){try{const url=new URL(link);if(!['http:','https:'].includes(url.protocol))throw new Error()}catch{error.textContent='Enter a valid HTTP or HTTPS web address.';return}}
+  button.disabled=true;error.textContent='Creating…';
+  try{
+   const permissionPath='/v1/collections/'+collectionId+'/resources';
+   if(!await verifyResourcePostPermission(permissionPath))throw new Error('Schoology no longer allows this account to add resources to the selected collection.');
+   const templateFields={};const payload={title:title,type:kind,resource_notes:notes};
+   if(kind==='page'||kind==='discussion'){templateFields.body=text}
+   else if(kind==='assignment'){templateFields.body=text;templateFields.max_points=Number.isFinite(points)?Math.floor(points):100}
+   else{templateFields.document_type='link';payload.attachments=[{url:new URL(link).href}]}
+   payload.template_fields=templateFields;
+   await A.api({path:'collections/'+collectionId+'/resources',method:'POST',params:payload,json:true});
+   close();
+   if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection)}
+   else await loadResourcesHome(document.getElementById('content'));
+  }catch(e){error.textContent='Unable to create resource: '+(e.message||String(e));button.disabled=false}
+ });
+}
+
 async function loadResourcesHome(c){
+ state.resourceCollection=null;state.toolbarTitle='Resources';
  c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></section>';
  const x=await A.api({path:'collections',params:{limit:200}}); const appsX=await A.api({path:'resource_apps',params:{limit:200}}).catch(()=>({}));
  const all=x.collection||x.collections||x.collection_list||[]; const apps=appsX.resource_apps||appsX.resourceApps||appsX.collection||appsX.collections||[];
+ await refreshResourceCreationPermissions(all);
  const uid=state.auth?.userId||state.auth?.user?.id; const groups=[],shared=[],mine=[];
  all.forEach(o=>{const owner=Number(o.collection_owner_id??o.collectionOwnerId??o.uid??o.owner_id??0), realmRaw=o.collection_realm??o.collectionRealm??o.realm??null, realm=String(realmRaw??'').toLowerCase(), sharedCount=Number(o.shared_users_count??o.sharedUsersCount??o.shared_users??0);if(realmRaw==null&&owner===Number(uid))mine.push(o);else if(sharedCount>0)shared.push(o);else if(realm==='group')groups.push(o)});
  const categories=[['mine','My Resources',mine],['shared','Shared',shared],['groups','Groups',groups],['apps','Resource Apps',apps]];
@@ -3336,8 +3462,10 @@ async function loadResourcesHome(c){
  document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');await A.openExternal(url).then(result=>{if(typeof result==='string'&&result)showAppDialog('Unable to open resource app',result)})}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
 }
 async function openResourceCollection(col){
- const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';syncToolbar();
- const id=col.collection_id||col.collectionID||col.id;if(!id)return;
+ const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';
+ const id=Number(col.collection_id||col.collectionID||col.id||0);if(!id)return;
+ if(state.resourceCreatePermissions?.[String(id)]===undefined)await refreshResourceCreationPermissions([col]);
+ syncToolbar();
  const folderId=col.folder_id||col.folderId||col.collection_folder_id||col.collectionFolderId||0;
  c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></section>';
  try{const x=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE',...(folderId?{f:folderId}:{})}});const arr=x.resource||x.resources||x.resource_list||[];c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceRows">${arr.length?arr.map((r,i)=>{const title=resourceTitle(r),type=resourceType(r);return `<button class="resourceFileRow" data-resource-item-index="${i}">${resourceIconMarkup(resourceIconForType(type,title,r))}<span><b>${esc(title)}</b></span><span>›</span></button>`}).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`;window.__resourceItems=arr;document.querySelectorAll('[data-resource-item-index]').forEach(b=>b.onclick=async()=>{const stop=setResourceLoading(b,'Loading resource…');try{await openCollectionResource(window.__resourceItems[+b.dataset.resourceItemIndex],b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}})}catch(e){c.innerHTML=`<div class="error apiError">Schoology could not load resources.<br>${esc(e.message)}</div>`}

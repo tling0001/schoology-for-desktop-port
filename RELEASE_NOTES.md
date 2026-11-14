@@ -1,3 +1,15 @@
+## [2026.10.0-port.123]
+
+### Standalone Resources creation
+- Add a permission-gated plus action to the standalone Resources app bar and collection toolbar.
+- Offer New Collection and New Resource based on Schoology's multioptions POST permissions, and keep the action hidden when permission checks fail or are unavailable.
+- Re-check permission immediately before creating each collection or resource template.
+- Support the documented Page, Discussion, Assignment, and Document Link resource types, including resource notes and assignment maximum points.
+- Refresh the current Resources view after successful creation.
+
+### Build
+- Increment the npm, Tauri, and Rust package versions to `2026.10.0-port.123`.
+
 # Release notes
 
 ## [2026.10.0-port.122]

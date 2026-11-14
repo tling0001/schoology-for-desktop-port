@@ -3275,6 +3275,7 @@ function resourceIconForType(type,title,item={}){
  if(t==='document'){
    if(dt==='link')return 'ic_files_links.png';
    if(dt==='embed')return 'attachment_link_icon.png';
+   if(dt==='video')return 'ic_attach_audio.png';
    if(dt==='external_tool')return 'ic_web_content.png';
    if(dt==='file'){
      const n=String(title||'').replaceAll('#','').toLowerCase();
@@ -3318,6 +3319,10 @@ async function openCollectionResource(item,button){
      const embed=firstAttachment(item,'embeds');const code=embed?.embed_code||embed?.embedCode;
      if(code){showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),title,{allowBrowser:false});return}
    }
+   if(dt==='video'){
+     const video=firstAttachment(item,'videos');const url=video?.url||video?.video_url||video?.videoUrl||item.url||item.web_url||item.webUrl;
+     if(url){const result=await A.openExternal(normalizeSchoologyWebUrl(url));if(typeof result==='string'&&result)throw new Error(result);return}
+   }
    if(dt==='external_tool'){
      const u=item.launch_url||item.launchUrl||item.web_url||item.webUrl||item.url||item.href;
      if(u){const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return}
@@ -3360,7 +3365,7 @@ function showStandaloneResourceCreateMenu(){
  const old=document.getElementById('standaloneResourceCreateMenu');old?.remove();
  const actions=[];
  if(state.resourceCanCreateCollection)actions.push('<button type="button" id="resourceCreateCollectionChoice" class="androidPrimary"><span><b>New collection</b><small>Create a personal resource collection</small></span></button>');
- if(state.resourceCreatableCollections?.length)actions.push('<button type="button" id="resourceCreateTemplateChoice" class="androidSecondary"><span><b>New resource</b><small>Create a page, discussion, assignment, or document link</small></span></button>');
+ if(state.resourceCreatableCollections?.length)actions.push('<button type="button" id="resourceCreateTemplateChoice" class="androidSecondary"><span><b>New resource</b><small>Create a page, discussion, assignment, document, video, embed, or folder</small></span></button>');
  if(!actions.length)return;
  const wrap=createSchoologyDialogShell({id:'standaloneResourceCreateMenu',title:'Create in Resources',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:'<div class="androidSimpleDialogBody resourceCreateChoices">'+actions.join('')+'</div>'});
  document.body.appendChild(wrap);
@@ -3396,57 +3401,96 @@ async function showResourceCollectionCreateDialog(){
  });
 }
 async function showResourceTemplateCreateDialog(preferredCollectionId=null){
- const writable=(state.resourceCreatableCollections||[]).filter(item=>{
-  const id=String(item.collection_id||item.collectionID||item.id||'');return id&&state.resourceCreatePermissions?.[id]===true;
- });
- const preferred=preferredCollectionId?String(preferredCollectionId):'';
- const destinations=preferred?writable.filter(item=>String(item.collection_id||item.collectionID||item.id)===preferred):writable;
- if(!destinations.length){showAppDialog('No writable collections','Schoology has not granted permission to add resources to any available collection.');return}
- const collectionOptions=preferred?'':'<label for="resourceTemplateCollection">Save to collection</label><select id="resourceTemplateCollection" class="androidDialogInput">'+destinations.map(item=>{const id=item.collection_id||item.collectionID||item.id;return '<option value="'+esc(id)+'">'+esc(item.collection_title||item.title||item.name||'Collection')+'</option>'}).join('')+'</select>';
- const bodyHtml='<div class="androidSimpleDialogBody">'+collectionOptions+
-  '<label for="resourceTemplateType">Resource type</label><select id="resourceTemplateType" class="androidDialogInput"><option value="page">Page</option><option value="discussion">Discussion</option><option value="assignment">Assignment</option><option value="document">Document link</option></select>'+
-  '<label for="resourceTemplateTitle">Title</label><input id="resourceTemplateTitle" class="androidDialogInput" maxlength="180" placeholder="Resource title">'+
-  '<div id="resourceTemplateBodyField"><label for="resourceTemplateBody">Body</label><textarea id="resourceTemplateBody" class="androidDialogInput" rows="5" placeholder="Describe this resource…"></textarea></div>'+
-  '<div id="resourceTemplateLinkField" hidden><label for="resourceTemplateLink">Web address</label><input id="resourceTemplateLink" class="androidDialogInput" type="url" placeholder="https://example.com"></div>'+
-  '<div id="resourceTemplatePointsField" hidden><label for="resourceTemplatePoints">Maximum points</label><input id="resourceTemplatePoints" class="androidDialogInput" type="number" min="0" max="10000" value="100"></div>'+
-  '<label for="resourceTemplateNotes">Resource notes (optional)</label><textarea id="resourceTemplateNotes" class="androidDialogInput" rows="2" placeholder="Notes"></textarea><p id="resourceTemplateCreateError" role="alert"></p></div>'+
-  '<footer><button type="button" id="resourceTemplateCreateCancel" class="androidSecondary">Cancel</button><button type="button" id="resourceTemplateCreateSubmit" class="androidPrimary">Create</button></footer>';
- const wrap=createSchoologyDialogShell({id:'resourceTemplateCreateDialog',title:'New Schoology Resource',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:bodyHtml});
- document.body.appendChild(wrap);const close=()=>wrap.remove();
- const type=wrap.querySelector('#resourceTemplateType'),bodyField=wrap.querySelector('#resourceTemplateBodyField'),linkField=wrap.querySelector('#resourceTemplateLinkField'),pointsField=wrap.querySelector('#resourceTemplatePointsField');
- const updateFields=()=>{const selected=type?.value||'page';bodyField.hidden=selected==='document';linkField.hidden=selected!=='document';pointsField.hidden=selected!=='assignment'};
- type?.addEventListener('change',updateFields);updateFields();
- wrap.querySelector('#resourceTemplateCreateCancel')?.addEventListener('click',close);
- wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
- wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
- const titleInput=wrap.querySelector('#resourceTemplateTitle'),button=wrap.querySelector('#resourceTemplateCreateSubmit'),error=wrap.querySelector('#resourceTemplateCreateError');
- requestAnimationFrame(()=>titleInput?.focus());
- button?.addEventListener('click',async()=>{
-  const collectionId=preferred||String(wrap.querySelector('#resourceTemplateCollection')?.value||'');
-  const title=String(titleInput?.value||'').trim(),kind=String(type?.value||'page');
-  const text=String(wrap.querySelector('#resourceTemplateBody')?.value||'').trim();
-  const notes=String(wrap.querySelector('#resourceTemplateNotes')?.value||'').trim();
-  const link=String(wrap.querySelector('#resourceTemplateLink')?.value||'').trim();
-  const points=Math.max(0,Math.min(10000,Number(wrap.querySelector('#resourceTemplatePoints')?.value||100)));
-  if(!collectionId||!title){error.textContent='Choose a collection and enter a title.';return}
-  if(kind==='document'){try{const url=new URL(link);if(!['http:','https:'].includes(url.protocol))throw new Error()}catch{error.textContent='Enter a valid HTTP or HTTPS web address.';return}}
-  button.disabled=true;error.textContent='Creating…';
-  try{
-   const permissionPath='/v1/collections/'+collectionId+'/resources';
-   if(!await verifyResourcePostPermission(permissionPath))throw new Error('Schoology no longer allows this account to add resources to the selected collection.');
-   const templateFields={};const payload={title:title,type:kind,resource_notes:notes};
-   if(kind==='page'||kind==='discussion'){templateFields.body=text}
-   else if(kind==='assignment'){templateFields.body=text;templateFields.max_points=Number.isFinite(points)?Math.floor(points):100}
-   else{templateFields.document_type='link';payload.attachments=[{url:new URL(link).href}]}
-   payload.template_fields=templateFields;
-   await A.api({path:'collections/'+collectionId+'/resources',method:'POST',params:payload,json:true});
-   close();
-   if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection)}
-   else await loadResourcesHome(document.getElementById('content'));
-  }catch(e){error.textContent='Unable to create resource: '+(e.message||String(e));button.disabled=false}
- });
+  const writable=(state.resourceCreatableCollections||[]).filter(item=>{
+   const id=String(item.collection_id||item.collectionID||item.id||'');return id&&state.resourceCreatePermissions?.[id]===true;
+  });
+  const preferred=preferredCollectionId?String(preferredCollectionId):'';
+  const destinations=preferred?writable.filter(item=>String(item.collection_id||item.collectionID||item.id)===preferred):writable;
+  if(!destinations.length){showAppDialog('No writable collections','Schoology has not granted permission to add resources to any available collection.');return}
+  const collectionOptions=preferred?'':'<label for="resourceTemplateCollection">Save to collection</label><select id="resourceTemplateCollection" class="androidDialogInput">'+destinations.map(item=>{const id=item.collection_id||item.collectionID||item.id;return '<option value="'+esc(id)+'">'+esc(item.collection_title||item.title||item.name||'Collection')+'</option>'}).join('')+'</select>';
+  const bodyHtml='<div class="androidSimpleDialogBody">'+collectionOptions+
+   '<label for="resourceTemplateType">Resource type</label><select id="resourceTemplateType" class="androidDialogInput"><option value="page">Page</option><option value="discussion">Discussion</option><option value="assignment">Assignment</option><option value="documentLink">Document link</option><option value="documentFile">Upload a file</option><option value="documentVideo">Video link</option><option value="documentEmbed">Embed code</option><option value="folder">Folder</option></select>'+
+   '<label for="resourceTemplateTitle">Title</label><input id="resourceTemplateTitle" class="androidDialogInput" maxlength="180" placeholder="Resource title">'+
+   '<div id="resourceTemplateBodyField"><label for="resourceTemplateBody">Body</label><textarea id="resourceTemplateBody" class="androidDialogInput" rows="5" placeholder="Describe this resource…"></textarea></div>'+
+   '<div id="resourceTemplateLinkField" hidden><label for="resourceTemplateLink">Web address</label><input id="resourceTemplateLink" class="androidDialogInput" type="url" placeholder="https://example.com"></div>'+
+   '<div id="resourceTemplateFileField" hidden><label>File</label><button type="button" id="resourceTemplateChooseFile" class="androidSecondary">Choose file</button><p id="resourceTemplateFileName" aria-live="polite">No file selected</p></div>'+
+   '<div id="resourceTemplateVideoField" hidden><label for="resourceTemplateVideo">Video address</label><input id="resourceTemplateVideo" class="androidDialogInput" type="url" placeholder="https://…"></div>'+
+   '<div id="resourceTemplateEmbedField" hidden><label for="resourceTemplateEmbed">Embed code</label><textarea id="resourceTemplateEmbed" class="androidDialogInput" rows="4" placeholder="<iframe …></iframe>"></textarea><small>Use an iframe embed from a trusted provider.</small></div>'+
+   '<div id="resourceTemplatePointsField" hidden><label for="resourceTemplatePoints">Maximum points</label><input id="resourceTemplatePoints" class="androidDialogInput" type="number" min="0" max="10000" value="100"></div>'+
+   '<div id="resourceTemplateFolderField" hidden><label for="resourceTemplateFolderColor">Folder color</label><select id="resourceTemplateFolderColor" class="androidDialogInput"><option value="blue">Blue</option><option value="pink">Pink</option><option value="orange">Orange</option><option value="purple">Purple</option><option value="yellow">Yellow</option><option value="red">Red</option><option value="gray">Gray</option><option value="black">Black</option><option value="green">Green</option></select></div>'+
+   '<label for="resourceTemplateNotes">Resource notes (optional)</label><textarea id="resourceTemplateNotes" class="androidDialogInput" rows="2" placeholder="Notes"></textarea><p id="resourceTemplateCreateError" role="alert"></p></div>'+
+   '<footer><button type="button" id="resourceTemplateCreateCancel" class="androidSecondary">Cancel</button><button type="button" id="resourceTemplateCreateSubmit" class="androidPrimary">Create</button></footer>';
+  const wrap=createSchoologyDialogShell({id:'resourceTemplateCreateDialog',title:'New Schoology Resource',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:bodyHtml});
+  document.body.appendChild(wrap);const close=()=>wrap.remove();
+  const type=wrap.querySelector('#resourceTemplateType'),bodyField=wrap.querySelector('#resourceTemplateBodyField'),linkField=wrap.querySelector('#resourceTemplateLinkField'),fileField=wrap.querySelector('#resourceTemplateFileField'),videoField=wrap.querySelector('#resourceTemplateVideoField'),embedField=wrap.querySelector('#resourceTemplateEmbedField'),pointsField=wrap.querySelector('#resourceTemplatePointsField'),folderField=wrap.querySelector('#resourceTemplateFolderField');
+  const updateFields=()=>{const selected=type?.value||'page';bodyField.hidden=!['page','discussion','assignment'].includes(selected);linkField.hidden=selected!=='documentLink';fileField.hidden=selected!=='documentFile';videoField.hidden=selected!=='documentVideo';embedField.hidden=selected!=='documentEmbed';pointsField.hidden=selected!=='assignment';folderField.hidden=selected!=='folder'};
+  type?.addEventListener('change',updateFields);updateFields();
+  wrap.querySelector('#resourceTemplateCreateCancel')?.addEventListener('click',close);
+  wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
+  wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
+  const titleInput=wrap.querySelector('#resourceTemplateTitle'),button=wrap.querySelector('#resourceTemplateCreateSubmit'),error=wrap.querySelector('#resourceTemplateCreateError'),fileButton=wrap.querySelector('#resourceTemplateChooseFile'),fileNameLabel=wrap.querySelector('#resourceTemplateFileName');
+  let selectedFilePath='';
+  fileButton?.addEventListener('click',async()=>{
+   if(fileButton.disabled)return;
+   try{
+    const picked=await A.pickFile?.();if(!picked)return;
+    selectedFilePath=typeof picked==='string'?picked:(picked.path||picked.filePath||'');
+    if(!selectedFilePath)throw new Error('The selected file has no local path.');
+    const selectedName=(typeof picked==='object'&&(picked.name||picked.fileName))||selectedFilePath.split(/[\\/]/).pop()||'Selected file';
+    fileNameLabel.textContent=selectedName;error.textContent='';
+   }catch(e){selectedFilePath='';fileNameLabel.textContent='No file selected';error.textContent='Unable to select file: '+(e.message||String(e))}
+  });
+  requestAnimationFrame(()=>titleInput?.focus());
+  button?.addEventListener('click',async()=>{
+   const collectionId=preferred||String(wrap.querySelector('#resourceTemplateCollection')?.value||'');
+   const title=String(titleInput?.value||'').trim(),kind=String(type?.value||'page');
+   const text=String(wrap.querySelector('#resourceTemplateBody')?.value||'').trim();
+   const notes=String(wrap.querySelector('#resourceTemplateNotes')?.value||'').trim();
+   const link=String(wrap.querySelector('#resourceTemplateLink')?.value||'').trim();
+   const video=String(wrap.querySelector('#resourceTemplateVideo')?.value||'').trim();
+   const embed=String(wrap.querySelector('#resourceTemplateEmbed')?.value||'').trim();
+   const points=Math.max(0,Math.min(10000,Number(wrap.querySelector('#resourceTemplatePoints')?.value||100)));
+   const folderColor=String(wrap.querySelector('#resourceTemplateFolderColor')?.value||'blue');
+   if(!collectionId||!title){error.textContent='Choose a collection and enter a title.';return}
+   const validHttpUrl=value=>{try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)?url:null}catch{return null}};
+   if(kind==='documentLink'&&!validHttpUrl(link)){error.textContent='Enter a valid HTTP or HTTPS web address.';return}
+   if(kind==='documentVideo'&&!validHttpUrl(video)){error.textContent='Enter a valid HTTP or HTTPS video address.';return}
+   if(kind==='documentFile'&&!selectedFilePath){error.textContent='Choose a file to upload.';return}
+   if(kind==='documentEmbed'){
+    const iframe=embed.match(/^\s*<iframe\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>\s*<\/iframe>\s*$/i);
+    if(!iframe||!validHttpUrl(iframe[1])||/<\s*(script|object|embed)\b/i.test(embed)){error.textContent='Enter a single iframe embed with an HTTP or HTTPS source. Script, object, and embed tags are not accepted.';return}
+   }
+   button.disabled=true;if(fileButton)fileButton.disabled=true;error.textContent='Checking permissions…';
+   try{
+    const permissionPath='/v1/collections/'+collectionId+'/resources';
+    if(!await verifyResourcePostPermission(permissionPath))throw new Error('Schoology no longer allows this account to add resources to the selected collection.');
+    let uploadedFileId=null;
+    if(kind==='documentFile'){
+     error.textContent='Uploading file…';
+     uploadedFileId=await A.uploadSchoologyFile({filePath:selectedFilePath});
+     if(!uploadedFileId)throw new Error('Schoology did not return an uploaded file ID.');
+    }
+    error.textContent='Creating…';
+    if(!await verifyResourcePostPermission(permissionPath))throw new Error('Schoology no longer allows this account to add resources to the selected collection.');
+    const templateFields={},payload={title,type:kind.startsWith('document')?'document':kind,resource_notes:notes};
+    if(kind==='page'||kind==='discussion'){templateFields.body=text}
+    else if(kind==='assignment'){templateFields.body=text;templateFields.max_points=Number.isFinite(points)?Math.floor(points):100}
+    else if(kind==='documentLink'){templateFields.document_type='link';payload.attachments=[{url:validHttpUrl(link).href}]}
+    else if(kind==='documentFile'){templateFields.document_type='file';payload.attachments={files:{file:[{id:String(uploadedFileId)}]}}}
+    else if(kind==='documentVideo'){templateFields.document_type='video';payload.attachments={videos:{video:[{url:validHttpUrl(video).href,title,type:'video'}]}}}
+    else if(kind==='documentEmbed'){templateFields.document_type='embed';payload.attachments={embeds:{embed:[{embed_code:embed,type:'embed'}]}}}
+    else if(kind==='folder'){
+     const parentFolder=state.resourceCollection?.folder_id||state.resourceCollection?.folderId||state.resourceCollection?.collection_folder_id||state.resourceCollection?.collectionFolderId||0;
+     payload.folder_id=Number(parentFolder)||0;payload.color=folderColor;
+    }
+    if(Object.keys(templateFields).length)payload.template_fields=templateFields;
+    await A.api({path:'collections/'+collectionId+'/resources',method:'POST',params:payload,json:true});
+    close();
+    if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection)}
+    else await loadResourcesHome(document.getElementById('content'));
+   }catch(e){error.textContent='Unable to create resource: '+(e.message||String(e));button.disabled=false;if(fileButton)fileButton.disabled=false}
+  });
 }
-
 async function loadResourcesHome(c){
  state.resourceCollection=null;state.toolbarTitle='Resources';
  c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></section>';

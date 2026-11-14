@@ -1,3 +1,15 @@
+## [2026.10.0-port.124]
+
+### Standalone Resources creation
+- Extend the permission-gated resource composer with document file uploads, video links, iframe embeds, and color-coded collection folders.
+- Reuse the native Tauri file picker and existing Schoology FileService upload/fallback implementation.
+- Re-check the selected collection's Schoology POST permission before uploading and again immediately before creating the resource.
+- Validate document/video links and iframe sources as HTTP/HTTPS, and reject script, object, and embed tags in iframe input.
+- Preserve Page, Discussion, Assignment, and Document Link creation; add video-resource opening and nested folder navigation.
+
+### Build
+- Increment the npm, Tauri, and Rust package versions to `2026.10.0-port.124`.
+
 ## [2026.10.0-port.123]
 
 ### Standalone Resources creation

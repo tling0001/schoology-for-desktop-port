@@ -1,6 +1,6 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.10.0-port.123",
+  "version": "2026.10.0-port.124",
   "description": "ClassWire desktop app aligned with the supplied Schoology Android 2026.10.0 source",
   "scripts": {
     "build:updater": "cargo build --release --manifest-path updater-tauri/Cargo.toml && node scripts/stage-updater.mjs",
